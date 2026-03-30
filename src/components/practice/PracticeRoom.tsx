@@ -20,7 +20,7 @@ interface PracticeRoomProps {
   onExit: () => void;
 }
 
-type QuestionSource = "seeded" | "ai";
+type QuestionSource = "ai";
 type SessionPhase = "answering" | "marking" | "review";
 
 export function PracticeRoom({ config, onExit }: PracticeRoomProps) {
@@ -28,25 +28,15 @@ export function PracticeRoom({ config, onExit }: PracticeRoomProps) {
   const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [source, setSource] = useState<QuestionSource>("seeded");
   const [phase, setPhase] = useState<SessionPhase>("answering");
   const [feedbacks, setFeedbacks] = useState<Record<string, MarkingFeedback>>({});
   const [markingId, setMarkingId] = useState<string | null>(null);
   const [generatingQuestions, setGeneratingQuestions] = useState(false);
 
-  // Load seeded questions first
+  // Generate fresh questions from Claude on session start
   useEffect(() => {
-    async function loadQuestions() {
-      const { data } = await supabase
-        .from("seeded_questions")
-        .select("id, question_text, marks, question_order, mark_scheme, worked_solution")
-        .eq("subtopic_id", config.subtopicId)
-        .order("question_order");
-      setQuestions(data ?? []);
-      setSource("seeded");
-      setLoading(false);
-    }
-    loadQuestions();
+    generateAIQuestions();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [config.subtopicId]);
 
   const currentQuestion = questions[currentIndex];
@@ -59,25 +49,24 @@ export function PracticeRoom({ config, onExit }: PracticeRoomProps) {
     setAnswers((prev) => ({ ...prev, [currentQuestion.id]: value }));
   };
 
-  // Generate AI questions
+  // Generate fresh questions from Claude
   const generateAIQuestions = async () => {
     setGeneratingQuestions(true);
+    setLoading(false);
     try {
       const { data, error } = await supabase.functions.invoke("generate-questions", {
-        body: { subtopicId: config.subtopicId, count: 5 },
+        body: { subtopicId: config.subtopicId, count: 4 },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
       setQuestions(data.questions);
-      setSource("ai");
       setCurrentIndex(0);
       setAnswers({});
       setFeedbacks({});
       setPhase("answering");
-      toast({ title: "New questions generated", description: "Fresh AI questions ready for you." });
     } catch (e: any) {
-      toast({ title: "Generation failed", description: e.message || "Please try again.", variant: "destructive" });
+      toast({ title: "Question generation failed", description: e.message || "Please try again.", variant: "destructive" });
     } finally {
       setGeneratingQuestions(false);
     }
@@ -128,28 +117,28 @@ export function PracticeRoom({ config, onExit }: PracticeRoomProps) {
   const currentFeedback = currentQuestion ? feedbacks[currentQuestion.id] : null;
   const isMarking = markingId === currentQuestion?.id;
 
-  // Session summary in review phase
   const totalAwarded = Object.values(feedbacks).reduce((s, f) => s + f.marks_awarded, 0);
   const totalAvailable = Object.values(feedbacks).reduce((s, f) => s + f.marks_available, 0);
 
-  if (loading) {
+  if (loading || generatingQuestions) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-3">
+        <Loader2 className="h-5 w-5 animate-spin text-primary" />
+        <p className="text-sm text-muted-foreground">Generating your questions…</p>
       </div>
     );
   }
 
-  if (questions.length === 0 && !generatingQuestions) {
+  if (questions.length === 0) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
-        <p className="text-muted-foreground text-sm">No seeded questions for this subtopic yet.</p>
+        <p className="text-muted-foreground text-sm">Could not load questions. Please try again.</p>
         <button
           onClick={generateAIQuestions}
           className="flex items-center gap-1.5 text-sm text-primary hover:text-primary/80 underline underline-offset-2 transition-colors"
         >
           <Sparkles size={14} />
-          Generate AI questions instead
+          Try again
         </button>
         <button
           onClick={onExit}
@@ -157,15 +146,6 @@ export function PracticeRoom({ config, onExit }: PracticeRoomProps) {
         >
           Go back
         </button>
-      </div>
-    );
-  }
-
-  if (generatingQuestions) {
-    return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-3">
-        <Loader2 className="h-5 w-5 animate-spin text-primary" />
-        <p className="text-sm text-muted-foreground">Generating questions…</p>
       </div>
     );
   }
@@ -181,11 +161,6 @@ export function PracticeRoom({ config, onExit }: PracticeRoomProps) {
             {phase === "review"
               ? `${totalAwarded}/${totalAvailable} marks`
               : `${totalMarks} marks total`}
-            {source === "ai" && (
-              <span className="ml-2 text-primary/60">
-                <Sparkles size={10} className="inline -mt-0.5" /> AI
-              </span>
-            )}
           </span>
           <div className="flex items-center gap-3">
             {phase === "answering" && (
@@ -193,7 +168,7 @@ export function PracticeRoom({ config, onExit }: PracticeRoomProps) {
                 onClick={generateAIQuestions}
                 disabled={generatingQuestions}
                 className="text-xs text-muted-foreground/60 hover:text-primary transition-colors flex items-center gap-1"
-                title="Generate new AI questions"
+                title="Generate new questions"
               >
                 <Sparkles size={12} />
                 New set
@@ -234,7 +209,6 @@ export function PracticeRoom({ config, onExit }: PracticeRoomProps) {
                 onAnswerChange={handleAnswerChange}
               />
 
-              {/* Individual mark button */}
               {phase === "answering" && currentQuestion && answers[currentQuestion.id]?.trim() && !feedbacks[currentQuestion.id] && (
                 <div className="mt-6 flex justify-end">
                   <button
@@ -252,7 +226,6 @@ export function PracticeRoom({ config, onExit }: PracticeRoomProps) {
                 </div>
               )}
 
-              {/* Show inline feedback if already marked */}
               {phase === "answering" && currentQuestion && feedbacks[currentQuestion.id] && (
                 <div className="mt-8 pt-6 border-t border-border/40">
                   <FeedbackCard
@@ -276,7 +249,6 @@ export function PracticeRoom({ config, onExit }: PracticeRoomProps) {
             Previous
           </button>
 
-          {/* Question dots */}
           <div className="flex items-center gap-1.5">
             {questions.map((q, i) => (
               <button
