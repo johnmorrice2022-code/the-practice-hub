@@ -1,0 +1,129 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Hub Jam Brand — warm cream palette */
+    --background: 30 47% 95%;        /* #f9f3eb */
+    --foreground: 0 0% 10%;          /* #1a1a1a */
+
+    --card: 0 0% 100%;               /* #ffffff */
+    --card-foreground: 0 0% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 10%;
+
+    --primary: 35 90% 55%;           /* #F5A623 amber */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 30 30% 92%;         /* #f0e9df raised surface */
+    --secondary-foreground: 0 0% 10%;
+
+    --muted: 30 30% 92%;
+    --muted-foreground: 25 5% 39%;   /* #6b6560 */
+
+    --accent: 35 90% 55%;            /* amber accent */
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 4 70% 50%;        /* #E05C5C caution */
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 153 40% 49%;          /* #4CAF82 */
+    --success-foreground: 0 0% 100%;
+
+    --border: 30 20% 86%;            /* #e0d8ce */
+    --input: 30 20% 86%;
+    --ring: 35 90% 55%;
+
+    --radius: 0.75rem;
+
+    --navbar: 0 0% 10%;              /* #1a1a1a */
+    --navbar-foreground: 30 47% 95%; /* #f9f3eb */
+    --navbar-accent: 35 90% 55%;     /* #F5A623 */
+
+    --accent-hover: 33 78% 47%;      /* #d4891a */
+
+    --sidebar-background: 30 47% 95%;
+    --sidebar-foreground: 0 0% 10%;
+    --sidebar-primary: 35 90% 55%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 30 30% 92%;
+    --sidebar-accent-foreground: 0 0% 10%;
+    --sidebar-border: 30 20% 86%;
+    --sidebar-ring: 35 90% 55%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-size: 16px;
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-bold text-foreground;
+    line-height: 1.3;
+  }
+}
+
+/* Hub Jam Utilities */
+@layer utilities {
+  .text-accent-amber {
+    color: hsl(var(--primary));
+  }
+
+  .bg-raised {
+    background-color: hsl(var(--secondary));
+  }
+
+  .card-shadow {
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  }
+
+  .card-shadow-lg {
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.1);
+  }
+}
+
+/* Question text styling */
+.question-text p {
+  margin-bottom: 1rem;
+}
+.question-text p:last-child {
+  margin-bottom: 0;
+}
+
+/* Exam-paper textarea — writing space, not a form field */
+.exam-textarea {
+  width: 100%;
+  min-height: 140px;
+  padding: 1rem 0;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid hsl(var(--border) / 0.4);
+  color: hsl(var(--foreground));
+  font-size: 0.9375rem;
+  line-height: 1.8;
+  resize: none;
+  outline: none;
+  font-family: inherit;
+  transition: border-color 0.2s ease;
+}
+.exam-textarea::placeholder {
+  color: hsl(var(--muted-foreground) / 0.35);
+}
+.exam-textarea:focus {
+  border-bottom-color: hsl(var(--border));
+}
