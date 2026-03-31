@@ -20,10 +20,11 @@ interface Subtopic {
   subtopic_name: string;
   tier: string;
   grade_band: string;
+  h5p_url?: string | null;
 }
 
 interface SessionSetupProps {
-  onStart: (config: SessionConfig) => void;
+  onStart: (config: SessionConfig, h5pUrl?: string | null) => void;
 }
 
 export function SessionSetup({ onStart }: SessionSetupProps) {
@@ -40,7 +41,7 @@ export function SessionSetup({ onStart }: SessionSetupProps) {
     async function load() {
       const { data } = await supabase
         .from("subtopics")
-        .select("id, subject, topic, subtopic_name, tier, grade_band")
+        .select("id, subject, topic, subtopic_name, tier, grade_band, h5p_url")
         .eq("active", true)
         .order("sort_order");
       setSubtopics(data ?? []);
@@ -129,7 +130,7 @@ export function SessionSetup({ onStart }: SessionSetupProps) {
       subtopicName: selectedSubtopic.subtopic_name,
       tier,
       gradeBand: selectedSubtopic.grade_band,
-    });
+    }, selectedSubtopic.h5p_url);
   };
 
   if (loading) {
