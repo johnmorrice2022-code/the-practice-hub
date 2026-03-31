@@ -3,6 +3,7 @@ import katex from "katex";
 import { CheckCircle2, Circle, AlertCircle, BookOpen, Lightbulb } from "lucide-react";
 
 interface StepBreakdown {
+  mark_type?: string;
   criterion: string;
   status: "awarded" | "partial" | "not_awarded";
   comment: string;
@@ -24,6 +25,7 @@ interface FeedbackCardProps {
 }
 
 function renderMath(text: string): string {
+  if (!text) return "";
   let html = text.replace(/\$\$([\s\S]*?)\$\$/g, (_, math) => {
     try {
       return katex.renderToString(math.trim(), { displayMode: true, throwOnError: false });
@@ -48,8 +50,23 @@ const statusIcon = (status: string) => {
   return <Circle size={14} className="text-muted-foreground/40 shrink-0 mt-0.5" />;
 };
 
+const markTypeBadge = (markType?: string) => {
+  if (!markType) return null;
+  const colours: Record<string, string> = {
+    M: "bg-blue-50 text-blue-600",
+    A: "bg-green-50 text-green-600",
+    B: "bg-purple-50 text-purple-600",
+    ECF: "bg-amber-50 text-amber-600",
+  };
+  const colour = colours[markType] || "bg-muted text-muted-foreground";
+  return (
+    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${colour} shrink-0`}>
+      {markType}
+    </span>
+  );
+};
+
 export function FeedbackCard({ feedback, questionNumber }: FeedbackCardProps) {
-  const solutionRef = useRef<HTMLDivElement>(null);
   const percentage = Math.round((feedback.marks_awarded / feedback.marks_available) * 100);
 
   return (
@@ -59,16 +76,16 @@ export function FeedbackCard({ feedback, questionNumber }: FeedbackCardProps) {
         <span className="text-xs text-muted-foreground tracking-wide">
           Question {questionNumber} — Feedback
         </span>
-        <span className="text-sm font-medium">
-          <span className={percentage >= 70 ? "text-[hsl(var(--success))]" : percentage >= 40 ? "text-primary" : "text-destructive"}>
+        <div className="flex items-baseline gap-1">
+          <span className={`text-2xl font-semibold ${percentage >= 70 ? "text-[hsl(var(--success))]" : percentage >= 40 ? "text-primary" : "text-destructive"}`}>
             {feedback.marks_awarded}
           </span>
-          <span className="text-muted-foreground">/{feedback.marks_available}</span>
-        </span>
+          <span className="text-sm text-muted-foreground">/ {feedback.marks_available} marks</span>
+        </div>
       </div>
 
       {/* Score bar */}
-      <div className="h-1 rounded-full bg-secondary overflow-hidden">
+      <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
         <div
           className={`h-full rounded-full transition-all duration-700 ${
             percentage >= 70 ? "bg-[hsl(var(--success))]" : percentage >= 40 ? "bg-primary" : "bg-destructive"
@@ -85,13 +102,22 @@ export function FeedbackCard({ feedback, questionNumber }: FeedbackCardProps) {
       {/* Step breakdown */}
       <div className="space-y-3">
         <span className="text-xs text-muted-foreground tracking-wide uppercase">Mark breakdown</span>
-        <div className="space-y-2.5">
+        <div className="space-y-3">
           {feedback.step_breakdown.map((step, i) => (
             <div key={i} className="flex items-start gap-2.5">
               {statusIcon(step.status)}
-              <div className="min-w-0">
-                <span className="text-sm text-foreground">{step.criterion}</span>
-                <p className="text-xs text-muted-foreground mt-0.5">{step.comment}</p>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  {markTypeBadge(step.mark_type)}
+                  <span
+                    className="text-sm text-foreground"
+                    dangerouslySetInnerHTML={{ __html: renderMath(step.criterion) }}
+                  />
+                </div>
+                <p
+                  className="text-xs text-muted-foreground mt-0.5"
+                  dangerouslySetInnerHTML={{ __html: renderMath(step.comment) }}
+                />
               </div>
             </div>
           ))}
