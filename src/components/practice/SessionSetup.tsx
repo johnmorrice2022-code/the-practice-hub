@@ -1,8 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2 } from "lucide-react";
+import { Loader2, ChevronRight, BookOpen, Zap, ArrowLeft } from "lucide-react";
 
 export interface SessionConfig {
   subject: string;
@@ -27,15 +25,24 @@ interface SessionSetupProps {
   onStart: (config: SessionConfig, h5pUrl?: string | null) => void;
 }
 
+type Step = "subject" | "topic" | "subtopic";
+
+const SUBJECT_ICONS: Record<string, string> = {
+  Maths: "∑",
+  Physics: "⚡",
+};
+
+const SUBJECT_DESCRIPTIONS: Record<string, string> = {
+  Maths: "Algebra, geometry, statistics and more",
+  Physics: "Forces, energy, waves and beyond",
+};
+
 export function SessionSetup({ onStart }: SessionSetupProps) {
   const [subtopics, setSubtopics] = useState<Subtopic[]>([]);
   const [loading, setLoading] = useState(true);
-
-  const [subject, setSubject] = useState("");
-  const [tier, setTier] = useState("");
-  const [gradeBand, setGradeBand] = useState("");
-  const [topic, setTopic] = useState("");
-  const [subtopicId, setSubtopicId] = useState("");
+  const [step, setStep] = useState<Step>("subject");
+  const [selectedSubject, setSelectedSubject] = useState("");
+  const [selectedTopic, setSelectedTopic] = useState("");
 
   useEffect(() => {
     async function load() {
@@ -50,204 +57,171 @@ export function SessionSetup({ onStart }: SessionSetupProps) {
     load();
   }, []);
 
-  // Derive unique values at each level
   const subjects = [...new Set(subtopics.map((s) => s.subject))];
-
-  const tiers = [
-    ...new Set(
-      subtopics.filter((s) => s.subject === subject).map((s) => s.tier)
-    ),
-  ];
-
-  const gradeBands = [
-    ...new Set(
-      subtopics
-        .filter((s) => s.subject === subject && s.tier === tier)
-        .map((s) => s.grade_band)
-    ),
-  ];
-
-  const needsGradeBand = tier === "Higher" && gradeBands.length > 1;
-
-  const topics = [
-    ...new Set(
-      subtopics
-        .filter(
-          (s) =>
-            s.subject === subject &&
-            s.tier === tier &&
-            (needsGradeBand ? s.grade_band === gradeBand : true)
-        )
-        .map((s) => s.topic)
-    ),
-  ];
-
+  const topics = [...new Set(subtopics.filter((s) => s.subject === selectedSubject).map((s) => s.topic))];
   const availableSubtopics = subtopics.filter(
-    (s) =>
-      s.subject === subject &&
-      s.tier === tier &&
-      s.topic === topic &&
-      (needsGradeBand ? s.grade_band === gradeBand : true)
+    (s) => s.subject === selectedSubject && s.topic === selectedTopic
   );
 
-  // Reset downstream when upstream changes
-  const handleSubjectChange = (val: string) => {
-    setSubject(val);
-    setTier("");
-    setGradeBand("");
-    setTopic("");
-    setSubtopicId("");
+  const handleSubjectSelect = (subject: string) => {
+    setSelectedSubject(subject);
+    setStep("topic");
   };
 
-  const handleTierChange = (val: string) => {
-    setTier(val);
-    setGradeBand("");
-    setTopic("");
-    setSubtopicId("");
+  const handleTopicSelect = (topic: string) => {
+    setSelectedTopic(topic);
+    setStep("subtopic");
   };
 
-  const handleGradeBandChange = (val: string) => {
-    setGradeBand(val);
-    setTopic("");
-    setSubtopicId("");
+  const handleSubtopicSelect = (subtopic: Subtopic) => {
+    onStart(
+      {
+        subject: subtopic.subject,
+        topic: subtopic.topic,
+        subtopicId: subtopic.id,
+        subtopicName: subtopic.subtopic_name,
+        tier: subtopic.tier,
+        gradeBand: subtopic.grade_band,
+      },
+      subtopic.h5p_url
+    );
   };
 
-  const handleTopicChange = (val: string) => {
-    setTopic(val);
-    setSubtopicId("");
-  };
-
-  const selectedSubtopic = subtopics.find((s) => s.id === subtopicId);
-
-  const canStart = subject && tier && topic && subtopicId && (!needsGradeBand || gradeBand);
-
-  const handleStart = () => {
-    if (!selectedSubtopic) return;
-    onStart({
-      subject,
-      topic,
-      subtopicId: selectedSubtopic.id,
-      subtopicName: selectedSubtopic.subtopic_name,
-      tier,
-      gradeBand: selectedSubtopic.grade_band,
-    }, selectedSubtopic.h5p_url);
+  const handleBack = () => {
+    if (step === "subtopic") {
+      setStep("topic");
+      setSelectedTopic("");
+    } else if (step === "topic") {
+      setStep("subject");
+      setSelectedSubject("");
+    }
   };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
       </div>
     );
   }
 
   return (
-    <div className="max-w-md mx-auto space-y-6">
-      <div className="text-center space-y-2">
+    <div className="max-w-[720px] mx-auto space-y-8">
+      {/* Header */}
+      <div className="space-y-1">
+        {step !== "subject" && (
+          <button
+            onClick={handleBack}
+            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors mb-4"
+          >
+            <ArrowLeft size={13} />
+            Back
+          </button>
+        )}
         <h1 className="text-2xl font-bold">
-          Start a <span className="text-accent-amber">Jam Session</span>
+          {step === "subject" && <>Start a <span className="text-accent-amber">Jam Session</span></>}
+          {step === "topic" && <>{selectedSubject} — <span className="text-accent-amber">Choose a Topic</span></>}
+          {step === "subtopic" && <>{selectedTopic} — <span className="text-accent-amber">Choose a Subtopic</span></>}
         </h1>
-        <p className="text-muted-foreground text-sm">
-          Choose your subject, tier, and topic to begin.
+        <p className="text-sm text-muted-foreground">
+          {step === "subject" && "Choose a subject to get started."}
+          {step === "topic" && "Select a topic to practise."}
+          {step === "subtopic" && "Pick a subtopic and start your session."}
         </p>
       </div>
 
-      <div className="bg-card rounded-xl p-6 card-shadow space-y-4">
-        {/* Subject */}
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium text-foreground">Subject</label>
-          <Select value={subject} onValueChange={handleSubjectChange}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select subject" />
-            </SelectTrigger>
-            <SelectContent>
-              {subjects.map((s) => (
-                <SelectItem key={s} value={s}>{s}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+      {/* Subject step */}
+      {step === "subject" && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {subjects.map((subject) => (
+            <button
+              key={subject}
+              onClick={() => handleSubjectSelect(subject)}
+              className="bg-card rounded-xl p-8 text-left hover:shadow-md transition-all duration-200 border border-border/40 hover:border-primary/40 group"
+              style={{ boxShadow: "0 1px 8px rgba(0,0,0,0.06)" }}
+            >
+              <div className="text-4xl mb-4 group-hover:scale-110 transition-transform duration-200">
+                {SUBJECT_ICONS[subject] ?? "📚"}
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-semibold text-foreground">{subject}</h2>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {SUBJECT_DESCRIPTIONS[subject] ?? ""}
+                  </p>
+                </div>
+                <ChevronRight size={16} className="text-muted-foreground/40 group-hover:text-primary transition-colors" />
+              </div>
+            </button>
+          ))}
         </div>
+      )}
 
-        {/* Tier */}
-        {subject && (
-          <div className="space-y-1.5 animate-fade-in">
-            <label className="text-sm font-medium text-foreground">Tier</label>
-            <Select value={tier} onValueChange={handleTierChange}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select tier" />
-              </SelectTrigger>
-              <SelectContent>
-                {tiers.map((t) => (
-                  <SelectItem key={t} value={t}>{t}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        )}
+      {/* Topic step */}
+      {step === "topic" && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {topics.map((topic) => {
+            const count = subtopics.filter(
+              (s) => s.subject === selectedSubject && s.topic === topic
+            ).length;
+            return (
+              <button
+                key={topic}
+                onClick={() => handleTopicSelect(topic)}
+                className="bg-card rounded-xl p-6 text-left hover:shadow-md transition-all duration-200 border border-border/40 hover:border-primary/40 group"
+                style={{ boxShadow: "0 1px 8px rgba(0,0,0,0.06)" }}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-semibold text-foreground">{topic}</h3>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {count} subtopic{count !== 1 ? "s" : ""}
+                    </p>
+                  </div>
+                  <ChevronRight size={16} className="text-muted-foreground/40 group-hover:text-primary transition-colors" />
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
-        {/* Grade Band (Higher only) */}
-        {needsGradeBand && (
-          <div className="space-y-1.5 animate-fade-in">
-            <label className="text-sm font-medium text-foreground">Grade Band</label>
-            <Select value={gradeBand} onValueChange={handleGradeBandChange}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select grade band" />
-              </SelectTrigger>
-              <SelectContent>
-                {gradeBands.map((gb) => (
-                  <SelectItem key={gb} value={gb}>{gb}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        )}
-
-        {/* Topic */}
-        {tier && (!needsGradeBand || gradeBand) && (
-          <div className="space-y-1.5 animate-fade-in">
-            <label className="text-sm font-medium text-foreground">Topic</label>
-            <Select value={topic} onValueChange={handleTopicChange}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select topic" />
-              </SelectTrigger>
-              <SelectContent>
-                {topics.map((t) => (
-                  <SelectItem key={t} value={t}>{t}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        )}
-
-        {/* Subtopic */}
-        {topic && (
-          <div className="space-y-1.5 animate-fade-in">
-            <label className="text-sm font-medium text-foreground">Subtopic</label>
-            <Select value={subtopicId} onValueChange={setSubtopicId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select subtopic" />
-              </SelectTrigger>
-              <SelectContent>
-                {availableSubtopics.map((st) => (
-                  <SelectItem key={st.id} value={st.id}>
-                    {st.subtopic_name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        )}
-
-        {/* Start */}
-        <Button
-          onClick={handleStart}
-          disabled={!canStart}
-          className="w-full mt-2"
-          size="lg"
-        >
-          Start Jam Session
-        </Button>
-      </div>
+      {/* Subtopic step */}
+      {step === "subtopic" && (
+        <div className="grid grid-cols-1 gap-3">
+          {availableSubtopics.map((subtopic) => (
+            <button
+              key={subtopic.id}
+              onClick={() => handleSubtopicSelect(subtopic)}
+              className="bg-card rounded-xl p-6 text-left hover:shadow-md transition-all duration-200 border border-border/40 hover:border-primary/40 group"
+              style={{ boxShadow: "0 1px 8px rgba(0,0,0,0.06)" }}
+            >
+              <div className="flex items-center justify-between">
+                <div className="space-y-2">
+                  <h3 className="font-semibold text-foreground">{subtopic.subtopic_name}</h3>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-muted-foreground">
+                      {subtopic.tier} · Grade {subtopic.grade_band}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      {subtopic.h5p_url && (
+                        <span className="flex items-center gap-1 text-[10px] text-primary/70 bg-primary/10 px-2 py-0.5 rounded-full">
+                          <BookOpen size={9} /> Learn
+                        </span>
+                      )}
+                      <span className="flex items-center gap-1 text-[10px] text-primary/70 bg-primary/10 px-2 py-0.5 rounded-full">
+                        <Zap size={9} /> Practise
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <ChevronRight size={16} className="text-muted-foreground/40 group-hover:text-primary transition-colors shrink-0" />
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
+
