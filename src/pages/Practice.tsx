@@ -2,10 +2,9 @@ import { useState } from "react";
 import { Navbar } from "@/components/Navbar";
 import { SessionSetup, SessionConfig } from "@/components/practice/SessionSetup";
 import { SubtopicLanding } from "@/components/practice/SubtopicLanding";
-import { LearningRoom } from "@/components/practice/LearningRoom";
 import { PracticeRoom } from "@/components/practice/PracticeRoom";
 
-type AppView = "setup" | "landing" | "learning" | "practice";
+type AppView = "setup" | "landing" | "practice";
 
 interface SubtopicDetails {
   config: SessionConfig;
@@ -21,25 +20,12 @@ const Practice = () => {
     setView("landing");
   };
 
-  const handleLearn = () => setView("learning");
   const handlePractise = () => setView("practice");
-  const handleBackToLanding = () => setView("landing");
   const handleBackToSetup = () => {
     setSubtopicDetails(null);
     setView("setup");
   };
-
-  // Full screen views — no navbar
-  if (view === "learning" && subtopicDetails?.h5pUrl) {
-    return (
-      <LearningRoom
-        subtopicName={subtopicDetails.config.subtopicName}
-        h5pUrl={subtopicDetails.h5pUrl}
-        onExit={handleBackToLanding}
-        onPractise={handlePractise}
-      />
-    );
-  }
+  const handleBackToLanding = () => setView("landing");
 
   if (view === "practice" && subtopicDetails) {
     return (
@@ -62,7 +48,6 @@ const Practice = () => {
             tier={subtopicDetails.config.tier}
             gradeBand={subtopicDetails.config.gradeBand}
             h5pUrl={subtopicDetails.h5pUrl}
-            onLearn={handleLearn}
             onPractise={handlePractise}
             onBack={handleBackToSetup}
           />
@@ -75,4 +60,5 @@ const Practice = () => {
 };
 
 export default Practice;
+
 
