@@ -123,7 +123,7 @@ export function QuestionCard({
               <AutoTextarea
                 value={partAnswers[part.part_label] ?? ""}
                 onChange={(v) => onPartAnswerChange?.(part.part_label, v)}
-                placeholder={`Working for part (${part.part_label})…`}
+                placeholder={`Working for part (${part.part_label})… Use ^ for powers (e.g. x^2), or just write in words — Claude understands both`}
               />
             </div>
           ))}
@@ -135,7 +135,7 @@ export function QuestionCard({
           <AutoTextarea
             value={answer}
             onChange={onAnswerChange}
-            placeholder="Show your working here…"
+            placeholder="Show your working here… Use ^ for powers (e.g. x^2), or just write in words — Claude understands both"
           />
         </>
       )}
