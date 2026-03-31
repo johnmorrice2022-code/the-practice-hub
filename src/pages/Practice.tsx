@@ -1,5 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Navbar } from "@/components/Navbar";
+import { supabase } from "@/integrations/supabase/client";
 import { SessionSetup, SessionConfig } from "@/components/practice/SessionSetup";
 import { SubtopicLanding } from "@/components/practice/SubtopicLanding";
 import { PracticeRoom } from "@/components/practice/PracticeRoom";
@@ -14,6 +16,39 @@ interface SubtopicDetails {
 const Practice = () => {
   const [view, setView] = useState<AppView>("setup");
   const [subtopicDetails, setSubtopicDetails] = useState<SubtopicDetails | null>(null);
+  const [searchParams] = useSearchParams();
+
+  // Handle deep link — ?subtopic=completing-the-square
+  useEffect(() => {
+    const slug = searchParams.get("subtopic");
+    if (!slug) return;
+
+    async function loadFromSlug() {
+      const { data } = await supabase
+        .from("subtopics")
+        .select("*")
+        .eq("slug", slug)
+        .eq("active", true)
+        .single();
+
+      if (!data) return;
+
+      setSubtopicDetails({
+        config: {
+          subject: data.subject,
+          topic: data.topic,
+          subtopicId: data.id,
+          subtopicName: data.subtopic_name,
+          tier: data.tier,
+          gradeBand: data.grade_band,
+        },
+        h5pUrl: data.h5p_url,
+      });
+      setView("landing");
+    }
+
+    loadFromSlug();
+  }, [searchParams]);
 
   const handleSubtopicSelect = (config: SessionConfig, h5pUrl?: string | null) => {
     setSubtopicDetails({ config, h5pUrl });

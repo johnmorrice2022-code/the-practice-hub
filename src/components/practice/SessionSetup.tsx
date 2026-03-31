@@ -19,6 +19,7 @@ interface Subtopic {
   tier: string;
   grade_band: string;
   h5p_url?: string | null;
+  slug?: string | null;
 }
 
 interface SessionSetupProps {
@@ -48,7 +49,7 @@ export function SessionSetup({ onStart }: SessionSetupProps) {
     async function load() {
       const { data } = await supabase
         .from("subtopics")
-        .select("id, subject, topic, subtopic_name, tier, grade_band, h5p_url")
+        .select("id, subject, topic, subtopic_name, tier, grade_band, h5p_url, slug")
         .eq("active", true)
         .order("sort_order");
       setSubtopics(data ?? []);
