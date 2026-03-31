@@ -9,25 +9,28 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { questionText, markScheme, workedSolution, studentAnswer, marks } = await req.json();
-
+    const { questionText, parts, markScheme, workedSolution, studentAnswer, marks } = await req.json();
     if (!questionText || !studentAnswer) throw new Error("questionText and studentAnswer are required");
 
-    const systemPrompt = `You are a supportive GCSE examiner marking a student's answer.
+    const isMultiPart = parts && parts.length > 0;
+
+    const systemPrompt = `You are a supportive GCSE examiner marking a student's answer against an official mark scheme.
 
 MARKING RULES:
-- Award M marks generously if the student shows a valid method, even with arithmetic errors
-- A marks depend on the preceding M mark
-- B marks are independent — award if the criterion is met
-- Apply ECF: if a student uses their incorrect earlier value correctly, award subsequent marks
+- Award M marks generously: if the student shows a valid method, award the M mark even with arithmetic errors
+- A marks depend on the preceding M mark — apply standard rules
+- B marks are independent — award if the criterion is met regardless of other errors
+- ECF (error carried forward): if a student uses their incorrect earlier answer correctly in subsequent steps, award the ECF/follow-through marks
 - Never penalise the same error twice
-- When in doubt, award the mark
+- When in doubt, award the mark — benefit of the doubt to the student
+${isMultiPart ? "- This is a multi-part question. Apply ECF between parts — if part (a) is wrong but part (b) uses their part (a) answer correctly, award the follow-through mark." : ""}
 
 FEEDBACK TONE:
-- Warm and encouraging — like a good teacher
-- Never use the word "wrong" — use "not quite" or "nearly there"
-- Lead with what the student did correctly
-- Be specific, not vague
+- Warm and encouraging — like a good teacher, not a marking machine
+- Never use the word \"wrong\" — use \"not quite\", \"nearly there\", \"this needed one more step\"
+- Always acknowledge what the student did correctly before addressing gaps
+- Be specific — reference the exact step or concept, not vague praise
+- Keep feedback_summary to 2-3 sentences — clear and actionable
 
 Return ONLY a JSON object, no markdown, no preamble:
 {
@@ -35,20 +38,22 @@ Return ONLY a JSON object, no markdown, no preamble:
   "marks_available": number,
   "step_breakdown": [
     {
-      "mark_type": "M" | "A" | "B" | "ECF",
+      "mark_type": "M" | "A" | "B" | "B1ft" | "ECF",
+      "part": "a" | "b" | null,
       "criterion": "string",
       "status": "awarded" | "partial" | "not_awarded",
-      "comment": "string"
+      "comment": "string — specific encouraging comment"
     }
   ],
   "error_type": "none" | "arithmetic" | "conceptual" | "method" | "incomplete" | "unit",
-  "feedback_summary": "string — 2-3 warm encouraging sentences",
+  "feedback_summary": "string — 2-3 warm specific sentences",
   "worked_solution": "string — full solution with LaTeX",
   "revision_focus": "string — one specific actionable thing to practise"
 }`;
 
-    const userPrompt = `QUESTION (${marks} marks):
+    const userPrompt = `QUESTION (${marks} marks total):
 ${questionText}
+${isMultiPart ? `\nPARTS:\n${parts.map((p: any) => `(${p.part_label}) [${p.marks} marks]: ${p.part_text}`).join("\n")}` : ""}
 
 MARK SCHEME:
 ${JSON.stringify(markScheme, null, 2)}
@@ -59,7 +64,7 @@ ${workedSolution || "Not provided."}
 STUDENT'S ANSWER:
 ${studentAnswer}
 
-Mark this answer. Return only the JSON object.`;
+Mark this answer. Apply ECF where appropriate. Return only the JSON object.`;
 
     const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
     if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY is not configured");
@@ -116,3 +121,4 @@ Mark this answer. Return only the JSON object.`;
     );
   }
 });
+

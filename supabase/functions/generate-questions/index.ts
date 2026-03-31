@@ -31,10 +31,10 @@ serve(async (req) => {
     const boardLabel = isMaths ? "Edexcel" : "AQA";
 
     const markTypeGuidance = isMaths
-      ? `Mark types:\n- M mark: correct method even if arithmetic is wrong\n- A mark: correct answer, dependent on M mark\n- B mark: independent correct statement or value\n- ECF: award if student uses their incorrect earlier value correctly`
+      ? `Mark types:\n- M mark: correct method even if arithmetic is wrong\n- A mark: correct answer, dependent on M mark\n- B mark: independent correct statement or value\n- ECF: award if student uses their incorrect earlier value correctly in subsequent steps`
       : `Mark types:\n- B mark: correct physics statement, definition, or value\n- M mark: correct application of formula\n- A mark: correct answer with units\n- ECF: award if student uses their incorrect value correctly`;
 
-    const systemPrompt = `You are a senior GCSE ${subtopic.subject} examiner writing questions for the ${boardLabel} exam board.
+    const systemPrompt = `You are a senior ${boardLabel} GCSE ${subtopic.subject} examiner writing questions for Higher tier, grade band ${subtopic.grade_band}.
 
 Subject: ${subtopic.subject}
 Exam board: ${boardLabel}
@@ -43,31 +43,62 @@ Grade band: ${subtopic.grade_band}
 Topic: ${subtopic.topic}
 Subtopic: ${subtopic.subtopic_name}
 ${subtopic.description ? `Description: ${subtopic.description}` : ""}
-${promptConfig.context ? `Examiner notes: ${promptConfig.context}` : ""}
-${promptConfig.system_prompt ? `Additional instructions: ${promptConfig.system_prompt}` : ""}
+${promptConfig.system_prompt ? `\nEXPERT EXAMINER INSTRUCTIONS — follow these precisely:\n${promptConfig.system_prompt}` : ""}
+${promptConfig.context ? `\nExaminer notes: ${promptConfig.context}` : ""}
+${promptConfig.common_mistakes ? `\nCommon student errors to probe: ${promptConfig.common_mistakes}` : ""}
+${promptConfig.command_words ? `\nPreferred command words: ${promptConfig.command_words}` : ""}
 
 ${markTypeGuidance}
 
+QUESTION FORMAT
+Each question must be one of two types:
+
+TYPE 1 — Single part question:
+{
+  "question_text": "Full question text with LaTeX",
+  "marks": 2,
+  "parts": [],
+  "mark_scheme": [
+    { "mark_type": "M", "criterion": "string", "marks": 1 },
+    { "mark_type": "A", "criterion": "string", "marks": 1 }
+  ],
+  "worked_solution": "Full solution with LaTeX"
+}
+
+TYPE 2 — Multi-part question (use for 'hence' questions and multi-step problems):
+{
+  "question_text": "Stem text shown above all parts (e.g. 'f(x) = x² - 4x + 7')",
+  "marks": 3,
+  "parts": [
+    { "part_label": "a", "part_text": "(a) Express f(x) in the form (x + a)² + b", "marks": 2 },
+    { "part_label": "b", "part_text": "(b) Hence write down the coordinates of the minimum point of y = f(x).", "marks": 1 }
+  ],
+  "mark_scheme": [
+    { "mark_type": "M", "part": "a", "criterion": "string", "marks": 1 },
+    { "mark_type": "A", "part": "a", "criterion": "string", "marks": 1 },
+    { "mark_type": "B1ft", "part": "b", "criterion": "string — state ECF rule explicitly", "marks": 1 }
+  ],
+  "worked_solution": "Full solution covering all parts with LaTeX"
+}
+
 RULES:
-1. Write exactly ${count} questions in increasing difficulty
-2. Questions must read like real ${boardLabel} GCSE past paper questions
-3. Marks per question: 1-6
-4. Mark scheme: each point must state mark type (M/A/B/ECF), criterion, and marks
-5. Worked solution: full step-by-step model answer
-6. Use LaTeX: $inline$ and $$display$$
-7. Return ONLY a JSON object, no markdown, no preamble`;
+1. Generate exactly ${count} questions in increasing difficulty
+2. Questions must read exactly like real ${boardLabel} past paper questions
+3. Use LaTeX: $inline$ and $$display$$
+4. At least one question must be multi-part (TYPE 2)
+5. Mark schemes must be unambiguous — a second examiner must reach identical marks
+6. Return ONLY a JSON object, no markdown, no preamble`;
 
-    const userPrompt = `Generate ${count} GCSE exam questions for: "${subtopic.subtopic_name}".
+    const userPrompt = `Generate ${count} GCSE exam questions for: "${subtopic.subtopic_name}" (${subtopic.topic}, ${boardLabel} ${subtopic.tier} tier, grade ${subtopic.grade_band}).
 
-Return ONLY this JSON, nothing else:
+Return ONLY this JSON structure:
 {
   "questions": [
     {
       "question_text": "string",
-      "marks": 3,
-      "mark_scheme": [
-        { "mark_type": "M", "criterion": "string", "marks": 1 }
-      ],
+      "marks": 2,
+      "parts": [],
+      "mark_scheme": [{ "mark_type": "M", "criterion": "string", "marks": 1 }],
       "worked_solution": "string"
     }
   ]
@@ -120,6 +151,7 @@ Return ONLY this JSON, nothing else:
       id: crypto.randomUUID(),
       question_text: q.question_text,
       marks: q.marks,
+      parts: q.parts || [],
       mark_scheme: q.mark_scheme,
       worked_solution: q.worked_solution,
       question_order: i + 1,
