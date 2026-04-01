@@ -99,7 +99,9 @@ Return ONLY this JSON structure:
       "marks": 2,
       "parts": [],
       "mark_scheme": [{ "mark_type": "M", "criterion": "string", "marks": 1 }],
-      "worked_solution": "string"
+      "worked_solution": "string",
+      "diagram_type": "semicircle | same_segment | angle_at_centre | cyclic_quadrilateral | null",
+      "diagram_params": { "givenAngle": 38, "cAngleDeg": 118 }
     }
   ]
 }`;
@@ -154,6 +156,8 @@ Return ONLY this JSON structure:
       parts: q.parts || [],
       mark_scheme: q.mark_scheme,
       worked_solution: q.worked_solution,
+      diagram_type: q.diagram_type || null,
+      diagram_params: q.diagram_params || null,
       question_order: i + 1,
     }));
 

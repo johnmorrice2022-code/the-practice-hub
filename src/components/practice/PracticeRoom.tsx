@@ -20,6 +20,8 @@ interface Question {
   parts: QuestionPart[];
   mark_scheme: unknown;
   worked_solution: string;
+  diagram_type?: string | null;
+  diagram_params?: Record<string, unknown> | null;
 }
 
 interface PracticeRoomProps {
@@ -215,6 +217,8 @@ export function PracticeRoom({ config, onExit }: PracticeRoomProps) {
                 parts={currentQuestion?.parts}
                 answer={answers[currentQuestion?.id ?? ""] ?? ""}
                 onAnswerChange={handleAnswerChange}
+                diagramType={currentQuestion?.diagram_type}
+                diagramParams={currentQuestion?.diagram_params}
                 partAnswers={partAnswers[currentQuestion?.id ?? ""] ?? {}}
                 onPartAnswerChange={handlePartAnswerChange}
               />
@@ -271,4 +275,5 @@ export function PracticeRoom({ config, onExit }: PracticeRoomProps) {
     </div>
   );
 }
+
 

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { CircleTheoremDiagram, TheoremType, DiagramParams } from "@/components/diagrams";
 import katex from "katex";
 
 export interface QuestionPart {
@@ -16,6 +17,9 @@ interface QuestionCardProps {
   // Single-part answer
   answer: string;
   onAnswerChange: (value: string) => void;
+  // Diagram
+  diagramType?: string | null;
+  diagramParams?: Record<string, unknown> | null;
   // Multi-part answers
   partAnswers?: Record<string, string>;
   onPartAnswerChange?: (partLabel: string, value: string) => void;
@@ -77,6 +81,8 @@ export function QuestionCard({
   parts,
   answer,
   onAnswerChange,
+  diagramType,
+  diagramParams,
   partAnswers = {},
   onPartAnswerChange,
 }: QuestionCardProps) {
@@ -101,6 +107,14 @@ export function QuestionCard({
         className="text-foreground leading-[1.8] text-[15px] question-text"
         dangerouslySetInnerHTML={{ __html: renderMathInText(questionText) }}
       />
+
+      {/* Diagram — rendered between stem and answer boxes */}
+      {diagramType && (
+        <CircleTheoremDiagram
+          theoremType={diagramType as TheoremType}
+          params={(diagramParams ?? {}) as DiagramParams}
+        />
+      )}
 
       {isMultiPart ? (
         /* Multi-part question */
