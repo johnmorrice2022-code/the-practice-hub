@@ -20,6 +20,7 @@ interface QuestionCardProps {
   // Diagram
   diagramType?: string | null;
   diagramParams?: Record<string, unknown> | null;
+  diagramUrl?: string | null;
   // Multi-part answers
   partAnswers?: Record<string, string>;
   onPartAnswerChange?: (partLabel: string, value: string) => void;
@@ -83,6 +84,7 @@ export function QuestionCard({
   onAnswerChange,
   diagramType,
   diagramParams,
+  diagramUrl,
   partAnswers = {},
   onPartAnswerChange,
 }: QuestionCardProps) {
@@ -108,8 +110,22 @@ export function QuestionCard({
         dangerouslySetInnerHTML={{ __html: renderMathInText(questionText) }}
       />
 
-      {/* Diagram — rendered between stem and answer boxes */}
-      {diagramType && (
+      {/* Diagram — image from Supabase Storage */}
+      {diagramUrl && (
+        <div className="flex justify-center py-4 px-2">
+          <div className="bg-[#FAF7F2] border border-border/40 rounded-lg p-4 w-full" style={{ maxWidth: 400 }}>
+            <img
+              src={diagramUrl}
+              alt="Diagram for this question"
+              className="w-full h-auto"
+              style={{ maxHeight: 320, objectFit: "contain" }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Diagram — programmatic SVG (circle theorems) */}
+      {diagramType && !diagramUrl && (
         <CircleTheoremDiagram
           theoremType={diagramType as TheoremType}
           params={(diagramParams ?? {}) as DiagramParams}
@@ -156,3 +172,4 @@ export function QuestionCard({
     </div>
   );
 }
+

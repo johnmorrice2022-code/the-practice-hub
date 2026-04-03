@@ -22,6 +22,7 @@ interface Question {
   worked_solution: string;
   diagram_type?: string | null;
   diagram_params?: Record<string, unknown> | null;
+  diagram_url?: string | null;
 }
 
 interface PracticeRoomProps {
@@ -219,6 +220,7 @@ export function PracticeRoom({ config, onExit }: PracticeRoomProps) {
                 onAnswerChange={handleAnswerChange}
                 diagramType={currentQuestion?.diagram_type}
                 diagramParams={currentQuestion?.diagram_params}
+                diagramUrl={currentQuestion?.diagram_url}
                 partAnswers={partAnswers[currentQuestion?.id ?? ""] ?? {}}
                 onPartAnswerChange={handlePartAnswerChange}
               />
