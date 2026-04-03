@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { QuestionCard } from "./QuestionCard";
@@ -36,19 +37,79 @@ export function PracticeRoom({ config, onExit }: PracticeRoomProps) {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
-  // Single-part answers: questionId -> answer string
   const [answers, setAnswers] = useState<Record<string, string>>({});
-  // Multi-part answers: questionId -> { partLabel -> answer string }
   const [partAnswers, setPartAnswers] = useState<Record<string, Record<string, string>>>({});
   const [phase, setPhase] = useState<SessionPhase>("answering");
   const [feedbacks, setFeedbacks] = useState<Record<string, MarkingFeedback>>({});
   const [markingId, setMarkingId] = useState<string | null>(null);
   const [generatingQuestions, setGeneratingQuestions] = useState(false);
 
+  // Load seeded questions first, fall back to AI generation
   useEffect(() => {
-    generateAIQuestions();
+    loadQuestions();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [config.subtopicId]);
+
+  const loadQuestions = async () => {
+    setGeneratingQuestions(true);
+    setLoading(false);
+    try {
+      // Check for seeded questions first
+      const { data: seeded } = await supabase
+        .from("seeded_questions")
+        .select("id, question_text, marks, question_order, mark_scheme, worked_solution, diagram_url")
+        .eq("subtopic_id", config.subtopicId)
+        .order("question_order");
+
+      if (seeded && seeded.length > 0) {
+        setQuestions(seeded.map(q => ({
+          ...q,
+          parts: [],
+          diagram_type: null,
+          diagram_params: null,
+          diagram_url: (q as any).diagram_url || null,
+        })));
+        setCurrentIndex(0);
+        setAnswers({});
+        setPartAnswers({});
+        setFeedbacks({});
+        setPhase("answering");
+        setGeneratingQuestions(false);
+      } else {
+        await generateAIQuestions();
+      }
+    } catch (e: any) {
+      await generateAIQuestions();
+    }
+  };
+
+  const generateAIQuestions = async () => {
+    setGeneratingQuestions(true);
+    setLoading(false);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-questions", {
+        body: { subtopicId: config.subtopicId, count: 4 },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setQuestions(data.questions.map((q: any) => ({
+        ...q,
+        parts: q.parts || [],
+        diagram_type: q.diagram_type || null,
+        diagram_params: q.diagram_params || null,
+        diagram_url: q.diagram_url || null,
+      })));
+      setCurrentIndex(0);
+      setAnswers({});
+      setPartAnswers({});
+      setFeedbacks({});
+      setPhase("answering");
+    } catch (e: any) {
+      toast({ title: "Question generation failed", description: e.message || "Please try again.", variant: "destructive" });
+    } finally {
+      setGeneratingQuestions(false);
+    }
+  };
 
   const currentQuestion = questions[currentIndex];
   const totalMarks = questions.reduce((sum, q) => sum + q.marks, 0);
@@ -67,29 +128,6 @@ export function PracticeRoom({ config, onExit }: PracticeRoomProps) {
     }));
   };
 
-  const generateAIQuestions = async () => {
-    setGeneratingQuestions(true);
-    setLoading(false);
-    try {
-      const { data, error } = await supabase.functions.invoke("generate-questions", {
-        body: { subtopicId: config.subtopicId, count: 4 },
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      setQuestions(data.questions);
-      setCurrentIndex(0);
-      setAnswers({});
-      setPartAnswers({});
-      setFeedbacks({});
-      setPhase("answering");
-    } catch (e: any) {
-      toast({ title: "Question generation failed", description: e.message || "Please try again.", variant: "destructive" });
-    } finally {
-      setGeneratingQuestions(false);
-    }
-  };
-
-  // Build the student answer string for marking — combines parts if multi-part
   const buildAnswerForMarking = (q: Question): string => {
     const isMultiPart = q.parts && q.parts.length > 0;
     if (isMultiPart) {
@@ -158,7 +196,7 @@ export function PracticeRoom({ config, onExit }: PracticeRoomProps) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-3">
         <Loader2 className="h-5 w-5 animate-spin text-primary" />
-        <p className="text-sm text-muted-foreground">Generating your questions…</p>
+        <p className="text-sm text-muted-foreground">Loading your questions…</p>
       </div>
     );
   }
@@ -167,7 +205,7 @@ export function PracticeRoom({ config, onExit }: PracticeRoomProps) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
         <p className="text-muted-foreground text-sm">Could not load questions. Please try again.</p>
-        <button onClick={generateAIQuestions} className="flex items-center gap-1.5 text-sm text-primary hover:text-primary/80 underline underline-offset-2 transition-colors">
+        <button onClick={loadQuestions} className="flex items-center gap-1.5 text-sm text-primary hover:text-primary/80 underline underline-offset-2 transition-colors">
           <Sparkles size={14} /> Try again
         </button>
         <button onClick={onExit} className="text-sm text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors">
@@ -277,5 +315,3 @@ export function PracticeRoom({ config, onExit }: PracticeRoomProps) {
     </div>
   );
 }
-
-
