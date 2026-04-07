@@ -36,7 +36,6 @@ export function LearningContent({
 }: LearningContentProps) {
   const [sectionIndex, setSectionIndex] = useState(0);
   const currentSection = sections[sectionIndex];
-  console.log('currentSection', currentSection);
   const isLast = sectionIndex === sections.length - 1;
   const isFirst = sectionIndex === 0;
 
