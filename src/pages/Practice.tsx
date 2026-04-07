@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Navbar } from "@/components/Navbar";
@@ -6,14 +5,16 @@ import { supabase } from "@/integrations/supabase/client";
 import { SessionSetup, SessionConfig } from "@/components/practice/SessionSetup";
 import { SubtopicLanding } from "@/components/practice/SubtopicLanding";
 import { LearningContent } from "@/components/learn/LearningContent";
+import { CheckQuestions } from "@/components/learn/CheckQuestions";
 import { PracticeRoom } from "@/components/practice/PracticeRoom";
 
-type AppView = "setup" | "landing" | "learning" | "practice";
+type AppView = "setup" | "landing" | "learning" | "check" | "practice";
 
 interface SubtopicDetails {
   config: SessionConfig;
   h5pUrl?: string | null;
   learningSections?: any[] | null;
+  checkQuestions?: any[] | null;
 }
 
 const Practice = () => {
@@ -24,58 +25,55 @@ const Practice = () => {
   useEffect(() => {
     const slug = searchParams.get("subtopic");
     if (!slug) return;
-
-    async function loadFromSlug() {
-      const { data } = await supabase
-        .from("subtopics")
-        .select("*")
-        .eq("slug", slug)
-        .single();
-
-      if (!data) return;
-
-      // Also fetch learning content
-      const { data: learning } = await supabase
-        .from("learning_content")
-        .select("sections")
-        .eq("subtopic_id", data.id)
-        .single();
-
-      setSubtopicDetails({
-        config: {
-          subject: data.subject,
-          topic: data.topic,
-          subtopicId: data.id,
-          subtopicName: data.subtopic_name,
-          tier: data.tier,
-          gradeBand: data.grade_band,
-        },
-        h5pUrl: data.h5p_url,
-        learningSections: learning?.sections || null,
-      });
-      setView("landing");
-    }
-
-    loadFromSlug();
+    loadFromSlug(slug);
   }, [searchParams]);
 
-  const handleSubtopicSelect = async (config: SessionConfig, h5pUrl?: string | null) => {
-    // Fetch learning content for this subtopic
-    const { data: learning } = await supabase
-      .from("learning_content")
-      .select("sections")
-      .eq("subtopic_id", config.subtopicId)
-      .single();
+  const loadSubtopicData = async (subtopicId: string, subtopicData: any, h5pUrl?: string | null) => {
+    const [learningRes, checkRes] = await Promise.all([
+      supabase.from("learning_content").select("sections").eq("subtopic_id", subtopicId).single(),
+      supabase.from("check_questions").select("*").eq("subtopic_id", subtopicId).order("question_order"),
+    ]);
 
-    setSubtopicDetails({
-      config,
-      h5pUrl,
-      learningSections: learning?.sections || null,
-    });
+    return {
+      config: {
+        subject: subtopicData.subject,
+        topic: subtopicData.topic,
+        subtopicId: subtopicData.id,
+        subtopicName: subtopicData.subtopic_name,
+        tier: subtopicData.tier,
+        gradeBand: subtopicData.grade_band,
+      },
+      h5pUrl: h5pUrl ?? subtopicData.h5p_url ?? null,
+      learningSections: learningRes.data?.sections || null,
+      checkQuestions: checkRes.data || null,
+    };
+  };
+
+  const loadFromSlug = async (slug: string) => {
+    const { data } = await supabase.from("subtopics").select("*").eq("slug", slug).single();
+    if (!data) return;
+    const details = await loadSubtopicData(data.id, data);
+    setSubtopicDetails(details);
+    setView("landing");
+  };
+
+  const handleSubtopicSelect = async (config: SessionConfig, h5pUrl?: string | null) => {
+    const { data } = await supabase.from("subtopics").select("*").eq("id", config.subtopicId).single();
+    if (!data) return;
+    const details = await loadSubtopicData(config.subtopicId, data, h5pUrl);
+    setSubtopicDetails(details);
     setView("landing");
   };
 
   const handleLearn = () => setView("learning");
+  const handleLearningComplete = () => {
+    if (subtopicDetails?.checkQuestions?.length) {
+      setView("check");
+    } else {
+      setView("practice");
+    }
+  };
+  const handleCheckComplete = () => setView("practice");
   const handlePractise = () => setView("practice");
   const handleBackToLanding = () => setView("landing");
   const handleBackToSetup = () => {
@@ -88,7 +86,18 @@ const Practice = () => {
       <LearningContent
         subtopicName={subtopicDetails.config.subtopicName}
         sections={subtopicDetails.learningSections}
-        onComplete={handlePractise}
+        onComplete={handleLearningComplete}
+        onExit={handleBackToLanding}
+      />
+    );
+  }
+
+  if (view === "check" && subtopicDetails?.checkQuestions?.length) {
+    return (
+      <CheckQuestions
+        subtopicName={subtopicDetails.config.subtopicName}
+        questions={subtopicDetails.checkQuestions}
+        onComplete={handleCheckComplete}
         onExit={handleBackToLanding}
       />
     );
@@ -129,3 +138,4 @@ const Practice = () => {
 };
 
 export default Practice;
+
