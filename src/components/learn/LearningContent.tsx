@@ -1,5 +1,12 @@
-import { useState } from "react";
-import { ChevronRight, ChevronLeft, X, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { useState } from 'react';
+import {
+  ChevronRight,
+  ChevronLeft,
+  X,
+  AlertTriangle,
+  CheckCircle2,
+} from 'lucide-react';
+import InteractiveSection from '@/components/learn/InteractiveSection';
 
 interface Paragraph {
   text: string;
@@ -10,6 +17,8 @@ interface Paragraph {
 interface Section {
   heading: string;
   paragraphs: Paragraph[];
+  type?: string;
+  component?: string;
 }
 
 interface LearningContentProps {
@@ -19,7 +28,12 @@ interface LearningContentProps {
   onExit: () => void;
 }
 
-export function LearningContent({ subtopicName, sections, onComplete, onExit }: LearningContentProps) {
+export function LearningContent({
+  subtopicName,
+  sections,
+  onComplete,
+  onExit,
+}: LearningContentProps) {
   const [sectionIndex, setSectionIndex] = useState(0);
   const currentSection = sections[sectionIndex];
   const isLast = sectionIndex === sections.length - 1;
@@ -37,7 +51,10 @@ export function LearningContent({ subtopicName, sections, onComplete, onExit }: 
             <span className="mx-2 text-border">·</span>
             {sectionIndex + 1} / {sections.length}
           </span>
-          <button onClick={onExit} className="text-muted-foreground/60 hover:text-foreground transition-colors p-1">
+          <button
+            onClick={onExit}
+            className="text-muted-foreground/60 hover:text-foreground transition-colors p-1"
+          >
             <X size={16} />
           </button>
         </div>
@@ -53,43 +70,62 @@ export function LearningContent({ subtopicName, sections, onComplete, onExit }: 
 
       {/* Content */}
       <div className="max-w-[720px] mx-auto px-4 sm:px-6 py-10 space-y-8">
-        <div className="bg-card rounded-xl p-8 sm:p-10 space-y-8" style={{ boxShadow: "0 1px 8px rgba(0,0,0,0.06)" }}>
-
+        <div
+          className="bg-card rounded-xl p-8 sm:p-10 space-y-8"
+          style={{ boxShadow: '0 1px 8px rgba(0,0,0,0.06)' }}
+        >
           {/* Section heading */}
-          <h2 className="text-xl font-semibold text-foreground">{currentSection.heading}</h2>
+          <h2 className="text-xl font-semibold text-foreground">
+            {currentSection.heading}
+          </h2>
 
-          {/* Paragraphs */}
-          {currentSection.paragraphs.map((para, i) => (
-            <div key={i} className="space-y-4">
-              {para.is_non_example && (
-                <div className="flex items-center gap-2 bg-destructive/10 border border-destructive/20 rounded-lg px-4 py-2">
-                  <AlertTriangle size={14} className="text-destructive shrink-0" />
-                  <span className="text-xs font-semibold text-destructive tracking-wide uppercase">Watch out — Non-Example</span>
-                </div>
-              )}
-
-              {para.diagram_url && (
-                <div className="flex justify-center py-2">
-                  <div className="bg-[#FAF7F2] border border-border/40 rounded-lg p-4 w-full" style={{ maxWidth: 400 }}>
-                    <img
-                      src={para.diagram_url}
-                      alt="Diagram"
-                      className="w-full h-auto"
-                      style={{ maxHeight: 300, objectFit: "contain" }}
+          {/* Interactive section */}
+          {currentSection.type === 'interactive' && currentSection.component ? (
+            <InteractiveSection component={currentSection.component} />
+          ) : (
+            /* Standard paragraphs */
+            currentSection.paragraphs?.map((para, i) => (
+              <div key={i} className="space-y-4">
+                {para.is_non_example && (
+                  <div className="flex items-center gap-2 bg-destructive/10 border border-destructive/20 rounded-lg px-4 py-2">
+                    <AlertTriangle
+                      size={14}
+                      className="text-destructive shrink-0"
                     />
+                    <span className="text-xs font-semibold text-destructive tracking-wide uppercase">
+                      Watch out — Non-Example
+                    </span>
                   </div>
-                </div>
-              )}
+                )}
 
-              <p className="text-[15px] leading-[1.9] text-foreground">{para.text}</p>
-            </div>
-          ))}
+                {para.diagram_url && (
+                  <div className="flex justify-center py-2">
+                    <div
+                      className="bg-[#FAF7F2] border border-border/40 rounded-lg p-4 w-full"
+                      style={{ maxWidth: 400 }}
+                    >
+                      <img
+                        src={para.diagram_url}
+                        alt="Diagram"
+                        className="w-full h-auto"
+                        style={{ maxHeight: 300, objectFit: 'contain' }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <p className="text-[15px] leading-[1.9] text-foreground">
+                  {para.text}
+                </p>
+              </div>
+            ))
+          )}
         </div>
 
         {/* Navigation */}
         <div className="flex items-center justify-between px-1">
           <button
-            onClick={() => setSectionIndex(i => i - 1)}
+            onClick={() => setSectionIndex((i) => i - 1)}
             disabled={isFirst}
             className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-default transition-colors py-1"
           >
@@ -102,10 +138,10 @@ export function LearningContent({ subtopicName, sections, onComplete, onExit }: 
                 key={i}
                 className={`rounded-full transition-all duration-200 ${
                   i === sectionIndex
-                    ? "w-2.5 h-2.5 bg-foreground/50"
+                    ? 'w-2.5 h-2.5 bg-foreground/50'
                     : i < sectionIndex
-                    ? "w-1.5 h-1.5 bg-primary"
-                    : "w-1.5 h-1.5 bg-border"
+                      ? 'w-1.5 h-1.5 bg-primary'
+                      : 'w-1.5 h-1.5 bg-border'
                 }`}
               />
             ))}
@@ -120,7 +156,7 @@ export function LearningContent({ subtopicName, sections, onComplete, onExit }: 
             </button>
           ) : (
             <button
-              onClick={() => setSectionIndex(i => i + 1)}
+              onClick={() => setSectionIndex((i) => i + 1)}
               className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors py-1"
             >
               Next <ChevronRight size={14} />
