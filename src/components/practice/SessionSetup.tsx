@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2, ChevronRight, BookOpen, Zap, ArrowLeft } from 'lucide-react';
-import { TierSetup } from './TierSetup';
+import { SubjectSetup, SubjectPreferences } from './SubjectSetup';
 import { ProfileSettings } from './ProfileSettings';
 
 export interface SessionConfig {
@@ -20,6 +20,7 @@ interface Subtopic {
   subtopic_name: string;
   tier: string;
   grade_band: string;
+  exam_board: string;
   h5p_url?: string | null;
   slug?: string | null;
 }
@@ -28,13 +29,15 @@ interface Profile {
   id: string;
   maths_tier: string | null;
   physics_tier: string | null;
+  maths_exam_board: string | null;
+  physics_exam_board: string | null;
 }
 
 interface SessionSetupProps {
   onStart: (config: SessionConfig, h5pUrl?: string | null) => void;
 }
 
-type Step = 'subject' | 'tier-setup' | 'topic' | 'subtopic';
+type Step = 'subject' | 'subject-setup' | 'topic' | 'subtopic';
 
 const SUBJECT_ICONS: Record<string, string> = {
   Maths: '∑',
@@ -56,7 +59,7 @@ export function SessionSetup({ onStart }: SessionSetupProps) {
   >('');
   const [selectedTopic, setSelectedTopic] = useState('');
 
-  // ── Load subtopics and profile ──────────────────────────────────────────────
+  // ── Load subtopics and profile ─────────────────────────────────────────────
   useEffect(() => {
     async function load() {
       const [
@@ -68,7 +71,7 @@ export function SessionSetup({ onStart }: SessionSetupProps) {
         supabase
           .from('subtopics')
           .select(
-            'id, subject, topic, subtopic_name, tier, grade_band, h5p_url, slug'
+            'id, subject, topic, subtopic_name, tier, grade_band, exam_board, h5p_url, slug'
           )
           .eq('active', true)
           .order('sort_order'),
@@ -80,12 +83,20 @@ export function SessionSetup({ onStart }: SessionSetupProps) {
       if (user) {
         const { data: profileData } = await supabase
           .from('profiles')
-          .select('id, maths_tier, physics_tier')
+          .select(
+            'id, maths_tier, physics_tier, maths_exam_board, physics_exam_board'
+          )
           .eq('id', user.id)
           .single();
 
         setProfile(
-          profileData ?? { id: user.id, maths_tier: null, physics_tier: null }
+          profileData ?? {
+            id: user.id,
+            maths_tier: null,
+            physics_tier: null,
+            maths_exam_board: null,
+            physics_exam_board: null,
+          }
         );
       }
 
@@ -94,18 +105,20 @@ export function SessionSetup({ onStart }: SessionSetupProps) {
     load();
   }, []);
 
-  // ── Derived tier for current subject ───────────────────────────────────────
-  const tierForSubject = (subject: string): string | null => {
-    if (!profile) return null;
-    return subject === 'Maths' ? profile.maths_tier : profile.physics_tier;
+  // ── Derived preferences for current subject ────────────────────────────────
+  const prefsForSubject = (subject: string) => {
+    if (!profile) return { tier: null, examBoard: null };
+    return subject === 'Maths'
+      ? { tier: profile.maths_tier, examBoard: profile.maths_exam_board }
+      : { tier: profile.physics_tier, examBoard: profile.physics_exam_board };
   };
 
-  // ── Filtered subtopics: match tier exactly OR tier === "Both" ──────────────
+  // ── Filtered subtopics: match exam_board AND (tier or "Both") ─────────────
   const filteredSubtopics = subtopics.filter((s) => {
     if (s.subject !== selectedSubject) return false;
-    const tier = tierForSubject(selectedSubject);
-    if (!tier) return true; // no tier set yet — show all (shouldn't reach here in normal flow)
-    return s.tier === tier || s.tier === 'Both';
+    const { tier, examBoard } = prefsForSubject(selectedSubject);
+    if (!tier || !examBoard) return true; // setup not complete — shouldn't reach here
+    return s.exam_board === examBoard && (s.tier === tier || s.tier === 'Both');
   });
 
   const subjects = [...new Set(subtopics.map((s) => s.subject))];
@@ -117,21 +130,29 @@ export function SessionSetup({ onStart }: SessionSetupProps) {
   // ── Handlers ───────────────────────────────────────────────────────────────
   const handleSubjectSelect = (subject: 'Maths' | 'Physics') => {
     setSelectedSubject(subject);
-    const tier = tierForSubject(subject);
-    if (!tier) {
-      // First time for this subject — collect tier before proceeding
-      setStep('tier-setup');
+    const { tier, examBoard } = prefsForSubject(subject);
+    if (!tier || !examBoard) {
+      setStep('subject-setup');
     } else {
       setStep('topic');
     }
   };
 
-  const handleTierComplete = (tier: string) => {
+  const handleSubjectSetupComplete = (prefs: SubjectPreferences) => {
     if (!profile) return;
     const updated: Profile = {
       ...profile,
-      maths_tier: selectedSubject === 'Maths' ? tier : profile.maths_tier,
-      physics_tier: selectedSubject === 'Physics' ? tier : profile.physics_tier,
+      maths_tier: selectedSubject === 'Maths' ? prefs.tier : profile.maths_tier,
+      physics_tier:
+        selectedSubject === 'Physics' ? prefs.tier : profile.physics_tier,
+      maths_exam_board:
+        selectedSubject === 'Maths'
+          ? prefs.examBoard
+          : profile.maths_exam_board,
+      physics_exam_board:
+        selectedSubject === 'Physics'
+          ? prefs.examBoard
+          : profile.physics_exam_board,
     };
     setProfile(updated);
     setStep('topic');
@@ -163,7 +184,7 @@ export function SessionSetup({ onStart }: SessionSetupProps) {
     } else if (step === 'topic') {
       setStep('subject');
       setSelectedSubject('');
-    } else if (step === 'tier-setup') {
+    } else if (step === 'subject-setup') {
       setStep('subject');
       setSelectedSubject('');
     }
@@ -171,17 +192,21 @@ export function SessionSetup({ onStart }: SessionSetupProps) {
 
   const handleSettingsUpdate = (
     mathsTier: string | null,
-    physicsTier: string | null
+    physicsTier: string | null,
+    mathsExamBoard: string | null,
+    physicsExamBoard: string | null
   ) => {
     if (!profile) return;
     setProfile({
       ...profile,
       maths_tier: mathsTier,
       physics_tier: physicsTier,
+      maths_exam_board: mathsExamBoard,
+      physics_exam_board: physicsExamBoard,
     });
   };
 
-  // ── Loading state ──────────────────────────────────────────────────────────
+  // ── Loading ────────────────────────────────────────────────────────────────
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24">
@@ -190,8 +215,8 @@ export function SessionSetup({ onStart }: SessionSetupProps) {
     );
   }
 
-  // ── Tier setup (lazy — shown inline when tier not yet set) ─────────────────
-  if (step === 'tier-setup' && selectedSubject && profile) {
+  // ── Subject setup (lazy) ───────────────────────────────────────────────────
+  if (step === 'subject-setup' && selectedSubject && profile) {
     return (
       <div className="max-w-[720px] mx-auto space-y-8">
         <button
@@ -201,10 +226,10 @@ export function SessionSetup({ onStart }: SessionSetupProps) {
           <ArrowLeft size={13} />
           Back
         </button>
-        <TierSetup
+        <SubjectSetup
           subject={selectedSubject as 'Maths' | 'Physics'}
           userId={profile.id}
-          onComplete={handleTierComplete}
+          onComplete={handleSubjectSetupComplete}
         />
       </div>
     );
@@ -213,7 +238,6 @@ export function SessionSetup({ onStart }: SessionSetupProps) {
   // ── Main flow ──────────────────────────────────────────────────────────────
   return (
     <div className="max-w-[720px] mx-auto space-y-8">
-      {/* Header */}
       <div className="space-y-1">
         <div className="flex items-start justify-between">
           <div>
@@ -252,13 +276,14 @@ export function SessionSetup({ onStart }: SessionSetupProps) {
             </p>
           </div>
 
-          {/* Settings — only show when profile is loaded */}
           {profile && step === 'subject' && (
             <div className="mt-1">
               <ProfileSettings
                 userId={profile.id}
                 mathsTier={profile.maths_tier}
                 physicsTier={profile.physics_tier}
+                mathsExamBoard={profile.maths_exam_board}
+                physicsExamBoard={profile.physics_exam_board}
                 onUpdate={handleSettingsUpdate}
               />
             </div>
@@ -270,7 +295,7 @@ export function SessionSetup({ onStart }: SessionSetupProps) {
       {step === 'subject' && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {subjects.map((subject) => {
-            const tier = tierForSubject(subject);
+            const { tier, examBoard } = prefsForSubject(subject);
             return (
               <button
                 key={subject}
@@ -289,9 +314,9 @@ export function SessionSetup({ onStart }: SessionSetupProps) {
                       {subject}
                     </h2>
                     <p className="text-xs text-muted-foreground mt-1">
-                      {tier ? (
+                      {tier && examBoard ? (
                         <span className="text-primary/70 font-medium">
-                          {tier} tier
+                          {examBoard} · {tier}
                         </span>
                       ) : (
                         (SUBJECT_DESCRIPTIONS[subject] ?? '')
