@@ -5,6 +5,7 @@ import {
   X,
   AlertTriangle,
   CheckCircle2,
+  BookOpen,
 } from 'lucide-react';
 import InteractiveSection from '@/components/learn/InteractiveSection';
 
@@ -14,11 +15,17 @@ interface Paragraph {
   is_non_example?: boolean;
 }
 
+interface IndexItem {
+  label: string;
+  section_index: number;
+}
+
 interface Section {
   heading: string;
   paragraphs: Paragraph[];
   type?: string;
   component?: string;
+  items?: IndexItem[];
 }
 
 interface LearningContentProps {
@@ -79,8 +86,28 @@ export function LearningContent({
             {currentSection.heading}
           </h2>
 
-          {/* Interactive section */}
-          {currentSection.type === 'interactive' && currentSection.component ? (
+          {/* Index section */}
+          {currentSection.type === 'index' && currentSection.items ? (
+            <div className="space-y-2">
+              {currentSection.items.map((item, i) => (
+                <button
+                  key={i}
+                  onClick={() => setSectionIndex(item.section_index)}
+                  className="w-full flex items-center justify-between px-4 py-3 rounded-lg border border-border/50 bg-background hover:bg-primary/5 hover:border-primary/30 transition-all text-left group"
+                >
+                  <span className="text-sm text-foreground group-hover:text-primary transition-colors">
+                    {item.label}
+                  </span>
+                  <ChevronRight
+                    size={14}
+                    className="text-muted-foreground group-hover:text-primary transition-colors shrink-0"
+                  />
+                </button>
+              ))}
+            </div>
+          ) : currentSection.type === 'interactive' &&
+            currentSection.component ? (
+            /* Interactive section */
             <InteractiveSection component={currentSection.component} />
           ) : (
             /* Standard paragraphs */
@@ -93,7 +120,7 @@ export function LearningContent({
                       className="text-destructive shrink-0"
                     />
                     <span className="text-xs font-semibold text-destructive tracking-wide uppercase">
-                      Watch out — Non-Example
+                      Watch out - Non-Example
                     </span>
                   </div>
                 )}
@@ -152,7 +179,7 @@ export function LearningContent({
               onClick={onComplete}
               className="flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 font-medium transition-colors py-1"
             >
-              <CheckCircle2 size={13} /> Done — ready to practise
+              <CheckCircle2 size={13} /> Done - ready to practise
             </button>
           ) : (
             <button
