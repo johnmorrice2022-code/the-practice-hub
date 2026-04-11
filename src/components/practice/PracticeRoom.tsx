@@ -39,6 +39,101 @@ interface PracticeRoomProps {
 
 type SessionPhase = 'answering' | 'marking' | 'review';
 
+/* ------------------------------------------------------------------ */
+/*  Session progress pills                                             */
+/* ------------------------------------------------------------------ */
+
+function SessionProgress({
+  questions,
+  currentIndex,
+  feedbacks,
+  hasAnswer,
+  goTo,
+}: {
+  questions: Question[];
+  currentIndex: number;
+  feedbacks: Record<string, MarkingFeedback>;
+  hasAnswer: (q: Question) => boolean;
+  goTo: (i: number) => void;
+}) {
+  const totalMarks = questions.reduce((s, q) => s + q.marks, 0);
+  const totalAwarded = Object.values(feedbacks).reduce(
+    (s, f) => s + f.marks_awarded,
+    0
+  );
+  const hasFeedback = Object.keys(feedbacks).length > 0;
+
+  return (
+    <div className="flex items-center gap-4 px-1 mb-3">
+      {/* Question pills */}
+      <div className="flex gap-1.5 items-center">
+        {questions.map((q, i) => {
+          const isActive = i === currentIndex;
+          const fb = feedbacks[q.id];
+          const answered = hasAnswer(q);
+
+          let bg = '#D4CEC6';
+          if (isActive) bg = '#4A4540';
+          else if (fb) {
+            const pct = fb.marks_awarded / fb.marks_available;
+            if (pct >= 0.7) bg = '#2D9A5F';
+            else if (pct >= 0.3) bg = '#F5A623';
+            else bg = '#E23D28';
+          } else if (answered) bg = '#A09A92';
+
+          return (
+            <button
+              key={q.id}
+              onClick={() => goTo(i)}
+              className="flex items-center justify-center transition-all duration-200"
+              style={{
+                width: isActive ? 28 : 22,
+                height: 22,
+                borderRadius: 6,
+                background: bg,
+              }}
+              aria-label={`Go to question ${i + 1}`}
+            >
+              <span
+                className="text-[10px] font-semibold"
+                style={{
+                  color: isActive || fb || answered ? '#fff' : '#8C857C',
+                }}
+              >
+                {fb ? fb.marks_awarded : `Q${i + 1}`}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="flex-1" />
+
+      {/* Running score */}
+      {hasFeedback && (
+        <div className="flex items-baseline gap-1">
+          <span
+            className="text-lg font-semibold"
+            style={{
+              background: 'linear-gradient(135deg, #E23D28 0%, #F5A623 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+            }}
+          >
+            {totalAwarded}
+          </span>
+          <span className="text-xs text-muted-foreground">/ {totalMarks}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Main component                                                     */
+/* ------------------------------------------------------------------ */
+
 export function PracticeRoom({ config, onExit }: PracticeRoomProps) {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
@@ -64,7 +159,6 @@ export function PracticeRoom({ config, onExit }: PracticeRoomProps) {
     setGeneratingQuestions(true);
     setLoading(false);
     try {
-      // Fetch subtopic marking guidance alongside questions
       const [seededRes, subtopicRes] = await Promise.all([
         supabase
           .from('seeded_questions')
@@ -80,7 +174,6 @@ export function PracticeRoom({ config, onExit }: PracticeRoomProps) {
           .single(),
       ]);
 
-      // Store marking guidance if present
       const guidance =
         (subtopicRes.data?.prompt_config as any)?.marking_guidance || null;
       setMarkingGuidance(guidance);
@@ -250,7 +343,9 @@ export function PracticeRoom({ config, onExit }: PracticeRoomProps) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-3">
         <Loader2 className="h-5 w-5 animate-spin text-primary" />
-        <p className="text-sm text-muted-foreground">Loading your questions…</p>
+        <p className="text-sm text-muted-foreground">
+          Loading your questions...
+        </p>
       </div>
     );
   }
@@ -277,8 +372,13 @@ export function PracticeRoom({ config, onExit }: PracticeRoomProps) {
     );
   }
 
+  // Progress percentage for the gradient bar
+  const progressPct =
+    phase === 'review' ? 100 : ((currentIndex + 1) / questions.length) * 100;
+
   return (
     <div className="min-h-screen bg-background">
+      {/* Top bar */}
       <div className="sticky top-0 z-10 bg-background border-b border-border/60">
         <div className="max-w-[720px] mx-auto px-6 h-11 flex items-center justify-between">
           <span className="text-xs text-muted-foreground tracking-wide">
@@ -293,7 +393,7 @@ export function PracticeRoom({ config, onExit }: PracticeRoomProps) {
               <button
                 onClick={generateAIQuestions}
                 disabled={generatingQuestions}
-                className="text-xs text-muted-foreground/60 hover:text-primary transition-colors flex items-center gap-1"
+                className="text-xs text-muted-foreground/60 hover:text-[#E23D28] transition-colors flex items-center gap-1"
                 title="Generate new questions"
               >
                 <Sparkles size={12} /> New set
@@ -310,7 +410,28 @@ export function PracticeRoom({ config, onExit }: PracticeRoomProps) {
         </div>
       </div>
 
-      <div className="max-w-[720px] mx-auto px-4 sm:px-6 py-10">
+      {/* Brand gradient progress bar */}
+      <div className="h-[3px]" style={{ background: 'rgba(0,0,0,0.04)' }}>
+        <div
+          className="h-full transition-all duration-500"
+          style={{
+            width: `${progressPct}%`,
+            background: 'linear-gradient(135deg, #E23D28 0%, #F5A623 100%)',
+          }}
+        />
+      </div>
+
+      <div className="max-w-[720px] mx-auto px-4 sm:px-6 py-6">
+        {/* Session progress pills */}
+        <SessionProgress
+          questions={questions}
+          currentIndex={currentIndex}
+          feedbacks={feedbacks}
+          hasAnswer={hasAnswer}
+          goTo={goTo}
+        />
+
+        {/* Main content card */}
         <div
           className="bg-card rounded-xl p-8 sm:p-10"
           style={{ boxShadow: '0 1px 8px rgba(0,0,0,0.06)' }}
@@ -322,9 +443,9 @@ export function PracticeRoom({ config, onExit }: PracticeRoomProps) {
             />
           ) : phase === 'marking' && isMarking ? (
             <div className="flex flex-col items-center justify-center py-16 gap-3">
-              <Loader2 className="h-5 w-5 animate-spin text-primary" />
+              <Loader2 className="h-5 w-5 animate-spin text-[#E23D28]" />
               <p className="text-sm text-muted-foreground">
-                Marking question {currentIndex + 1}…
+                Marking question {currentIndex + 1}...
               </p>
             </div>
           ) : (
@@ -352,7 +473,8 @@ export function PracticeRoom({ config, onExit }: PracticeRoomProps) {
                     <button
                       onClick={() => markAnswer(currentQuestion.id)}
                       disabled={!!markingId}
-                      className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors disabled:opacity-40"
+                      className="flex items-center gap-1.5 text-xs font-medium transition-colors disabled:opacity-40"
+                      style={{ color: '#E23D28' }}
                     >
                       {markingId === currentQuestion.id ? (
                         <Loader2 size={12} className="animate-spin" />
@@ -378,7 +500,8 @@ export function PracticeRoom({ config, onExit }: PracticeRoomProps) {
           )}
         </div>
 
-        <div className="flex items-center justify-between mt-8 px-1">
+        {/* Navigation */}
+        <div className="flex items-center justify-between mt-6 px-1">
           <button
             onClick={() => goTo(currentIndex - 1)}
             disabled={currentIndex === 0}
@@ -387,24 +510,8 @@ export function PracticeRoom({ config, onExit }: PracticeRoomProps) {
             <ChevronLeft size={14} /> Previous
           </button>
 
-          <div className="flex items-center gap-1.5">
-            {questions.map((q, i) => (
-              <button
-                key={q.id}
-                onClick={() => goTo(i)}
-                className={`rounded-full transition-all duration-200 ${
-                  i === currentIndex
-                    ? 'w-2.5 h-2.5 bg-foreground/50'
-                    : feedbacks[q.id]
-                      ? `w-1.5 h-1.5 ${feedbacks[q.id].marks_awarded / feedbacks[q.id].marks_available >= 0.7 ? 'bg-[hsl(var(--success))]' : 'bg-primary'}`
-                      : hasAnswer(q)
-                        ? 'w-1.5 h-1.5 bg-foreground/25'
-                        : 'w-1.5 h-1.5 bg-border'
-                }`}
-                aria-label={`Go to question ${i + 1}`}
-              />
-            ))}
-          </div>
+          {/* Dot indicators removed - replaced by session progress pills above */}
+          <div />
 
           {currentIndex < questions.length - 1 ? (
             <button
@@ -417,14 +524,16 @@ export function PracticeRoom({ config, onExit }: PracticeRoomProps) {
             <button
               onClick={handleFinish}
               disabled={!allAnswered}
-              className="text-xs text-primary hover:text-primary/80 transition-colors py-1 disabled:opacity-30 disabled:cursor-default"
+              className="text-xs font-medium transition-colors py-1 disabled:opacity-30 disabled:cursor-default"
+              style={{ color: '#E23D28' }}
             >
               Finish & mark all
             </button>
           ) : (
             <button
               onClick={onExit}
-              className="text-xs text-primary hover:text-primary/80 transition-colors py-1"
+              className="text-xs font-medium transition-colors py-1"
+              style={{ color: '#E23D28' }}
             >
               Done
             </button>

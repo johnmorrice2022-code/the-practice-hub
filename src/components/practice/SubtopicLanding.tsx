@@ -1,5 +1,4 @@
-
-import { BookOpen, Zap, ArrowLeft } from "lucide-react";
+import { BookOpen, Zap, ArrowLeft } from 'lucide-react';
 
 interface SubtopicLandingProps {
   subtopicName: string;
@@ -7,6 +6,7 @@ interface SubtopicLandingProps {
   subject: string;
   tier: string;
   gradeBand: string;
+  tagline?: string | null;
   h5pUrl?: string | null;
   hasLearningContent?: boolean;
   onLearn?: () => void;
@@ -20,6 +20,7 @@ export function SubtopicLanding({
   subject,
   tier,
   gradeBand,
+  tagline,
   h5pUrl,
   hasLearningContent,
   onLearn,
@@ -40,11 +41,26 @@ export function SubtopicLanding({
       </button>
 
       {/* Header */}
-      <div className="space-y-2">
+      <div className="space-y-3">
         <p className="text-xs text-muted-foreground tracking-wide uppercase">
           {subject} · {topic} · {tier} · Grade {gradeBand}
         </p>
-        <h1 className="text-2xl font-semibold text-foreground">{subtopicName}</h1>
+        <h1
+          className="text-2xl font-semibold"
+          style={{
+            background: 'linear-gradient(135deg, #E23D28 0%, #F5A623 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+          }}
+        >
+          {subtopicName}
+        </h1>
+        {tagline && (
+          <p className="text-[15px] text-muted-foreground leading-relaxed italic">
+            {tagline}
+          </p>
+        )}
       </div>
 
       {/* Action cards */}
@@ -54,12 +70,25 @@ export function SubtopicLanding({
           hasLearningContent && onLearn ? (
             <button
               onClick={onLearn}
-              className="bg-card rounded-xl p-6 text-left hover:shadow-md transition-all duration-200 border border-border/40 hover:border-primary/30 group"
-              style={{ boxShadow: "0 1px 8px rgba(0,0,0,0.06)" }}
+              className="bg-card rounded-xl p-6 text-left hover:shadow-md transition-all duration-200 border border-border/40 hover:border-primary/30 group relative overflow-hidden"
+              style={{ boxShadow: '0 1px 8px rgba(0,0,0,0.06)' }}
             >
+              <div
+                className="absolute top-0 left-0 right-0 h-[3px]"
+                style={{
+                  background:
+                    'linear-gradient(135deg, #E23D28 0%, #F5A623 100%)',
+                }}
+              />
               <div className="flex items-center gap-3 mb-3">
-                <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                  <BookOpen size={18} className="text-primary" />
+                <div
+                  className="w-9 h-9 rounded-lg flex items-center justify-center group-hover:opacity-90 transition-opacity"
+                  style={{
+                    background:
+                      'linear-gradient(135deg, rgba(226,61,40,0.1) 0%, rgba(245,166,35,0.1) 100%)',
+                  }}
+                >
+                  <BookOpen size={18} className="text-[#E23D28]" />
                 </div>
                 <span className="font-medium text-foreground">Learn</span>
               </div>
@@ -72,26 +101,42 @@ export function SubtopicLanding({
               href={h5pUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="bg-card rounded-xl p-6 text-left hover:shadow-md transition-all duration-200 border border-border/40 hover:border-primary/30 group block"
-              style={{ boxShadow: "0 1px 8px rgba(0,0,0,0.06)" }}
+              className="bg-card rounded-xl p-6 text-left hover:shadow-md transition-all duration-200 border border-border/40 hover:border-primary/30 group block relative overflow-hidden"
+              style={{ boxShadow: '0 1px 8px rgba(0,0,0,0.06)' }}
             >
+              <div
+                className="absolute top-0 left-0 right-0 h-[3px]"
+                style={{
+                  background:
+                    'linear-gradient(135deg, #E23D28 0%, #F5A623 100%)',
+                }}
+              />
               <div className="flex items-center gap-3 mb-3">
-                <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                  <BookOpen size={18} className="text-primary" />
+                <div
+                  className="w-9 h-9 rounded-lg flex items-center justify-center group-hover:opacity-90 transition-opacity"
+                  style={{
+                    background:
+                      'linear-gradient(135deg, rgba(226,61,40,0.1) 0%, rgba(245,166,35,0.1) 100%)',
+                  }}
+                >
+                  <BookOpen size={18} className="text-[#E23D28]" />
                 </div>
                 <span className="font-medium text-foreground">Learn</span>
               </div>
               <p className="text-sm text-muted-foreground leading-relaxed">
                 Work through the teaching resource before you practise.
               </p>
-              <p className="text-xs text-muted-foreground/60 mt-2">Opens in a new tab — come back here to practise</p>
+              <p className="text-xs text-muted-foreground/60 mt-2">
+                Opens in a new tab - come back here to practise
+              </p>
             </a>
           ) : null
         ) : (
           <div
-            className="bg-card rounded-xl p-6 text-left border border-border/40 opacity-40 cursor-not-allowed"
-            style={{ boxShadow: "0 1px 8px rgba(0,0,0,0.06)" }}
+            className="bg-card rounded-xl p-6 text-left border border-border/40 opacity-40 cursor-not-allowed relative overflow-hidden"
+            style={{ boxShadow: '0 1px 8px rgba(0,0,0,0.06)' }}
           >
+            <div className="absolute top-0 left-0 right-0 h-[3px] bg-muted" />
             <div className="flex items-center gap-3 mb-3">
               <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center">
                 <BookOpen size={18} className="text-muted-foreground" />
@@ -107,17 +152,29 @@ export function SubtopicLanding({
         {/* Practise card */}
         <button
           onClick={onPractise}
-          className="bg-card rounded-xl p-6 text-left hover:shadow-md transition-all duration-200 border border-border/40 hover:border-primary/30 group"
-          style={{ boxShadow: "0 1px 8px rgba(0,0,0,0.06)" }}
+          className="bg-card rounded-xl p-6 text-left hover:shadow-md transition-all duration-200 border border-border/40 hover:border-primary/30 group relative overflow-hidden"
+          style={{ boxShadow: '0 1px 8px rgba(0,0,0,0.06)' }}
         >
+          <div
+            className="absolute top-0 left-0 right-0 h-[3px]"
+            style={{
+              background: 'linear-gradient(135deg, #E23D28 0%, #F5A623 100%)',
+            }}
+          />
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-              <Zap size={18} className="text-primary" />
+            <div
+              className="w-9 h-9 rounded-lg flex items-center justify-center group-hover:opacity-90 transition-opacity"
+              style={{
+                background:
+                  'linear-gradient(135deg, rgba(226,61,40,0.1) 0%, rgba(245,166,35,0.1) 100%)',
+              }}
+            >
+              <Zap size={18} className="text-[#E23D28]" />
             </div>
             <span className="font-medium text-foreground">Practise</span>
           </div>
           <p className="text-sm text-muted-foreground leading-relaxed">
-            Test your understanding with exam-style questions and instant marking.
+            Exam-style questions with instant AI marking.
           </p>
         </button>
       </div>
