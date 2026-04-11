@@ -143,11 +143,10 @@ function WatchOut({ text }: { text: string }) {
 function Subheading({ text }: { text: string }) {
   return (
     <h3
-      className="text-[15px] font-semibold mt-2 mb-0"
+      className="text-[15px] font-semibold mt-2 mb-0 question-text"
       style={{ color: '#4A4540', letterSpacing: '-0.01em' }}
-    >
-      {text}
-    </h3>
+      dangerouslySetInnerHTML={{ __html: renderMath(text) }}
+    />
   );
 }
 
