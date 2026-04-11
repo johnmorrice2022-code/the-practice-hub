@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import katex from 'katex';
 import {
   ChevronRight,
   ChevronLeft,
@@ -37,6 +38,42 @@ interface LearningContentProps {
 }
 
 /* ------------------------------------------------------------------ */
+/*  KaTeX rendering — matches FeedbackCard.tsx                        */
+/* ------------------------------------------------------------------ */
+
+function renderMath(text: string): string {
+  if (!text) return '';
+  // Display mode: $$...$$
+  let html = text.replace(/\$\$([\s\S]*?)\$\$/g, (_, math) => {
+    try {
+      return katex.renderToString(math.trim(), {
+        displayMode: true,
+        throwOnError: false,
+      });
+    } catch {
+      return `$$${math}$$`;
+    }
+  });
+  // Inline mode: $...$
+  html = html.replace(/\$([^\$\n]+?)\$/g, (_, math) => {
+    try {
+      return katex.renderToString(math.trim(), {
+        displayMode: false,
+        throwOnError: false,
+      });
+    } catch {
+      return `$${math}$`;
+    }
+  });
+  // Paragraph breaks
+  html = html
+    .split('\n\n')
+    .map((b) => `<p>${b.replace(/\n/g, '<br/>')}</p>`)
+    .join('');
+  return html;
+}
+
+/* ------------------------------------------------------------------ */
 /*  Styled paragraph components                                       */
 /* ------------------------------------------------------------------ */
 
@@ -49,9 +86,10 @@ function KeyPoint({ text }: { text: string }) {
         borderLeft: '3px solid #F5A623',
       }}
     >
-      <p className="text-[15px] leading-[1.85] text-foreground font-medium m-0">
-        {text}
-      </p>
+      <div
+        className="text-[15px] leading-[1.85] text-foreground font-medium m-0 question-text"
+        dangerouslySetInnerHTML={{ __html: renderMath(text) }}
+      />
     </div>
   );
 }
@@ -74,7 +112,10 @@ function ExamTip({ text }: { text: string }) {
           Exam tip
         </span>
       </div>
-      <p className="text-[14.5px] leading-[1.85] text-foreground m-0">{text}</p>
+      <div
+        className="text-[14.5px] leading-[1.85] text-foreground m-0 question-text"
+        dangerouslySetInnerHTML={{ __html: renderMath(text) }}
+      />
     </div>
   );
 }
@@ -97,7 +138,10 @@ function WatchOut({ text }: { text: string }) {
           Watch out
         </span>
       </div>
-      <p className="text-[14.5px] leading-[1.85] text-foreground m-0">{text}</p>
+      <div
+        className="text-[14.5px] leading-[1.85] text-foreground m-0 question-text"
+        dangerouslySetInnerHTML={{ __html: renderMath(text) }}
+      />
     </div>
   );
 }
@@ -150,9 +194,10 @@ function StyledParagraph({ para }: { para: Paragraph }) {
         return <Subheading text={para.text} />;
       default:
         return (
-          <p className="text-[15px] leading-[1.9] text-foreground">
-            {para.text}
-          </p>
+          <div
+            className="text-[15px] leading-[1.9] text-foreground question-text"
+            dangerouslySetInnerHTML={{ __html: renderMath(para.text) }}
+          />
         );
     }
   })();
