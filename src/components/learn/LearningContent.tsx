@@ -13,6 +13,7 @@ interface Paragraph {
   text: string;
   diagram_url?: string | null;
   is_non_example?: boolean;
+  style?: 'key-point' | 'exam-tip' | 'watch-out' | 'subheading';
 }
 
 interface IndexItem {
@@ -34,6 +35,139 @@ interface LearningContentProps {
   onComplete: () => void;
   onExit: () => void;
 }
+
+/* ------------------------------------------------------------------ */
+/*  Styled paragraph components                                       */
+/* ------------------------------------------------------------------ */
+
+function KeyPoint({ text }: { text: string }) {
+  return (
+    <div
+      className="rounded-lg px-5 py-4"
+      style={{
+        background: 'linear-gradient(135deg, #FEF9F0 0%, #FDF3E4 100%)',
+        borderLeft: '3px solid #F5A623',
+      }}
+    >
+      <p className="text-[15px] leading-[1.85] text-foreground font-medium m-0">
+        {text}
+      </p>
+    </div>
+  );
+}
+
+function ExamTip({ text }: { text: string }) {
+  return (
+    <div
+      className="rounded-lg px-5 py-4"
+      style={{
+        background: '#F4F8F6',
+        border: '1px solid #C8DDD2',
+      }}
+    >
+      <div className="flex items-center gap-1.5 mb-2">
+        <span className="text-xs">✎</span>
+        <span
+          className="text-[11px] font-semibold uppercase tracking-wide"
+          style={{ color: '#4A7C63' }}
+        >
+          Exam tip
+        </span>
+      </div>
+      <p className="text-[14.5px] leading-[1.85] text-foreground m-0">{text}</p>
+    </div>
+  );
+}
+
+function WatchOut({ text }: { text: string }) {
+  return (
+    <div
+      className="rounded-lg px-5 py-4"
+      style={{
+        background: '#FDF5F3',
+        border: '1px solid #EAC9C1',
+      }}
+    >
+      <div className="flex items-center gap-1.5 mb-2">
+        <AlertTriangle size={13} style={{ color: '#B5564D' }} />
+        <span
+          className="text-[11px] font-semibold uppercase tracking-wide"
+          style={{ color: '#B5564D' }}
+        >
+          Watch out
+        </span>
+      </div>
+      <p className="text-[14.5px] leading-[1.85] text-foreground m-0">{text}</p>
+    </div>
+  );
+}
+
+function Subheading({ text }: { text: string }) {
+  return (
+    <h3
+      className="text-[15px] font-semibold mt-2 mb-0"
+      style={{ color: '#4A4540', letterSpacing: '-0.01em' }}
+    >
+      {text}
+    </h3>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Paragraph renderer — routes by style field                        */
+/* ------------------------------------------------------------------ */
+
+function StyledParagraph({ para }: { para: Paragraph }) {
+  // Diagram (rendered before text, regardless of style)
+  const diagram = para.diagram_url ? (
+    <div className="flex justify-center py-2">
+      <div
+        className="bg-[#FAF7F2] border border-border/40 rounded-lg p-4 w-full"
+        style={{ maxWidth: 400 }}
+      >
+        <img
+          src={para.diagram_url}
+          alt="Diagram"
+          className="w-full h-auto"
+          style={{ maxHeight: 300, objectFit: 'contain' }}
+        />
+      </div>
+    </div>
+  ) : null;
+
+  // Legacy is_non_example support — treat as watch-out
+  const effectiveStyle = para.is_non_example ? 'watch-out' : para.style;
+
+  const content = (() => {
+    switch (effectiveStyle) {
+      case 'key-point':
+        return <KeyPoint text={para.text} />;
+      case 'exam-tip':
+        return <ExamTip text={para.text} />;
+      case 'watch-out':
+        return <WatchOut text={para.text} />;
+      case 'subheading':
+        return <Subheading text={para.text} />;
+      default:
+        return (
+          <p className="text-[15px] leading-[1.9] text-foreground">
+            {para.text}
+          </p>
+        );
+    }
+  })();
+
+  return (
+    <div className="space-y-4">
+      {diagram}
+      {content}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Main component                                                    */
+/* ------------------------------------------------------------------ */
 
 export function LearningContent({
   subtopicName,
@@ -110,41 +244,9 @@ export function LearningContent({
             /* Interactive section */
             <InteractiveSection component={currentSection.component} />
           ) : (
-            /* Standard paragraphs */
+            /* Standard paragraphs — now with style routing */
             currentSection.paragraphs?.map((para, i) => (
-              <div key={i} className="space-y-4">
-                {para.is_non_example && (
-                  <div className="flex items-center gap-2 bg-destructive/10 border border-destructive/20 rounded-lg px-4 py-2">
-                    <AlertTriangle
-                      size={14}
-                      className="text-destructive shrink-0"
-                    />
-                    <span className="text-xs font-semibold text-destructive tracking-wide uppercase">
-                      Watch out - Non-Example
-                    </span>
-                  </div>
-                )}
-
-                {para.diagram_url && (
-                  <div className="flex justify-center py-2">
-                    <div
-                      className="bg-[#FAF7F2] border border-border/40 rounded-lg p-4 w-full"
-                      style={{ maxWidth: 400 }}
-                    >
-                      <img
-                        src={para.diagram_url}
-                        alt="Diagram"
-                        className="w-full h-auto"
-                        style={{ maxHeight: 300, objectFit: 'contain' }}
-                      />
-                    </div>
-                  </div>
-                )}
-
-                <p className="text-[15px] leading-[1.9] text-foreground">
-                  {para.text}
-                </p>
-              </div>
+              <StyledParagraph key={i} para={para} />
             ))
           )}
         </div>
