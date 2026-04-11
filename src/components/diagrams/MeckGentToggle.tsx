@@ -90,6 +90,42 @@ const STORES: {
 const MECK = STORES.filter((s) => s.word === 'MECK');
 const GENT = STORES.filter((s) => s.word === 'GENT');
 
+function LetterButton({
+  s,
+  isOn,
+  onToggle,
+}: {
+  s: (typeof STORES)[0];
+  isOn: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      onClick={onToggle}
+      className="aspect-square w-full rounded-xl border-2 flex flex-col items-center justify-center gap-0.5 transition-all duration-150"
+      style={{
+        borderColor: isOn ? s.color : '#E7E0D6',
+        background: isOn ? `${s.color}18` : '#ffffff',
+      }}
+    >
+      <span
+        className="text-xl sm:text-2xl font-medium leading-none"
+        style={{ color: isOn ? s.color : '#1C1917' }}
+      >
+        {s.letter}
+      </span>
+      {isOn && (
+        <span
+          className="text-[9px] sm:text-[10px] font-medium leading-tight px-0.5 text-center"
+          style={{ color: s.color }}
+        >
+          {s.name.split(' ')[0]}
+        </span>
+      )}
+    </button>
+  );
+}
+
 export default function MeckGentToggle() {
   const [active, setActive] = useState<Set<Store>>(new Set());
 
@@ -106,74 +142,69 @@ export default function MeckGentToggle() {
   const revealed = STORES.filter((s) => on(s.id));
 
   return (
-    <div className="rounded-xl border border-[#E7E0D6] bg-white p-6">
+    <div className="rounded-xl border border-[#E7E0D6] bg-white p-4 sm:p-6">
       <h3 className="font-serif text-xl font-semibold text-[#1C1917] mb-1">
         MECK GENT — The 8 Energy Stores
       </h3>
-      <p className="text-sm text-[#78716C] mb-6">
+      <p className="text-sm text-[#78716C] mb-5">
         Click each letter to reveal the energy store it represents.
       </p>
 
-      {/* Acronym buttons */}
-      <div className="flex gap-3 justify-center mb-6 flex-wrap">
-        {/* MECK */}
-        {MECK.map((s) => (
-          <button
-            key={s.id}
-            onClick={() => toggle(s.id)}
-            className="w-16 h-16 rounded-xl border-2 flex flex-col items-center justify-center gap-0.5 transition-all duration-150"
-            style={{
-              borderColor: on(s.id) ? s.color : '#E7E0D6',
-              background: on(s.id) ? `${s.color}18` : '#ffffff',
-            }}
-          >
-            <span
-              className="text-2xl font-medium leading-none"
-              style={{ color: on(s.id) ? s.color : '#1C1917' }}
-            >
-              {s.letter}
+      {/* Mobile: two rows of 4. sm+: single row with divider */}
+      <div className="mb-5">
+        {/* Mobile layout — two rows of 4 */}
+        <div className="sm:hidden space-y-2">
+          <div className="grid grid-cols-4 gap-2">
+            {MECK.map((s) => (
+              <LetterButton
+                key={s.id}
+                s={s}
+                isOn={on(s.id)}
+                onToggle={() => toggle(s.id)}
+              />
+            ))}
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="flex-1 h-px bg-[#E7E0D6]" />
+            <span className="text-[10px] text-[#A8A29E] font-medium tracking-widest">
+              MECK · GENT
             </span>
-            {on(s.id) && (
-              <span
-                className="text-[10px] font-medium"
-                style={{ color: s.color }}
-              >
-                {s.name.split(' ')[0]}
-              </span>
-            )}
-          </button>
-        ))}
+            <div className="flex-1 h-px bg-[#E7E0D6]" />
+          </div>
+          <div className="grid grid-cols-4 gap-2">
+            {GENT.map((s) => (
+              <LetterButton
+                key={s.id}
+                s={s}
+                isOn={on(s.id)}
+                onToggle={() => toggle(s.id)}
+              />
+            ))}
+          </div>
+        </div>
 
-        {/* Divider */}
-        <div className="w-px bg-[#E7E0D6] self-stretch mx-1" />
-
-        {/* GENT */}
-        {GENT.map((s) => (
-          <button
-            key={s.id}
-            onClick={() => toggle(s.id)}
-            className="w-16 h-16 rounded-xl border-2 flex flex-col items-center justify-center gap-0.5 transition-all duration-150"
-            style={{
-              borderColor: on(s.id) ? s.color : '#E7E0D6',
-              background: on(s.id) ? `${s.color}18` : '#ffffff',
-            }}
-          >
-            <span
-              className="text-2xl font-medium leading-none"
-              style={{ color: on(s.id) ? s.color : '#1C1917' }}
-            >
-              {s.letter}
-            </span>
-            {on(s.id) && (
-              <span
-                className="text-[10px] font-medium"
-                style={{ color: s.color }}
-              >
-                {s.name.split(' ')[0]}
-              </span>
-            )}
-          </button>
-        ))}
+        {/* Desktop layout — single row */}
+        <div className="hidden sm:flex items-stretch gap-2">
+          {MECK.map((s) => (
+            <div key={s.id} className="flex-1">
+              <LetterButton
+                s={s}
+                isOn={on(s.id)}
+                onToggle={() => toggle(s.id)}
+              />
+            </div>
+          ))}
+          <div className="w-px bg-[#E7E0D6] self-stretch mx-1" />
+          {GENT.map((s) => (
+            <div key={s.id} className="flex-1">
+              <LetterButton
+                s={s}
+                isOn={on(s.id)}
+                onToggle={() => toggle(s.id)}
+              />
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Progress */}
