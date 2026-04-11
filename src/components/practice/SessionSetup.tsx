@@ -376,7 +376,7 @@ export function SessionSetup({ onStart }: SessionSetupProps) {
       {/* ── Hero gradient banner (subject step only) ─────────────────── */}
       {step === 'subject' && (
         <div
-          className="relative overflow-hidden -mx-6 -mt-12 mb-8 px-8 pt-10 pb-8"
+          className="relative -mx-6 -mt-12 mb-8 px-8 pt-10 pb-8"
           style={{
             background: 'linear-gradient(135deg, #E23D28 0%, #F5A623 100%)',
           }}
