@@ -40,7 +40,6 @@ interface LearningContentProps {
 /* ------------------------------------------------------------------ */
 /*  KaTeX rendering — matches FeedbackCard.tsx                        */
 /* ------------------------------------------------------------------ */
-
 function renderMath(text: string): string {
   if (!text) return '';
   // Display mode: $$...$$
@@ -65,11 +64,6 @@ function renderMath(text: string): string {
       return `$${math}$`;
     }
   });
-  // Paragraph breaks
-  html = html
-    .split('\n\n')
-    .map((b) => `<p>${b.replace(/\n/g, '<br/>')}</p>`)
-    .join('');
   return html;
 }
 
