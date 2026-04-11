@@ -43,7 +43,9 @@ const Practice = () => {
         .from('learning_content')
         .select('sections')
         .eq('subtopic_id', subtopicId)
-        .single(),
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
       supabase
         .from('check_questions')
         .select('*')
