@@ -49,10 +49,6 @@ function renderMathInText(text: string): string {
       return `$${math}$`;
     }
   });
-  html = html
-    .split('\n\n')
-    .map((block) => `<p>${block.replace(/\n/g, '<br/>')}</p>`)
-    .join('');
   return html;
 }
 
