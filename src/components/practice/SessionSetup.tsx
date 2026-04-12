@@ -173,20 +173,22 @@ function PhysicsIcon({ size = 24 }: { size?: number }) {
   );
 }
 
-const SUBJECT_ICONS: Record<string, React.ReactNode> = {
-  Maths: <MathsIcon size={24} />,
-  Physics: <PhysicsIcon size={24} />,
-};
-
 const SUBJECT_ICONS_LARGE: Record<string, React.ReactNode> = {
-  Maths: <MathsIcon size={44} />,
-  Physics: <PhysicsIcon size={44} />,
+  Maths: <MathsIcon size={28} />,
+  Physics: <PhysicsIcon size={28} />,
 };
 
 const SUBJECT_DESCRIPTIONS: Record<string, string> = {
   Maths: 'Algebra, geometry, statistics and more',
   Physics: 'Forces, energy, waves and beyond',
 };
+
+/* ------------------------------------------------------------------ */
+/*  Card shadow constants                                              */
+/* ------------------------------------------------------------------ */
+const CARD_SHADOW = '0 2px 6px rgba(0,0,0,0.06), 0 6px 20px rgba(0,0,0,0.08)';
+const CARD_SHADOW_HOVER =
+  '0 4px 12px rgba(0,0,0,0.08), 0 10px 28px rgba(0,0,0,0.11)';
 
 export function SessionSetup({ onStart }: SessionSetupProps) {
   const [subtopics, setSubtopics] = useState<Subtopic[]>([]);
@@ -197,6 +199,7 @@ export function SessionSetup({ onStart }: SessionSetupProps) {
     'Maths' | 'Physics' | ''
   >('');
   const [selectedTopic, setSelectedTopic] = useState('');
+  const [hoveredCard, setHoveredCard] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -378,28 +381,39 @@ export function SessionSetup({ onStart }: SessionSetupProps) {
         <div
           className="relative -mx-6 -mt-12 mb-8 px-8 pt-10 pb-8"
           style={{
-            background: 'linear-gradient(135deg, #E23D28 0%, #F5A623 100%)',
+            background:
+              'linear-gradient(140deg, #C8331F 0%, #E23D28 45%, #F5A623 100%)',
           }}
         >
-          {/* Decorative circles */}
+          {/* Decorative orbs */}
           <div
-            className="absolute rounded-full"
+            className="absolute rounded-full pointer-events-none"
             style={{
               top: -30,
               right: -20,
-              width: 120,
-              height: 120,
-              background: 'rgba(255,255,255,0.08)',
+              width: 130,
+              height: 130,
+              background: 'rgba(255,255,255,0.07)',
             }}
           />
           <div
-            className="absolute rounded-full"
+            className="absolute rounded-full pointer-events-none"
             style={{
               bottom: -40,
               left: 60,
-              width: 80,
-              height: 80,
-              background: 'rgba(255,255,255,0.06)',
+              width: 85,
+              height: 85,
+              background: 'rgba(255,255,255,0.05)',
+            }}
+          />
+          <div
+            className="absolute rounded-full pointer-events-none"
+            style={{
+              top: 12,
+              right: 110,
+              width: 42,
+              height: 42,
+              background: 'rgba(255,255,255,0.05)',
             }}
           />
 
@@ -408,30 +422,29 @@ export function SessionSetup({ onStart }: SessionSetupProps) {
               <div>
                 {firstName && (
                   <p
-                    className="text-xs font-medium mb-2"
+                    className="text-xs font-semibold mb-2"
                     style={{
-                      color: 'rgba(255,255,255,0.7)',
+                      color: 'rgba(255,255,255,0.72)',
                       textTransform: 'uppercase',
-                      letterSpacing: '0.06em',
+                      letterSpacing: '0.1em',
                     }}
                   >
                     Welcome back, {firstName}
                   </p>
                 )}
                 <h1
-                  className="text-2xl font-bold mb-1"
-                  style={{ color: '#fff' }}
+                  className="text-2xl font-bold mb-1 tracking-tight"
+                  style={{ color: '#fff', letterSpacing: '-0.02em' }}
                 >
                   Start a Jam Session
                 </h1>
                 <p
                   className="text-sm"
-                  style={{ color: 'rgba(255,255,255,0.8)' }}
+                  style={{ color: 'rgba(255,255,255,0.78)' }}
                 >
                   Choose a subject to get started.
                 </p>
               </div>
-
               {profile && (
                 <div className="mt-1">
                   <ProfileSettings
@@ -451,7 +464,7 @@ export function SessionSetup({ onStart }: SessionSetupProps) {
 
       {/* ── Topic / Subtopic header (non-subject steps) ──────────────── */}
       {step !== 'subject' && (
-        <div className="max-w-[720px] mx-auto space-y-1 mb-8">
+        <div className="max-w-[720px] mx-auto mb-8">
           <button
             onClick={handleBack}
             className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors mb-4"
@@ -459,7 +472,34 @@ export function SessionSetup({ onStart }: SessionSetupProps) {
             <ArrowLeft size={13} />
             Back
           </button>
-          <h1 className="text-2xl font-bold">
+
+          {/* Eyebrow label */}
+          {step === 'topic' && (
+            <p
+              className="text-[11px] font-semibold uppercase tracking-widest mb-1"
+              style={{ color: 'rgba(226,61,40,0.6)' }}
+            >
+              {(() => {
+                const { examBoard, tier } = prefsForSubject(selectedSubject);
+                return examBoard && tier
+                  ? `${examBoard} · ${tier}`
+                  : selectedSubject;
+              })()}
+            </p>
+          )}
+          {step === 'subtopic' && (
+            <p
+              className="text-[11px] font-semibold uppercase tracking-widest mb-1"
+              style={{ color: 'rgba(226,61,40,0.6)' }}
+            >
+              {selectedSubject} · {selectedTopic}
+            </p>
+          )}
+
+          <h1
+            className="text-2xl font-bold tracking-tight"
+            style={{ letterSpacing: '-0.02em' }}
+          >
             {step === 'topic' && (
               <>
                 <span
@@ -505,54 +545,71 @@ export function SessionSetup({ onStart }: SessionSetupProps) {
         <div className="max-w-[720px] mx-auto grid grid-cols-1 sm:grid-cols-2 gap-4">
           {subjects.map((subject) => {
             const { tier, examBoard } = prefsForSubject(subject);
+            const isHovered = hoveredCard === subject;
             return (
               <button
                 key={subject}
                 onClick={() =>
                   handleSubjectSelect(subject as 'Maths' | 'Physics')
                 }
-                className="bg-card rounded-xl p-8 text-left hover:shadow-md transition-all duration-200 border border-border/40 hover:border-[#E23D28]/30 group relative overflow-hidden"
-                style={{ boxShadow: '0 1px 8px rgba(0,0,0,0.06)' }}
+                onMouseEnter={() => setHoveredCard(subject)}
+                onMouseLeave={() => setHoveredCard(null)}
+                className="bg-card rounded-xl text-left transition-all duration-200 border border-border/40 group relative overflow-hidden"
+                style={{
+                  boxShadow: isHovered ? CARD_SHADOW_HOVER : CARD_SHADOW,
+                  transform: isHovered ? 'translateY(-2px)' : 'translateY(0)',
+                  borderColor: isHovered ? 'rgba(226,61,40,0.25)' : undefined,
+                  padding: '16px 18px',
+                }}
               >
+                {/* Gradient top accent */}
                 <div
                   className="absolute top-0 left-0 right-0 h-[3px]"
                   style={{
                     background:
-                      'linear-gradient(135deg, #E23D28 0%, #F5A623 100%)',
+                      'linear-gradient(90deg, #E23D28 0%, #F5A623 100%)',
                   }}
                 />
-                <div
-                  className="w-11 h-11 rounded-lg flex items-center justify-center mb-4 group-hover:scale-105 transition-transform duration-200"
-                  style={{
-                    background:
-                      'linear-gradient(135deg, rgba(226,61,40,0.1) 0%, rgba(245,166,35,0.1) 100%)',
-                  }}
-                >
-                  {SUBJECT_ICONS_LARGE[subject] ?? (
-                    <span className="text-2xl">📚</span>
-                  )}
-                </div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-lg font-semibold text-foreground">
+
+                {/* Horizontal layout: icon + text + chevron */}
+                <div className="flex items-center gap-3 mt-1">
+                  <div
+                    className="flex items-center justify-center rounded-xl flex-shrink-0"
+                    style={{
+                      width: 46,
+                      height: 46,
+                      background:
+                        'linear-gradient(135deg, rgba(226,61,40,0.09) 0%, rgba(245,166,35,0.11) 100%)',
+                      boxShadow: '0 1px 4px rgba(226,61,40,0.10)',
+                    }}
+                  >
+                    {SUBJECT_ICONS_LARGE[subject] ?? (
+                      <span className="text-xl">📚</span>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h2
+                      className="text-[15px] font-bold text-foreground tracking-tight"
+                      style={{ letterSpacing: '-0.01em' }}
+                    >
                       {subject}
                     </h2>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {tier && examBoard ? (
-                        <span
-                          className="font-medium"
-                          style={{ color: '#E23D28' }}
-                        >
-                          {examBoard} · {tier}
-                        </span>
-                      ) : (
-                        (SUBJECT_DESCRIPTIONS[subject] ?? '')
-                      )}
+                    <p
+                      className="text-[11px] font-semibold mt-0.5"
+                      style={{ letterSpacing: '0.04em', color: '#E23D28' }}
+                    >
+                      {tier && examBoard
+                        ? `${examBoard} · ${tier}`
+                        : (SUBJECT_DESCRIPTIONS[subject] ?? '')}
                     </p>
                   </div>
                   <ChevronRight
-                    size={16}
-                    className="text-muted-foreground/40 group-hover:text-[#E23D28] transition-colors"
+                    size={15}
+                    style={{
+                      color: isHovered ? '#E23D28' : 'rgba(0,0,0,0.2)',
+                      flexShrink: 0,
+                      transition: 'color 0.15s',
+                    }}
                   />
                 </div>
               </button>
@@ -568,24 +625,55 @@ export function SessionSetup({ onStart }: SessionSetupProps) {
             const count = filteredSubtopics.filter(
               (s) => s.topic === topic
             ).length;
+            const isHovered = hoveredCard === topic;
             return (
               <button
                 key={topic}
                 onClick={() => handleTopicSelect(topic)}
-                className="bg-card rounded-xl p-6 text-left hover:shadow-md transition-all duration-200 border border-border/40 hover:border-[#E23D28]/30 group"
-                style={{ boxShadow: '0 1px 8px rgba(0,0,0,0.06)' }}
+                onMouseEnter={() => setHoveredCard(topic)}
+                onMouseLeave={() => setHoveredCard(null)}
+                className="bg-card rounded-xl text-left transition-all duration-200 border border-border/40 group overflow-hidden"
+                style={{
+                  boxShadow: isHovered ? CARD_SHADOW_HOVER : CARD_SHADOW,
+                  transform: isHovered ? 'translateY(-2px)' : 'translateY(0)',
+                  borderColor: isHovered ? 'rgba(226,61,40,0.2)' : undefined,
+                }}
               >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-semibold text-foreground">{topic}</h3>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {count} subtopic{count !== 1 ? 's' : ''}
-                    </p>
-                  </div>
-                  <ChevronRight
-                    size={16}
-                    className="text-muted-foreground/40 group-hover:text-[#E23D28] transition-colors"
+                <div className="flex items-stretch">
+                  {/* Left gradient bar */}
+                  <div
+                    className="w-[3px] flex-shrink-0 rounded-l-xl"
+                    style={{
+                      background:
+                        'linear-gradient(180deg, #E23D28 0%, #F5A623 100%)',
+                    }}
                   />
+                  <div className="flex items-center justify-between flex-1 px-4 py-4">
+                    <div>
+                      <h3
+                        className="font-bold text-foreground text-[14px] tracking-tight"
+                        style={{ letterSpacing: '-0.01em' }}
+                      >
+                        {topic}
+                      </h3>
+                      <p
+                        className="text-[10px] font-semibold uppercase tracking-widest mt-0.5"
+                        style={{ color: '#A8A29E', letterSpacing: '0.09em' }}
+                      >
+                        {count} subtopic{count !== 1 ? 's' : ''}
+                      </p>
+                    </div>
+                    <ChevronRight
+                      size={15}
+                      style={{
+                        color: isHovered
+                          ? 'rgba(226,61,40,0.6)'
+                          : 'rgba(0,0,0,0.18)',
+                        flexShrink: 0,
+                        transition: 'color 0.15s',
+                      }}
+                    />
+                  </div>
                 </div>
               </button>
             );
@@ -596,62 +684,91 @@ export function SessionSetup({ onStart }: SessionSetupProps) {
       {/* ── Subtopic cards ───────────────────────────────────────────── */}
       {step === 'subtopic' && (
         <div className="max-w-[720px] mx-auto grid grid-cols-1 gap-3">
-          {availableSubtopics.map((subtopic) => (
-            <button
-              key={subtopic.id}
-              onClick={() => handleSubtopicSelect(subtopic)}
-              className="bg-card rounded-xl p-6 text-left hover:shadow-md transition-all duration-200 border border-border/40 hover:border-[#E23D28]/30 group"
-              style={{ boxShadow: '0 1px 8px rgba(0,0,0,0.06)' }}
-            >
-              <div className="flex items-center justify-between">
-                <div className="space-y-2">
-                  <h3
-                    className="font-semibold"
+          {availableSubtopics.map((subtopic) => {
+            const isHovered = hoveredCard === subtopic.id;
+            return (
+              <button
+                key={subtopic.id}
+                onClick={() => handleSubtopicSelect(subtopic)}
+                onMouseEnter={() => setHoveredCard(subtopic.id)}
+                onMouseLeave={() => setHoveredCard(null)}
+                className="bg-card rounded-xl text-left transition-all duration-200 border border-border/40 group overflow-hidden"
+                style={{
+                  boxShadow: isHovered ? CARD_SHADOW_HOVER : CARD_SHADOW,
+                  transform: isHovered ? 'translateY(-2px)' : 'translateY(0)',
+                  borderColor: isHovered ? 'rgba(226,61,40,0.2)' : undefined,
+                }}
+              >
+                <div className="flex items-stretch">
+                  {/* Left gradient bar */}
+                  <div
+                    className="w-[3px] flex-shrink-0 rounded-l-xl"
                     style={{
                       background:
-                        'linear-gradient(135deg, #E23D28 0%, #F5A623 100%)',
-                      WebkitBackgroundClip: 'text',
-                      WebkitTextFillColor: 'transparent',
-                      backgroundClip: 'text',
+                        'linear-gradient(180deg, #E23D28 0%, #F5A623 100%)',
                     }}
-                  >
-                    {subtopic.subtopic_name}
-                  </h3>
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs text-muted-foreground">
-                      {subtopic.tier} · Grade {subtopic.grade_band}
-                    </span>
-                    <div className="flex items-center gap-2">
-                      {subtopic.h5p_url && (
-                        <span
-                          className="flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full"
-                          style={{
-                            color: '#E23D28',
-                            background: 'rgba(226,61,40,0.08)',
-                          }}
-                        >
-                          <BookOpen size={9} /> Learn
-                        </span>
-                      )}
-                      <span
-                        className="flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full"
+                  />
+                  <div className="flex items-center justify-between flex-1 px-4 py-4">
+                    <div className="space-y-1.5">
+                      <h3
+                        className="font-bold text-[14px] tracking-tight"
                         style={{
-                          color: '#E23D28',
-                          background: 'rgba(226,61,40,0.08)',
+                          background:
+                            'linear-gradient(135deg, #E23D28 0%, #F5A623 100%)',
+                          WebkitBackgroundClip: 'text',
+                          WebkitTextFillColor: 'transparent',
+                          backgroundClip: 'text',
+                          letterSpacing: '-0.01em',
                         }}
                       >
-                        <Zap size={9} /> Practise
-                      </span>
+                        {subtopic.subtopic_name}
+                      </h3>
+                      <div className="flex items-center gap-3">
+                        <span
+                          className="text-[10px] font-semibold uppercase tracking-widest"
+                          style={{ color: '#A8A29E', letterSpacing: '0.09em' }}
+                        >
+                          {subtopic.tier} · Grade {subtopic.grade_band}
+                        </span>
+                        <div className="flex items-center gap-2">
+                          {subtopic.h5p_url && (
+                            <span
+                              className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                              style={{
+                                color: '#E23D28',
+                                background: 'rgba(226,61,40,0.08)',
+                              }}
+                            >
+                              <BookOpen size={9} /> Learn
+                            </span>
+                          )}
+                          <span
+                            className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                            style={{
+                              color: '#E23D28',
+                              background: 'rgba(226,61,40,0.08)',
+                            }}
+                          >
+                            <Zap size={9} /> Practise
+                          </span>
+                        </div>
+                      </div>
                     </div>
+                    <ChevronRight
+                      size={15}
+                      style={{
+                        color: isHovered
+                          ? 'rgba(226,61,40,0.6)'
+                          : 'rgba(0,0,0,0.18)',
+                        flexShrink: 0,
+                        transition: 'color 0.15s',
+                      }}
+                    />
                   </div>
                 </div>
-                <ChevronRight
-                  size={16}
-                  className="text-muted-foreground/40 group-hover:text-[#E23D28] transition-colors shrink-0"
-                />
-              </div>
-            </button>
-          ))}
+              </button>
+            );
+          })}
         </div>
       )}
     </div>
