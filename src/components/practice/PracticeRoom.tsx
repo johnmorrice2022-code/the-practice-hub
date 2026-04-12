@@ -39,6 +39,8 @@ interface PracticeRoomProps {
 
 type SessionPhase = 'answering' | 'marking' | 'review';
 
+const CARD_SHADOW = '0 2px 6px rgba(0,0,0,0.06), 0 6px 20px rgba(0,0,0,0.08)';
+
 /* ------------------------------------------------------------------ */
 /*  Session progress pills                                             */
 /* ------------------------------------------------------------------ */
@@ -64,8 +66,7 @@ function SessionProgress({
   const hasFeedback = Object.keys(feedbacks).length > 0;
 
   return (
-    <div className="flex items-center gap-4 px-1 mb-3">
-      {/* Question pills */}
+    <div className="flex items-center gap-4 px-1 mb-4">
       <div className="flex gap-1.5 items-center">
         {questions.map((q, i) => {
           const isActive = i === currentIndex;
@@ -87,10 +88,15 @@ function SessionProgress({
               onClick={() => goTo(i)}
               className="flex items-center justify-center transition-all duration-200"
               style={{
-                width: isActive ? 28 : 22,
-                height: 22,
-                borderRadius: 6,
+                width: isActive ? 30 : 24,
+                height: 24,
+                borderRadius: 7,
                 background: bg,
+                boxShadow: isActive
+                  ? '0 2px 8px rgba(74,69,64,0.30)'
+                  : fb
+                    ? '0 1px 4px rgba(0,0,0,0.15)'
+                    : 'none',
               }}
               aria-label={`Go to question ${i + 1}`}
             >
@@ -109,7 +115,6 @@ function SessionProgress({
 
       <div className="flex-1" />
 
-      {/* Running score */}
       {hasFeedback && (
         <div className="flex items-baseline gap-1">
           <span
@@ -339,50 +344,87 @@ export function PracticeRoom({ config, onExit }: PracticeRoomProps) {
     0
   );
 
+  const progressPct =
+    phase === 'review' ? 100 : ((currentIndex + 1) / questions.length) * 100;
+
   if (loading || generatingQuestions) {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-3">
-        <Loader2 className="h-5 w-5 animate-spin text-primary" />
-        <p className="text-sm text-muted-foreground">
-          Loading your questions...
-        </p>
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4 px-6">
+        {/* Branded loading state */}
+        <div className="w-full max-w-[480px] space-y-4">
+          <div className="flex items-center gap-3 mb-6">
+            <div
+              className="w-6 h-6 rounded-full animate-spin flex-shrink-0"
+              style={{
+                background:
+                  'conic-gradient(from 0deg, #E23D28, #F5A623, #E23D28)',
+                maskImage:
+                  'radial-gradient(farthest-side, transparent 60%, black 61%)',
+                WebkitMaskImage:
+                  'radial-gradient(farthest-side, transparent 60%, black 61%)',
+              }}
+            />
+            <p className="text-sm text-muted-foreground">
+              Preparing your questions...
+            </p>
+          </div>
+          {/* Skeleton lines */}
+          <div
+            className="bg-card rounded-xl p-8 space-y-4"
+            style={{ boxShadow: CARD_SHADOW }}
+          >
+            <div className="h-3 bg-muted rounded-full w-1/4 animate-pulse" />
+            <div className="h-4 bg-muted rounded-full w-full animate-pulse" />
+            <div className="h-4 bg-muted rounded-full w-5/6 animate-pulse" />
+            <div className="h-4 bg-muted rounded-full w-4/5 animate-pulse" />
+            <div className="mt-6 h-[80px] bg-muted rounded-xl animate-pulse" />
+          </div>
+        </div>
       </div>
     );
   }
 
   if (questions.length === 0) {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
-        <p className="text-muted-foreground text-sm">
-          Could not load questions. Please try again.
-        </p>
-        <button
-          onClick={loadQuestions}
-          className="flex items-center gap-1.5 text-sm text-primary hover:text-primary/80 underline underline-offset-2 transition-colors"
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4 px-6">
+        <div
+          className="bg-card rounded-xl p-8 text-center max-w-sm w-full"
+          style={{ boxShadow: CARD_SHADOW }}
         >
-          <Sparkles size={14} /> Try again
-        </button>
-        <button
-          onClick={onExit}
-          className="text-sm text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
-        >
-          Go back
-        </button>
+          <p className="text-muted-foreground text-sm mb-4">
+            We couldn't load questions for this subtopic. Please try again.
+          </p>
+          <button
+            onClick={loadQuestions}
+            className="flex items-center gap-1.5 text-sm font-medium mx-auto transition-all duration-150 px-4 py-2 rounded-lg"
+            style={{
+              color: '#fff',
+              background: 'linear-gradient(135deg, #E23D28 0%, #F5A623 100%)',
+              boxShadow: '0 2px 10px rgba(226,61,40,0.28)',
+            }}
+          >
+            <Sparkles size={13} /> Try again
+          </button>
+          <button
+            onClick={onExit}
+            className="mt-3 text-sm text-muted-foreground hover:text-foreground transition-colors block mx-auto"
+          >
+            Go back
+          </button>
+        </div>
       </div>
     );
   }
-
-  // Progress percentage for the gradient bar
-  const progressPct =
-    phase === 'review' ? 100 : ((currentIndex + 1) / questions.length) * 100;
 
   return (
     <div className="min-h-screen bg-background">
       {/* Top bar */}
       <div className="sticky top-0 z-10 bg-background border-b border-border/60">
         <div className="max-w-[720px] mx-auto px-6 h-11 flex items-center justify-between">
-          <span className="text-xs text-muted-foreground tracking-wide">
-            {config.subtopicName}
+          <span className="text-xs text-muted-foreground tracking-tight">
+            <span className="font-medium text-foreground/70">
+              {config.subtopicName}
+            </span>
             <span className="mx-2 text-border">·</span>
             {phase === 'review'
               ? `${totalAwarded}/${totalAvailable} marks`
@@ -411,12 +453,13 @@ export function PracticeRoom({ config, onExit }: PracticeRoomProps) {
       </div>
 
       {/* Brand gradient progress bar */}
-      <div className="h-[3px]" style={{ background: 'rgba(0,0,0,0.04)' }}>
+      <div className="h-[3px]" style={{ background: 'rgba(0,0,0,0.06)' }}>
         <div
           className="h-full transition-all duration-500"
           style={{
             width: `${progressPct}%`,
-            background: 'linear-gradient(135deg, #E23D28 0%, #F5A623 100%)',
+            background:
+              'linear-gradient(90deg, #C8331F 0%, #E23D28 45%, #F5A623 100%)',
           }}
         />
       </div>
@@ -433,9 +476,18 @@ export function PracticeRoom({ config, onExit }: PracticeRoomProps) {
 
         {/* Main content card */}
         <div
-          className="bg-card rounded-xl p-8 sm:p-10"
-          style={{ boxShadow: '0 1px 8px rgba(0,0,0,0.06)' }}
+          className="bg-card rounded-xl p-8 sm:p-10 relative overflow-hidden"
+          style={{ boxShadow: CARD_SHADOW }}
         >
+          {/* Gradient top accent */}
+          <div
+            className="absolute top-0 left-0 right-0 h-[3px]"
+            style={{
+              background:
+                'linear-gradient(90deg, #C8331F 0%, #E23D28 45%, #F5A623 100%)',
+            }}
+          />
+
           {phase === 'review' && currentFeedback ? (
             <FeedbackCard
               feedback={currentFeedback}
@@ -443,7 +495,17 @@ export function PracticeRoom({ config, onExit }: PracticeRoomProps) {
             />
           ) : phase === 'marking' && isMarking ? (
             <div className="flex flex-col items-center justify-center py-16 gap-3">
-              <Loader2 className="h-5 w-5 animate-spin text-[#E23D28]" />
+              <div
+                className="w-6 h-6 rounded-full animate-spin"
+                style={{
+                  background:
+                    'conic-gradient(from 0deg, #E23D28, #F5A623, #E23D28)',
+                  maskImage:
+                    'radial-gradient(farthest-side, transparent 60%, black 61%)',
+                  WebkitMaskImage:
+                    'radial-gradient(farthest-side, transparent 60%, black 61%)',
+                }}
+              />
               <p className="text-sm text-muted-foreground">
                 Marking question {currentIndex + 1}...
               </p>
@@ -465,6 +527,7 @@ export function PracticeRoom({ config, onExit }: PracticeRoomProps) {
                 onPartAnswerChange={handlePartAnswerChange}
               />
 
+              {/* Mark this question button */}
               {phase === 'answering' &&
                 currentQuestion &&
                 hasAnswer(currentQuestion) &&
@@ -473,8 +536,13 @@ export function PracticeRoom({ config, onExit }: PracticeRoomProps) {
                     <button
                       onClick={() => markAnswer(currentQuestion.id)}
                       disabled={!!markingId}
-                      className="flex items-center gap-1.5 text-xs font-medium transition-colors disabled:opacity-40"
-                      style={{ color: '#E23D28' }}
+                      className="flex items-center gap-2 text-xs font-semibold px-4 py-2 rounded-lg transition-all duration-150 disabled:opacity-40 active:scale-[0.97]"
+                      style={{
+                        color: '#fff',
+                        background:
+                          'linear-gradient(135deg, #E23D28 0%, #F5A623 100%)',
+                        boxShadow: '0 2px 10px rgba(226,61,40,0.30)',
+                      }}
                     >
                       {markingId === currentQuestion.id ? (
                         <Loader2 size={12} className="animate-spin" />
@@ -486,6 +554,7 @@ export function PracticeRoom({ config, onExit }: PracticeRoomProps) {
                   </div>
                 )}
 
+              {/* Inline feedback */}
               {phase === 'answering' &&
                 currentQuestion &&
                 feedbacks[currentQuestion.id] && (
@@ -510,7 +579,6 @@ export function PracticeRoom({ config, onExit }: PracticeRoomProps) {
             <ChevronLeft size={14} /> Previous
           </button>
 
-          {/* Dot indicators removed - replaced by session progress pills above */}
           <div />
 
           {currentIndex < questions.length - 1 ? (
@@ -524,16 +592,28 @@ export function PracticeRoom({ config, onExit }: PracticeRoomProps) {
             <button
               onClick={handleFinish}
               disabled={!allAnswered}
-              className="text-xs font-medium transition-colors py-1 disabled:opacity-30 disabled:cursor-default"
-              style={{ color: '#E23D28' }}
+              className="flex items-center gap-2 text-xs font-semibold px-4 py-2 rounded-lg transition-all duration-150 disabled:opacity-30 disabled:cursor-default active:scale-[0.97]"
+              style={{
+                color: allAnswered ? '#fff' : undefined,
+                background: allAnswered
+                  ? 'linear-gradient(135deg, #E23D28 0%, #F5A623 100%)'
+                  : undefined,
+                boxShadow: allAnswered
+                  ? '0 2px 10px rgba(226,61,40,0.28)'
+                  : undefined,
+              }}
             >
               Finish & mark all
             </button>
           ) : (
             <button
               onClick={onExit}
-              className="text-xs font-medium transition-colors py-1"
-              style={{ color: '#E23D28' }}
+              className="flex items-center gap-2 text-xs font-semibold px-4 py-2 rounded-lg transition-all duration-150 active:scale-[0.97]"
+              style={{
+                color: '#fff',
+                background: 'linear-gradient(135deg, #E23D28 0%, #F5A623 100%)',
+                boxShadow: '0 2px 10px rgba(226,61,40,0.28)',
+              }}
             >
               Done
             </button>
