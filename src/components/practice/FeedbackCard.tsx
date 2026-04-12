@@ -52,10 +52,6 @@ function renderMath(text: string): string {
       return `$${math}$`;
     }
   });
-  html = html
-    .split('\n\n')
-    .map((b) => `<p>${b.replace(/\n/g, '<br/>')}</p>`)
-    .join('');
   return html;
 }
 
@@ -186,9 +182,12 @@ export function FeedbackCard({ feedback, questionNumber }: FeedbackCardProps) {
       </div>
 
       {/* Summary */}
-      <p className="text-[15px] leading-[1.8] text-foreground">
-        {feedback.feedback_summary}
-      </p>
+      <div
+        className="text-[15px] leading-[1.8] text-foreground question-text"
+        dangerouslySetInnerHTML={{
+          __html: renderMath(feedback.feedback_summary),
+        }}
+      />
 
       <div className="border-t border-border/50" />
 
@@ -205,14 +204,14 @@ export function FeedbackCard({ feedback, questionNumber }: FeedbackCardProps) {
                 <div className="flex items-center gap-2 flex-wrap">
                   {markTypeBadge(step.mark_type)}
                   <span
-                    className="text-sm text-foreground"
+                    className="text-sm text-foreground question-text"
                     dangerouslySetInnerHTML={{
                       __html: renderMath(step.criterion),
                     }}
                   />
                 </div>
-                <p
-                  className="text-xs text-muted-foreground mt-0.5"
+                <div
+                  className="text-xs text-muted-foreground mt-0.5 question-text"
                   dangerouslySetInnerHTML={{ __html: renderMath(step.comment) }}
                 />
               </div>
@@ -249,9 +248,12 @@ export function FeedbackCard({ feedback, questionNumber }: FeedbackCardProps) {
               <span className="text-xs text-muted-foreground tracking-wide uppercase">
                 Focus for revision
               </span>
-              <p className="text-sm text-foreground mt-1">
-                {feedback.revision_focus}
-              </p>
+              <div
+                className="text-sm text-foreground mt-1 question-text"
+                dangerouslySetInnerHTML={{
+                  __html: renderMath(feedback.revision_focus),
+                }}
+              />
             </div>
           </div>
         </>
