@@ -42,18 +42,25 @@ interface LearningContentProps {
 /* ------------------------------------------------------------------ */
 function renderMath(text: string): string {
   if (!text) return '';
-  // Display mode: $$...$$
+
+  const placeholders: string[] = [];
+
+  // Replace $$...$$ with placeholders before inline pass
   let html = text.replace(/\$\$([\s\S]*?)\$\$/g, (_, math) => {
     try {
-      return katex.renderToString(math.trim(), {
+      const rendered = katex.renderToString(math.trim(), {
         displayMode: true,
         throwOnError: false,
       });
+      const idx = placeholders.length;
+      placeholders.push(rendered);
+      return `%%DISPLAY_MATH_${idx}%%`;
     } catch {
       return `$$${math}$$`;
     }
   });
-  // Inline mode: $...$
+
+  // Now safe to run inline pass — no $$...$$ left in string
   html = html.replace(/\$([^\$\n]+?)\$/g, (_, math) => {
     try {
       return katex.renderToString(math.trim(), {
@@ -64,9 +71,14 @@ function renderMath(text: string): string {
       return `$${math}$`;
     }
   });
+
+  // Restore display math placeholders
+  placeholders.forEach((rendered, idx) => {
+    html = html.replace(`%%DISPLAY_MATH_${idx}%%`, rendered);
+  });
+
   return html;
 }
-
 /* ------------------------------------------------------------------ */
 /*  Styled paragraph components                                       */
 /* ------------------------------------------------------------------ */
