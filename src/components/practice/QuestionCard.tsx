@@ -30,16 +30,23 @@ interface QuestionCardProps {
 
 function renderMathInText(text: string): string {
   if (!text) return '';
+
+  const placeholders: string[] = [];
+
   let html = text.replace(/\$\$([\s\S]*?)\$\$/g, (_, math) => {
     try {
-      return katex.renderToString(math.trim(), {
+      const rendered = katex.renderToString(math.trim(), {
         displayMode: true,
         throwOnError: false,
       });
+      const idx = placeholders.length;
+      placeholders.push(rendered);
+      return `%%DISPLAY_MATH_${idx}%%`;
     } catch {
       return `$$${math}$$`;
     }
   });
+
   html = html.replace(/\$([^\$\n]+?)\$/g, (_, math) => {
     try {
       return katex.renderToString(math.trim(), {
@@ -50,13 +57,18 @@ function renderMathInText(text: string): string {
       return `$${math}$`;
     }
   });
+
   html = html
     .split('\n\n')
     .map((block) => `<p>${block.replace(/\n/g, '<br/>')}</p>`)
     .join('');
+
+  placeholders.forEach((rendered, idx) => {
+    html = html.replace(`%%DISPLAY_MATH_${idx}%%`, rendered);
+  });
+
   return html;
 }
-
 function AutoTextarea({
   value,
   onChange,

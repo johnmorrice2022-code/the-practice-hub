@@ -32,16 +32,23 @@ interface FeedbackCardProps {
 
 function renderMath(text: string): string {
   if (!text) return '';
+
+  const placeholders: string[] = [];
+
   let html = text.replace(/\$\$([\s\S]*?)\$\$/g, (_, math) => {
     try {
-      return katex.renderToString(math.trim(), {
+      const rendered = katex.renderToString(math.trim(), {
         displayMode: true,
         throwOnError: false,
       });
+      const idx = placeholders.length;
+      placeholders.push(rendered);
+      return `%%DISPLAY_MATH_${idx}%%`;
     } catch {
       return `$$${math}$$`;
     }
   });
+
   html = html.replace(/\$([^\$\n]+?)\$/g, (_, math) => {
     try {
       return katex.renderToString(math.trim(), {
@@ -52,6 +59,11 @@ function renderMath(text: string): string {
       return `$${math}$`;
     }
   });
+
+  placeholders.forEach((rendered, idx) => {
+    html = html.replace(`%%DISPLAY_MATH_${idx}%%`, rendered);
+  });
+
   return html;
 }
 
