@@ -288,32 +288,41 @@ function isInStructuralPart(block: Block, pos: number): boolean {
 // ═══════════════════════════════════════════════════════════════════════
 
 function KaTeXPreview({ text }: { text: string }) {
-  const ref = useRef<HTMLDivElement>(null);
+  const trimmed = text.trim();
 
-  useEffect(() => {
-    if (!ref.current) return;
-    const trimmed = text.trim();
-    if (!trimmed) {
-      ref.current.innerHTML = '';
-      return;
-    }
-    try {
-      ref.current.innerHTML = katex.renderToString(trimmed, {
-        displayMode: true,
-        throwOnError: false,
-      });
-    } catch {
-      ref.current.textContent = trimmed;
-    }
-  }, [text]);
-
-  if (!text.trim()) {
+  if (!trimmed) {
     return (
       <span className="text-muted-foreground/50 italic text-sm">
         Your maths will appear here as you type...
       </span>
     );
   }
+
+  const lines = trimmed.split('\n').filter((line) => line.trim() !== '');
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      {lines.map((line, i) => (
+        <KaTeXLine key={i} line={line} />
+      ))}
+    </div>
+  );
+}
+
+function KaTeXLine({ line }: { line: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!ref.current) return;
+    try {
+      ref.current.innerHTML = katex.renderToString(line.trim(), {
+        displayMode: true,
+        throwOnError: false,
+      });
+    } catch {
+      ref.current.textContent = line;
+    }
+  }, [line]);
 
   return <div ref={ref} style={{ minHeight: 24, lineHeight: 1.6 }} />;
 }
