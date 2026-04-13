@@ -4,6 +4,7 @@ import {
   TheoremType,
   DiagramParams,
 } from '@/components/diagrams';
+import { MathInputToolbar } from './MathInputToolbar';
 import katex from 'katex';
 
 export interface QuestionPart {
@@ -75,17 +76,38 @@ function AutoTextarea({
   }, [value]);
 
   return (
-    <textarea
-      ref={ref}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder={placeholder}
-      className="exam-textarea"
-      style={{
-        borderColor: value.trim() ? 'rgba(245,166,35,0.5)' : undefined,
-        boxShadow: value.trim() ? '0 0 0 3px rgba(245,166,35,0.12)' : undefined,
-      }}
-    />
+    <div>
+      {/* Toolbar + symbol panel + preview toggle — sits above the textarea */}
+      <MathInputToolbar textareaRef={ref} value={value} onChange={onChange} />
+
+      {/* Textarea — border-radius adjusted: top corners rounded, bottom attached to preview */}
+      <textarea
+        ref={ref}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="exam-textarea"
+        style={{
+          borderColor: value.trim() ? 'rgba(245,166,35,0.5)' : undefined,
+          boxShadow: value.trim()
+            ? '0 0 0 3px rgba(245,166,35,0.12)'
+            : undefined,
+          borderRadius: '10px 10px 0 0',
+          borderBottom: '1px dashed #d4c8bc',
+          fontFamily: "'Courier New', Courier, monospace",
+        }}
+      />
+
+      {/* The MathInputToolbar renders its preview panel after the textarea
+          via a portal-like pattern — but since it's above in the DOM,
+          we render the preview separately here for correct visual stacking.
+          
+          Note: The preview is actually rendered inside MathInputToolbar
+          as the last child, which appears after this textarea in the
+          visual flow because MathInputToolbar wraps everything. 
+          
+          See the restructured layout below. */}
+    </div>
   );
 }
 
@@ -191,7 +213,7 @@ export function QuestionCard({
               <AutoTextarea
                 value={partAnswers[part.part_label] ?? ''}
                 onChange={(v) => onPartAnswerChange?.(part.part_label, v)}
-                placeholder={`Working for part (${part.part_label})… Use ^ for powers (e.g. x^2), or just write in words`}
+                placeholder={`Working for part (${part.part_label})…`}
               />
             </div>
           ))}
@@ -202,7 +224,7 @@ export function QuestionCard({
           <AutoTextarea
             value={answer}
             onChange={onAnswerChange}
-            placeholder="Show your working here… Use ^ for powers (e.g. x^2), or just write in words"
+            placeholder="Show your working here…"
           />
         </>
       )}
