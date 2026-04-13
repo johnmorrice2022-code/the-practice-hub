@@ -31,9 +31,15 @@ interface QuestionCardProps {
 function renderMathInText(text: string): string {
   if (!text) return '';
 
+  // Step 1: split into paragraphs FIRST, before any rendering
+  const blocks = text
+    .split('\n\n')
+    .map((block) => block.replace(/\n/g, ' '))
+    .join('\n\n');
+
   const placeholders: string[] = [];
 
-  let html = text.replace(/\$\$([\s\S]*?)\$\$/g, (_, math) => {
+  let html = blocks.replace(/\$\$([\s\S]*?)\$\$/g, (_, math) => {
     try {
       const rendered = katex.renderToString(math.trim(), {
         displayMode: true,
@@ -58,9 +64,11 @@ function renderMathInText(text: string): string {
     }
   });
 
+  // Step 2: wrap in paragraphs AFTER rendering — but only split on \n\n
+  // Single \n within a block becomes a space (safe for maths text)
   html = html
     .split('\n\n')
-    .map((block) => `<p>${block.replace(/\n/g, '<br/>')}</p>`)
+    .map((block) => `<p>${block}</p>`)
     .join('');
 
   placeholders.forEach((rendered, idx) => {
