@@ -59,7 +59,6 @@ const Signup = () => {
               Start practising <span className="text-accent-amber">smarter</span> today
             </p>
 
-            {/* Role selector */}
             <div className="flex gap-3 mb-6">
               <button
                 onClick={() => setRole("student")}
@@ -102,4 +101,56 @@ const Signup = () => {
 
             <form className="space-y-4" onSubmit={handleSignup}>
               <div>
-                <label className="block text-sm font-medium text-muted-f
+                <label className="block text-sm font-medium text-muted-foreground mb-1.5">Full name</label>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full h-11 px-4 rounded-lg border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 transition-shadow"
+                  placeholder="Your full name"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-muted-foreground mb-1.5">Email</label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full h-11 px-4 rounded-lg border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 transition-shadow"
+                  placeholder="your@email.com"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-muted-foreground mb-1.5">Password</label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full h-11 px-4 rounded-lg border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 transition-shadow"
+                  placeholder="At least 8 characters"
+                  minLength={8}
+                  required
+                />
+              </div>
+              <Button variant="hero" className="w-full" size="lg" disabled={!role || loading}>
+                {loading ? "Creating account…" : "Create account"}
+              </Button>
+            </form>
+
+            <p className="mt-6 text-sm text-center text-muted-foreground">
+              Already have an account?{" "}
+              <Link to="/login" className="text-primary font-medium hover:underline">
+                Log in
+              </Link>
+            </p>
+          </div>
+        </div>
+      </div>
+      <Footer />
+    </div>
+  );
+};
+
+export default Signup;
