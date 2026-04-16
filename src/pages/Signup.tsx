@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable";
 import { useToast } from "@/hooks/use-toast";
 
 const Signup = () => {
@@ -38,11 +37,14 @@ const Signup = () => {
   };
 
   const handleGoogleSignup = async () => {
-    const { error } = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin + "/dashboard",
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: window.location.origin + "/auth/callback",
+      },
     });
     if (error) {
-      toast({ title: "Could not sign up", description: error instanceof Error ? error.message : String(error), variant: "destructive" });
+      toast({ title: "Could not sign up", description: error.message, variant: "destructive" });
     }
   };
 
@@ -100,56 +102,4 @@ const Signup = () => {
 
             <form className="space-y-4" onSubmit={handleSignup}>
               <div>
-                <label className="block text-sm font-medium text-muted-foreground mb-1.5">Full name</label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full h-11 px-4 rounded-lg border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 transition-shadow"
-                  placeholder="Your full name"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-muted-foreground mb-1.5">Email</label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full h-11 px-4 rounded-lg border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 transition-shadow"
-                  placeholder="your@email.com"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-muted-foreground mb-1.5">Password</label>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full h-11 px-4 rounded-lg border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 transition-shadow"
-                  placeholder="At least 8 characters"
-                  minLength={8}
-                  required
-                />
-              </div>
-              <Button variant="hero" className="w-full" size="lg" disabled={!role || loading}>
-                {loading ? "Creating account…" : "Create account"}
-              </Button>
-            </form>
-
-            <p className="mt-6 text-sm text-center text-muted-foreground">
-              Already have an account?{" "}
-              <Link to="/login" className="text-primary font-medium hover:underline">
-                Log in
-              </Link>
-            </p>
-          </div>
-        </div>
-      </div>
-      <Footer />
-    </div>
-  );
-};
-
-export default Signup;
+                <label className="block text-sm font-medium text-muted-f
