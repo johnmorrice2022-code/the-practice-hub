@@ -303,6 +303,9 @@ export function PracticeRoom({ config, onExit }: PracticeRoomProps) {
           studentAnswer,
           marks: q.marks,
           markingGuidance,
+          subject: config.subject,
+          examBoard: config.examBoard,
+          tier: config.tier,
         },
       });
       if (error) throw error;

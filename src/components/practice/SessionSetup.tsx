@@ -11,6 +11,7 @@ export interface SessionConfig {
   subtopicName: string;
   tier: string;
   gradeBand: string;
+  examBoard: string;
 }
 
 interface Subtopic {
@@ -311,6 +312,7 @@ export function SessionSetup({ onStart }: SessionSetupProps) {
         subtopicName: subtopic.subtopic_name,
         tier: subtopic.tier,
         gradeBand: subtopic.grade_band,
+        examBoard: subtopic.exam_board,
       },
       subtopic.h5p_url
     );
