@@ -81,6 +81,15 @@ const statusIcon = (status: string) => {
 
 const markTypeBadge = (markType?: string) => {
   if (!markType) return null;
+  const labels: Record<string, string> = {
+    M: 'Method',
+    P: 'Process',
+    A: 'Accuracy',
+    B: 'Independent',
+    C: 'Communication',
+    ECF: 'Follow-through',
+    step: 'Mark',
+  };
   const colours: Record<string, string> = {
     M: 'bg-blue-50 text-blue-600',
     P: 'bg-blue-50 text-blue-600',
@@ -91,11 +100,12 @@ const markTypeBadge = (markType?: string) => {
     step: 'bg-muted text-muted-foreground',
   };
   const colour = colours[markType] || 'bg-muted text-muted-foreground';
+  const label = labels[markType] || markType;
   return (
     <span
       className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${colour} shrink-0`}
     >
-      {markType}
+      {label}
     </span>
   );
 };
@@ -237,7 +247,7 @@ export function FeedbackCard({ feedback, questionNumber }: FeedbackCardProps) {
 
       <div className="border-t border-border/50" />
 
-      {/* Worked solution — one line per step */}
+      {/* Worked solution — one step per line with alternating subtle background */}
       <div className="space-y-3">
         <div className="flex items-center gap-1.5">
           <BookOpen size={13} className="text-muted-foreground" />
@@ -245,13 +255,20 @@ export function FeedbackCard({ feedback, questionNumber }: FeedbackCardProps) {
             Worked solution
           </span>
         </div>
-        <div className="text-[15px] leading-[1.8] text-foreground question-text space-y-1">
-          {feedback.worked_solution.split('\n').map((line, i) => (
-            <div
-              key={i}
-              dangerouslySetInnerHTML={{ __html: renderMath(line) }}
-            />
-          ))}
+        <div className="rounded-lg overflow-hidden">
+          {feedback.worked_solution
+            .split('\n')
+            .filter((line) => line.trim() !== '')
+            .map((line, i) => (
+              <div
+                key={i}
+                className="text-[15px] leading-[1.8] text-foreground question-text px-3 py-1.5"
+                style={{
+                  background: i % 2 === 0 ? 'rgba(0,0,0,0.03)' : 'transparent',
+                }}
+                dangerouslySetInnerHTML={{ __html: renderMath(line) }}
+              />
+            ))}
         </div>
       </div>
 
