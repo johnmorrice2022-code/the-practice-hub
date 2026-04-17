@@ -83,9 +83,12 @@ const markTypeBadge = (markType?: string) => {
   if (!markType) return null;
   const colours: Record<string, string> = {
     M: 'bg-blue-50 text-blue-600',
+    P: 'bg-blue-50 text-blue-600',
     A: 'bg-green-50 text-green-600',
     B: 'bg-purple-50 text-purple-600',
+    C: 'bg-orange-50 text-orange-600',
     ECF: 'bg-amber-50 text-amber-600',
+    step: 'bg-muted text-muted-foreground',
   };
   const colour = colours[markType] || 'bg-muted text-muted-foreground';
   return (
@@ -234,7 +237,7 @@ export function FeedbackCard({ feedback, questionNumber }: FeedbackCardProps) {
 
       <div className="border-t border-border/50" />
 
-      {/* Worked solution */}
+      {/* Worked solution — one line per step */}
       <div className="space-y-3">
         <div className="flex items-center gap-1.5">
           <BookOpen size={13} className="text-muted-foreground" />
@@ -242,12 +245,14 @@ export function FeedbackCard({ feedback, questionNumber }: FeedbackCardProps) {
             Worked solution
           </span>
         </div>
-        <div
-          className="text-[15px] leading-[1.8] text-foreground question-text"
-          dangerouslySetInnerHTML={{
-            __html: renderMath(feedback.worked_solution),
-          }}
-        />
+        <div className="text-[15px] leading-[1.8] text-foreground question-text space-y-1">
+          {feedback.worked_solution.split('\n').map((line, i) => (
+            <div
+              key={i}
+              dangerouslySetInnerHTML={{ __html: renderMath(line) }}
+            />
+          ))}
+        </div>
       </div>
 
       {/* Revision focus */}
