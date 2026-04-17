@@ -35,10 +35,20 @@ serve(async (req) => {
     const boardLabel = isMaths ? 'Edexcel' : 'AQA';
 
     const markTypeGuidance = isMaths
-      ? `Mark types:\n- M mark: correct method even if arithmetic is wrong\n- A mark: correct answer, dependent on M mark\n- B mark: independent correct statement or value\n- ECF: award if student uses their incorrect earlier value correctly in subsequent steps`
-      : `Mark types:\n- B mark: correct physics statement, definition, or value\n- M mark: correct application of formula\n- A mark: correct answer with units\n- ECF: award if student uses their incorrect value correctly`;
+      ? `MARK TYPES FOR EDEXCEL MATHS:
+- M mark: method mark — awarded for a correct method even if arithmetic is wrong
+- P mark: process mark — awarded for a correct process step in a problem solving question
+- A mark: accuracy mark — awarded for the correct answer, dependent on the preceding M or P mark
+- B mark: unconditional accuracy mark — awarded for a correct answer with no method required
+- C mark: communication mark — awarded for a fully correct written explanation or statement
+Use ft (follow through) where a subsequent mark should be awarded using the student's earlier answer.
+Use cao (correct answer only) where only the exact answer is acceptable.`
+      : `MARK TYPES FOR AQA PHYSICS:
+Every mark is a standalone 1-mark criterion. There are no M, A or B labels.
+Each mark is awarded for a specific correct step: correct substitution, correct calculation, correct answer with unit, correct recall, correct reasoning.
+Do not label marks with M, A or B. Each criterion in the mark scheme is simply worth 1 mark.`;
 
-    const systemPrompt = `You are a senior ${boardLabel} GCSE ${subtopic.subject} examiner writing questions for Higher tier, grade band ${subtopic.grade_band}.
+    const systemPrompt = `You are a senior ${boardLabel} GCSE ${subtopic.subject} examiner writing questions for ${subtopic.tier} tier, grade band ${subtopic.grade_band}.
 
 Subject: ${subtopic.subject}
 Exam board: ${boardLabel}
@@ -56,18 +66,27 @@ ${markTypeGuidance}
 
 CRITICAL — MATHEMATICAL NOTATION:
 You MUST use LaTeX notation for ALL mathematical expressions in question_text, mark_scheme criteria, and worked_solution.
-In JSON strings, backslashes must be escaped as double backslashes.
+In JSON strings, backslashes MUST be escaped as double backslashes (\\\\).
 
-Here are EXACT examples of correct JSON output with LaTeX:
+EXACT examples of correct JSON output with LaTeX — copy these patterns precisely:
 
-For square roots: "Simplify $\\\\sqrt{72}$"
-For fractions: "Rationalise $\\\\frac{6}{\\\\sqrt{3}}$"  
-For powers: "Evaluate $27^{\\\\frac{2}{3}}$"
-For expressions: "$x^2 + 5x + 6$"
-For plus-minus: "$x = \\\\frac{-b \\\\pm \\\\sqrt{b^2 - 4ac}}{2a}$"
-For multiplication: "$3\\\\sqrt{2} + 2\\\\sqrt{2} = 5\\\\sqrt{2}$"
+Multiplication sign:    "$3 \\\\times 2$"
+Square roots:           "$\\\\sqrt{72}$"
+Fractions:              "$\\\\frac{6}{\\\\sqrt{3}}$"
+Powers:                 "$27^{\\\\frac{2}{3}}$"
+Expressions:            "$x^2 + 5x + 6$"
+Plus-minus:             "$x = \\\\frac{-b \\\\pm \\\\sqrt{b^2 - 4ac}}{2a}$"
+Multiplication of surds: "$3\\\\sqrt{2} \\\\times 2\\\\sqrt{2} = 6 \\\\times 2 = 12$"
+Indices:                "$3x^4 \\\\times 2x^3 = 6x^7$"
 
-NEVER write sqrt(), or plain text like "root 2" or "x squared". ALWAYS use the LaTeX forms shown above.
+NEVER use:
+- \\times with a single backslash — always double: \\\\times
+- sqrt() — always use \\\\sqrt{}
+- Plain text like "root 2", "x squared", "times" — always use LaTeX
+
+WORKED SOLUTION FORMAT:
+Write each step on a separate line using \\n between steps. One calculation step per line.
+Example: "$E_k = \\\\frac{1}{2}mv^2$\\n$E_k = \\\\frac{1}{2} \\\\times 0.42 \\\\times 15^2$\\n$E_k = 47.25$ J"
 
 QUESTION FORMAT
 Each question must be one of two types:
@@ -81,7 +100,7 @@ TYPE 1 — Single part question:
     { "mark_type": "M", "criterion": "Identifies $\\\\sqrt{36}$ as a factor", "marks": 1 },
     { "mark_type": "A", "criterion": "Correct answer $6\\\\sqrt{2}$", "marks": 1 }
   ],
-  "worked_solution": "$\\\\sqrt{72} = \\\\sqrt{36 \\\\times 2} = 6\\\\sqrt{2}$"
+  "worked_solution": "$\\\\sqrt{72} = \\\\sqrt{36 \\\\times 2}$\\n$= \\\\sqrt{36} \\\\times \\\\sqrt{2}$\\n$= 6\\\\sqrt{2}$"
 }
 
 TYPE 2 — Multi-part question:
@@ -95,25 +114,30 @@ TYPE 2 — Multi-part question:
   "mark_scheme": [
     { "mark_type": "M", "part": "a", "criterion": "criterion with $LaTeX$", "marks": 1 },
     { "mark_type": "A", "part": "a", "criterion": "criterion with $LaTeX$", "marks": 1 },
-    { "mark_type": "B1ft", "part": "b", "criterion": "criterion with $LaTeX$", "marks": 1 }
+    { "mark_type": "B", "part": "b", "criterion": "criterion with $LaTeX$", "marks": 1 }
   ],
-  "worked_solution": "Full solution with $LaTeX$"
+  "worked_solution": "Part (a):\\n$step 1$\\n$step 2$\\nPart (b):\\n$step 1$"
 }
 
 RULES:
 1. Generate exactly ${count} questions in increasing difficulty
 2. Questions must read exactly like real ${boardLabel} past paper questions
-3. Use LaTeX notation as shown in the examples above — this is mandatory, not optional
-4. At least one question must be multi-part (TYPE 2)
-5. Mark schemes must be unambiguous — a second examiner must reach identical marks
-6. Return ONLY a JSON object, no markdown, no preamble`;
+3. Use LaTeX notation as shown above — mandatory, not optional
+4. \\\\times must always use double escaped backslash — never single
+5. At least one question must be multi-part (TYPE 2)
+6. Mark schemes must be unambiguous — a second examiner must reach identical marks
+7. Worked solution must have one step per line, separated by \\n
+8. Return ONLY a JSON object, no markdown, no preamble`;
 
     const userPrompt = `Generate ${count} GCSE exam questions for: "${subtopic.subtopic_name}" (${subtopic.topic}, ${boardLabel} ${subtopic.tier} tier, grade ${subtopic.grade_band}).
 
-REMINDER: All mathematical expressions MUST use LaTeX with escaped backslashes in JSON. For example:
-- Square root: "Simplify $\\\\sqrt{50}$"
-- Fraction: "$\\\\frac{3}{4}$"
-- Power: "$x^{2}$"
+REMINDER: All mathematical expressions MUST use LaTeX with double-escaped backslashes in JSON.
+
+Critical examples:
+- Multiplication: "$3x^4 \\\\times 2x^3$" — NOT "$3x^4 \\times 2x^3$"
+- Square root: "$\\\\sqrt{50}$" — NOT "$\\sqrt{50}$"
+- Fraction: "$\\\\frac{3}{4}$" — NOT "$\\frac{3}{4}$"
+- Times symbol: "$\\\\times$" — NOT "$\\times$"
 
 Return ONLY this JSON structure:
 {
@@ -123,7 +147,7 @@ Return ONLY this JSON structure:
       "marks": 2,
       "parts": [],
       "mark_scheme": [{ "mark_type": "M", "criterion": "string with $LaTeX$", "marks": 1 }],
-      "worked_solution": "string with $LaTeX$",
+      "worked_solution": "one step per line using \\n",
       "diagram_type": null,
       "diagram_params": null
     }
