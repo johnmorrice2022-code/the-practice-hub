@@ -28,7 +28,9 @@ Marks are tagged by Assessment Objective:
 SECTION 2: EQUATIONS
 Students are given a Physics Equations Sheet in the exam containing all equations they need. Every equation is on the sheet. Students are NEVER required to recall an equation from memory.
 
-Writing down an equation does NOT award a mark. Marks are awarded for correctly USING equations — substituting values correctly, rearranging correctly, calculating correctly.
+Marks are awarded for correctly USING equations — substituting values correctly, rearranging correctly, calculating correctly. Writing down an equation in a calculation question awards no mark.
+
+The only exception: if the question is multiple choice asking the student to select the correct equation from given options, then selecting the correct equation is the mark.
 
 SECTION 3: HOW CALCULATION MARKS WORK
 A multi-step calculation has one mark per correct step. Each step is independent.
@@ -101,12 +103,17 @@ You are writing for a 14-16 year old student.
 SECTION 10: OUTPUT FORMAT
 Return ONLY a JSON object. No markdown, no preamble, no explanation outside the JSON.
 
+For worked_solution: write each step on a separate line. One step per line. Do not run steps together inline. For example:
+"Ek = ½ × 2 × 3²\nEk = ½ × 2 × 9\nEk = 9 J"
+
+For step_breakdown: one entry per mark criterion from the mark scheme. mark_type is always "step" — do not use AO labels.
+
 {
   "marks_awarded": number,
   "marks_available": number,
   "step_breakdown": [
     {
-      "mark_type": "AO1" | "AO2" | "AO3" | "LOR",
+      "mark_type": "step",
       "part": "a" | "b" | "c" | null,
       "criterion": "exact criterion text from mark scheme",
       "status": "awarded" | "not_awarded",
@@ -115,7 +122,7 @@ Return ONLY a JSON object. No markdown, no preamble, no explanation outside the 
   ],
   "error_type": "none" | "arithmetic" | "wrong_substitution" | "wrong_unit" | "incomplete" | "missing_reason" | "wrong_recall" | "ecf",
   "feedback_summary": "2-3 warm, specific, actionable sentences for the student",
-  "worked_solution": "full model solution showing correct working",
+  "worked_solution": "full model solution, one step per line using \\n between steps",
   "revision_focus": "one specific skill or concept to practise"
 }`;
 }
