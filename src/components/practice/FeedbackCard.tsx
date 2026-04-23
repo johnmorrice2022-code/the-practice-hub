@@ -6,6 +6,7 @@ import {
   AlertCircle,
   BookOpen,
   Lightbulb,
+  MessageCircle,
 } from 'lucide-react';
 
 interface StepBreakdown {
@@ -28,13 +29,12 @@ export interface MarkingFeedback {
 interface FeedbackCardProps {
   feedback: MarkingFeedback;
   questionNumber: number;
+  onJamHelp?: () => void;
 }
 
 function renderMath(text: string): string {
   if (!text) return '';
-
   const placeholders: string[] = [];
-
   let html = text.replace(/\$\$([\s\S]*?)\$\$/g, (_, math) => {
     try {
       const rendered = katex.renderToString(math.trim(), {
@@ -48,7 +48,6 @@ function renderMath(text: string): string {
       return `$$${math}$$`;
     }
   });
-
   html = html.replace(/\$([^\$\n]+?)\$/g, (_, math) => {
     try {
       return katex.renderToString(math.trim(), {
@@ -59,11 +58,9 @@ function renderMath(text: string): string {
       return `$${math}$`;
     }
   });
-
   placeholders.forEach((rendered, idx) => {
     html = html.replace(`%%DISPLAY_MATH_${idx}%%`, rendered);
   });
-
   return html;
 }
 
@@ -99,24 +96,18 @@ const markTypeBadge = (markType?: string) => {
     ECF: 'bg-amber-50 text-amber-600',
     step: 'bg-muted text-muted-foreground',
   };
-  const colour = colours[markType] || 'bg-muted text-muted-foreground';
-  const label = labels[markType] || markType;
   return (
     <span
-      className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${colour} shrink-0`}
+      className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${colours[markType] || 'bg-muted text-muted-foreground'} shrink-0`}
     >
-      {label}
+      {labels[markType] || markType}
     </span>
   );
 };
 
-/* ------------------------------------------------------------------ */
-/*  Colour tier helpers                                                */
-/* ------------------------------------------------------------------ */
-
 function getScoreTier(awarded: number, available: number) {
   const pct = available > 0 ? awarded / available : 0;
-  if (pct >= 0.7) {
+  if (pct >= 0.7)
     return {
       accentColor: '#2D9A5F',
       bgStyle:
@@ -125,8 +116,7 @@ function getScoreTier(awarded: number, available: number) {
       headlineColor: '#2D9A5F',
       headline: awarded === available ? 'Full marks' : 'Strong answer',
     };
-  }
-  if (pct >= 0.3) {
+  if (pct >= 0.3)
     return {
       accentColor: '#F5A623',
       bgStyle:
@@ -135,7 +125,6 @@ function getScoreTier(awarded: number, available: number) {
       headlineColor: '#C78B1A',
       headline: 'Partial marks - keep going',
     };
-  }
   return {
     accentColor: '#E23D28',
     bgStyle:
@@ -146,11 +135,11 @@ function getScoreTier(awarded: number, available: number) {
   };
 }
 
-/* ------------------------------------------------------------------ */
-/*  Main component                                                     */
-/* ------------------------------------------------------------------ */
-
-export function FeedbackCard({ feedback, questionNumber }: FeedbackCardProps) {
+export function FeedbackCard({
+  feedback,
+  questionNumber,
+  onJamHelp,
+}: FeedbackCardProps) {
   const percentage = Math.round(
     (feedback.marks_awarded / feedback.marks_available) * 100
   );
@@ -158,7 +147,7 @@ export function FeedbackCard({ feedback, questionNumber }: FeedbackCardProps) {
 
   return (
     <div className="space-y-8">
-      {/* Colour-coded score header */}
+      {/* Score header */}
       <div
         className="rounded-xl px-6 py-5"
         style={{
@@ -185,22 +174,15 @@ export function FeedbackCard({ feedback, questionNumber }: FeedbackCardProps) {
             </span>
           </div>
         </div>
-
-        {/* Score bar */}
         <div
           className="h-1 rounded-full overflow-hidden"
           style={{ background: 'rgba(0,0,0,0.06)' }}
         >
           <div
             className="h-full rounded-full transition-all duration-700"
-            style={{
-              width: `${percentage}%`,
-              background: tier.barColor,
-            }}
+            style={{ width: `${percentage}%`, background: tier.barColor }}
           />
         </div>
-
-        {/* Question label */}
         <p className="text-xs text-muted-foreground mt-3">
           Question {questionNumber}
         </p>
@@ -247,7 +229,7 @@ export function FeedbackCard({ feedback, questionNumber }: FeedbackCardProps) {
 
       <div className="border-t border-border/50" />
 
-      {/* Worked solution — one step per line with alternating subtle background */}
+      {/* Worked solution */}
       <div className="space-y-3">
         <div className="flex items-center gap-1.5">
           <BookOpen size={13} className="text-muted-foreground" />
@@ -289,6 +271,30 @@ export function FeedbackCard({ feedback, questionNumber }: FeedbackCardProps) {
                 }}
               />
             </div>
+          </div>
+        </>
+      )}
+
+      {/* JAM Help button */}
+      {onJamHelp && (
+        <>
+          <div className="border-t border-border/50" />
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-muted-foreground">
+              Still not sure? Get guided help.
+            </p>
+            <button
+              onClick={onJamHelp}
+              className="flex items-center gap-2 text-xs font-semibold px-4 py-2 rounded-lg transition-all duration-150 active:scale-[0.97]"
+              style={{
+                color: '#fff',
+                background: 'linear-gradient(135deg, #E23D28 0%, #F5A623 100%)',
+                boxShadow: '0 2px 10px rgba(226,61,40,0.25)',
+              }}
+            >
+              <MessageCircle size={12} />
+              JAM Help
+            </button>
           </div>
         </>
       )}

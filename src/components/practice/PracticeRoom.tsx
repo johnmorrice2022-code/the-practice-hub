@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { QuestionCard } from './QuestionCard';
 import { FeedbackCard, MarkingFeedback } from './FeedbackCard';
+import { JamHelpPanel } from './JamHelpPanel';
 import { SessionConfig } from './SessionSetup';
 import {
   ChevronLeft,
@@ -18,7 +19,6 @@ interface QuestionPart {
   part_text: string;
   marks: number;
 }
-
 interface Question {
   id: string;
   question_text: string;
@@ -31,19 +31,12 @@ interface Question {
   diagram_params?: Record<string, unknown> | null;
   diagram_url?: string | null;
 }
-
 interface PracticeRoomProps {
   config: SessionConfig;
   onExit: () => void;
 }
-
 type SessionPhase = 'answering' | 'marking' | 'review';
-
 const CARD_SHADOW = '0 2px 6px rgba(0,0,0,0.06), 0 6px 20px rgba(0,0,0,0.08)';
-
-/* ------------------------------------------------------------------ */
-/*  Session progress pills                                             */
-/* ------------------------------------------------------------------ */
 
 function SessionProgress({
   questions,
@@ -64,7 +57,6 @@ function SessionProgress({
     0
   );
   const hasFeedback = Object.keys(feedbacks).length > 0;
-
   return (
     <div className="flex items-center gap-4 px-1 mb-4">
       <div className="flex gap-1.5 items-center">
@@ -72,7 +64,6 @@ function SessionProgress({
           const isActive = i === currentIndex;
           const fb = feedbacks[q.id];
           const answered = hasAnswer(q);
-
           let bg = '#D4CEC6';
           if (isActive) bg = '#4A4540';
           else if (fb) {
@@ -81,7 +72,6 @@ function SessionProgress({
             else if (pct >= 0.3) bg = '#F5A623';
             else bg = '#E23D28';
           } else if (answered) bg = '#A09A92';
-
           return (
             <button
               key={q.id}
@@ -112,9 +102,7 @@ function SessionProgress({
           );
         })}
       </div>
-
       <div className="flex-1" />
-
       {hasFeedback && (
         <div className="flex items-baseline gap-1">
           <span
@@ -135,10 +123,6 @@ function SessionProgress({
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Main component                                                     */
-/* ------------------------------------------------------------------ */
-
 export function PracticeRoom({ config, onExit }: PracticeRoomProps) {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
@@ -154,13 +138,17 @@ export function PracticeRoom({ config, onExit }: PracticeRoomProps) {
   const [markingId, setMarkingId] = useState<string | null>(null);
   const [generatingQuestions, setGeneratingQuestions] = useState(false);
   const [markingGuidance, setMarkingGuidance] = useState<string | null>(null);
-
-  // Timer: records when questions first become available
   const sessionStartTime = useRef<number | null>(null);
+
+  // JAM Help state
+  const [jamHelpOpen, setJamHelpOpen] = useState(false);
+  const [jamHelpQuestion, setJamHelpQuestion] = useState<Question | null>(null);
+  const [jamHelpAnswer, setJamHelpAnswer] = useState<string>('');
+  const [jamHelpFeedback, setJamHelpFeedback] =
+    useState<MarkingFeedback | null>(null);
 
   useEffect(() => {
     loadQuestions();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [config.subtopicId]);
 
   const loadQuestions = async () => {
@@ -181,11 +169,9 @@ export function PracticeRoom({ config, onExit }: PracticeRoomProps) {
           .eq('id', config.subtopicId)
           .single(),
       ]);
-
       const guidance =
         (subtopicRes.data?.prompt_config as any)?.marking_guidance || null;
       setMarkingGuidance(guidance);
-
       if (seededRes.data && seededRes.data.length > 0) {
         setQuestions(
           seededRes.data.map((q) => ({
@@ -206,7 +192,7 @@ export function PracticeRoom({ config, onExit }: PracticeRoomProps) {
       } else {
         await generateAIQuestions();
       }
-    } catch (e: any) {
+    } catch {
       await generateAIQuestions();
     }
   };
@@ -217,9 +203,7 @@ export function PracticeRoom({ config, onExit }: PracticeRoomProps) {
     try {
       const { data, error } = await supabase.functions.invoke(
         'generate-questions',
-        {
-          body: { subtopicId: config.subtopicId, count: 4 },
-        }
+        { body: { subtopicId: config.subtopicId, count: 4 } }
       );
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
@@ -257,7 +241,6 @@ export function PracticeRoom({ config, onExit }: PracticeRoomProps) {
     if (!currentQuestion) return;
     setAnswers((prev) => ({ ...prev, [currentQuestion.id]: value }));
   };
-
   const handlePartAnswerChange = (partLabel: string, value: string) => {
     if (!currentQuestion) return;
     setPartAnswers((prev) => ({
@@ -295,8 +278,6 @@ export function PracticeRoom({ config, onExit }: PracticeRoomProps) {
   const markAnswer = async (questionId: string) => {
     const q = questions.find((q) => q.id === questionId);
     if (!q || !hasAnswer(q)) return;
-    const studentAnswer = buildAnswerForMarking(q);
-
     setMarkingId(questionId);
     try {
       const { data, error } = await supabase.functions.invoke('mark-answer', {
@@ -305,7 +286,7 @@ export function PracticeRoom({ config, onExit }: PracticeRoomProps) {
           parts: q.parts,
           markScheme: q.mark_scheme,
           workedSolution: q.worked_solution,
-          studentAnswer,
+          studentAnswer: buildAnswerForMarking(q),
           marks: q.marks,
           markingGuidance,
           subject: config.subject,
@@ -335,11 +316,9 @@ export function PracticeRoom({ config, onExit }: PracticeRoomProps) {
         data: { user },
       } = await supabase.auth.getUser();
       if (!user) return;
-
       const durationSeconds = sessionStartTime.current
         ? Math.round((Date.now() - sessionStartTime.current) / 1000)
         : 0;
-
       const marksAwarded = Object.values(finalFeedbacks).reduce(
         (s, f) => s + f.marks_awarded,
         0
@@ -348,7 +327,6 @@ export function PracticeRoom({ config, onExit }: PracticeRoomProps) {
         (s, f) => s + f.marks_available,
         0
       );
-
       const questionResults = questions.map((q, i) => {
         const fb = finalFeedbacks[q.id];
         return {
@@ -358,7 +336,6 @@ export function PracticeRoom({ config, onExit }: PracticeRoomProps) {
           question_text: q.question_text,
         };
       });
-
       await supabase.from('session_results').insert({
         user_id: user.id,
         subtopic_id: config.subtopicId,
@@ -369,30 +346,36 @@ export function PracticeRoom({ config, onExit }: PracticeRoomProps) {
         question_results: questionResults,
       });
     } catch (e) {
-      // Fail silently — don't interrupt the student's review experience
       console.error('Failed to save session result:', e);
     }
   };
 
   const handleFinish = async () => {
     setPhase('marking');
-    const updatedFeedbacks = { ...feedbacks };
     for (const q of questions) {
       if (hasAnswer(q) && !feedbacks[q.id]) {
         await markAnswer(q.id);
-        // markAnswer updates state but we need the latest value for saveSession
-        // so we re-read from the ref after each mark
       }
     }
     setPhase('review');
     setCurrentIndex(0);
-    // Use a short timeout to ensure feedbacks state has fully updated before saving
     setTimeout(async () => {
       setFeedbacks((prev) => {
         saveSession(prev);
         return prev;
       });
     }, 100);
+  };
+
+  const handleJamHelp = (
+    q: Question,
+    answer: string,
+    feedback: MarkingFeedback
+  ) => {
+    setJamHelpQuestion(q);
+    setJamHelpAnswer(answer);
+    setJamHelpFeedback(feedback);
+    setJamHelpOpen(true);
   };
 
   const allAnswered = questions.every((q) => hasAnswer(q));
@@ -408,14 +391,12 @@ export function PracticeRoom({ config, onExit }: PracticeRoomProps) {
     (s, f) => s + f.marks_available,
     0
   );
-
   const progressPct =
     phase === 'review' ? 100 : ((currentIndex + 1) / questions.length) * 100;
 
   if (loading || generatingQuestions) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4 px-6">
-        {/* Branded loading state */}
         <div className="w-full max-w-[480px] space-y-4">
           <div className="flex items-center gap-3 mb-6">
             <div
@@ -433,7 +414,6 @@ export function PracticeRoom({ config, onExit }: PracticeRoomProps) {
               Preparing your questions...
             </p>
           </div>
-          {/* Skeleton lines */}
           <div
             className="bg-card rounded-xl p-8 space-y-4"
             style={{ boxShadow: CARD_SHADOW }}
@@ -482,209 +462,229 @@ export function PracticeRoom({ config, onExit }: PracticeRoomProps) {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Top bar */}
-      <div className="sticky top-0 z-10 bg-background border-b border-border/60">
-        <div className="max-w-[720px] mx-auto px-6 h-11 flex items-center justify-between">
-          <span className="text-xs text-muted-foreground tracking-tight">
-            <span className="font-medium text-foreground/70">
-              {config.subtopicName}
+    <>
+      <div className="min-h-screen bg-background">
+        <div className="sticky top-0 z-10 bg-background border-b border-border/60">
+          <div className="max-w-[720px] mx-auto px-6 h-11 flex items-center justify-between">
+            <span className="text-xs text-muted-foreground tracking-tight">
+              <span className="font-medium text-foreground/70">
+                {config.subtopicName}
+              </span>
+              <span className="mx-2 text-border">·</span>
+              {phase === 'review'
+                ? `${totalAwarded}/${totalAvailable} marks`
+                : `${totalMarks} marks total`}
             </span>
-            <span className="mx-2 text-border">·</span>
-            {phase === 'review'
-              ? `${totalAwarded}/${totalAvailable} marks`
-              : `${totalMarks} marks total`}
-          </span>
-          <div className="flex items-center gap-3">
-            {phase === 'answering' && (
+            <div className="flex items-center gap-3">
+              {phase === 'answering' && (
+                <button
+                  onClick={generateAIQuestions}
+                  disabled={generatingQuestions}
+                  className="text-xs text-muted-foreground/60 hover:text-[#E23D28] transition-colors flex items-center gap-1"
+                  title="Generate new questions"
+                >
+                  <Sparkles size={12} /> New set
+                </button>
+              )}
               <button
-                onClick={generateAIQuestions}
-                disabled={generatingQuestions}
-                className="text-xs text-muted-foreground/60 hover:text-[#E23D28] transition-colors flex items-center gap-1"
-                title="Generate new questions"
+                onClick={onExit}
+                className="text-muted-foreground/60 hover:text-foreground transition-colors p-1"
+                aria-label="Exit session"
               >
-                <Sparkles size={12} /> New set
+                <X size={16} />
               </button>
-            )}
-            <button
-              onClick={onExit}
-              className="text-muted-foreground/60 hover:text-foreground transition-colors p-1"
-              aria-label="Exit session"
-            >
-              <X size={16} />
-            </button>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Brand gradient progress bar */}
-      <div className="h-[3px]" style={{ background: 'rgba(0,0,0,0.06)' }}>
-        <div
-          className="h-full transition-all duration-500"
-          style={{
-            width: `${progressPct}%`,
-            background:
-              'linear-gradient(90deg, #C8331F 0%, #E23D28 45%, #F5A623 100%)',
-          }}
-        />
-      </div>
-
-      <div className="max-w-[720px] mx-auto px-4 sm:px-6 py-6">
-        {/* Session progress pills */}
-        <SessionProgress
-          questions={questions}
-          currentIndex={currentIndex}
-          feedbacks={feedbacks}
-          hasAnswer={hasAnswer}
-          goTo={goTo}
-        />
-
-        {/* Main content card */}
-        <div
-          className="bg-card rounded-xl p-8 sm:p-10 relative overflow-hidden"
-          style={{ boxShadow: CARD_SHADOW }}
-        >
-          {/* Gradient top accent */}
+        <div className="h-[3px]" style={{ background: 'rgba(0,0,0,0.06)' }}>
           <div
-            className="absolute top-0 left-0 right-0 h-[3px]"
+            className="h-full transition-all duration-500"
             style={{
+              width: `${progressPct}%`,
               background:
                 'linear-gradient(90deg, #C8331F 0%, #E23D28 45%, #F5A623 100%)',
             }}
           />
-
-          {phase === 'review' && currentFeedback ? (
-            <FeedbackCard
-              feedback={currentFeedback}
-              questionNumber={currentIndex + 1}
-            />
-          ) : phase === 'marking' && isMarking ? (
-            <div className="flex flex-col items-center justify-center py-16 gap-3">
-              <div
-                className="w-6 h-6 rounded-full animate-spin"
-                style={{
-                  background:
-                    'conic-gradient(from 0deg, #E23D28, #F5A623, #E23D28)',
-                  maskImage:
-                    'radial-gradient(farthest-side, transparent 60%, black 61%)',
-                  WebkitMaskImage:
-                    'radial-gradient(farthest-side, transparent 60%, black 61%)',
-                }}
-              />
-              <p className="text-sm text-muted-foreground">
-                Marking question {currentIndex + 1}...
-              </p>
-            </div>
-          ) : (
-            <>
-              <QuestionCard
-                questionNumber={currentIndex + 1}
-                totalQuestions={questions.length}
-                questionText={currentQuestion?.question_text ?? ''}
-                marks={currentQuestion?.marks ?? 0}
-                parts={currentQuestion?.parts}
-                answer={answers[currentQuestion?.id ?? ''] ?? ''}
-                onAnswerChange={handleAnswerChange}
-                diagramType={currentQuestion?.diagram_type}
-                diagramParams={currentQuestion?.diagram_params}
-                diagramUrl={currentQuestion?.diagram_url}
-                partAnswers={partAnswers[currentQuestion?.id ?? ''] ?? {}}
-                onPartAnswerChange={handlePartAnswerChange}
-              />
-
-              {/* Mark this question button */}
-              {phase === 'answering' &&
-                currentQuestion &&
-                hasAnswer(currentQuestion) &&
-                !feedbacks[currentQuestion.id] && (
-                  <div className="mt-6 flex justify-end">
-                    <button
-                      onClick={() => markAnswer(currentQuestion.id)}
-                      disabled={!!markingId}
-                      className="flex items-center gap-2 text-xs font-semibold px-4 py-2 rounded-lg transition-all duration-150 disabled:opacity-40 active:scale-[0.97]"
-                      style={{
-                        color: '#fff',
-                        background:
-                          'linear-gradient(135deg, #E23D28 0%, #F5A623 100%)',
-                        boxShadow: '0 2px 10px rgba(226,61,40,0.30)',
-                      }}
-                    >
-                      {markingId === currentQuestion.id ? (
-                        <Loader2 size={12} className="animate-spin" />
-                      ) : (
-                        <Send size={12} />
-                      )}
-                      Mark this question
-                    </button>
-                  </div>
-                )}
-
-              {/* Inline feedback */}
-              {phase === 'answering' &&
-                currentQuestion &&
-                feedbacks[currentQuestion.id] && (
-                  <div className="mt-8 pt-6 border-t border-border/40">
-                    <FeedbackCard
-                      feedback={feedbacks[currentQuestion.id]}
-                      questionNumber={currentIndex + 1}
-                    />
-                  </div>
-                )}
-            </>
-          )}
         </div>
 
-        {/* Navigation */}
-        <div className="flex items-center justify-between mt-6 px-1">
-          <button
-            onClick={() => goTo(currentIndex - 1)}
-            disabled={currentIndex === 0}
-            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-default transition-colors py-1"
+        <div className="max-w-[720px] mx-auto px-4 sm:px-6 py-6">
+          <SessionProgress
+            questions={questions}
+            currentIndex={currentIndex}
+            feedbacks={feedbacks}
+            hasAnswer={hasAnswer}
+            goTo={goTo}
+          />
+
+          <div
+            className="bg-card rounded-xl p-8 sm:p-10 relative overflow-hidden"
+            style={{ boxShadow: CARD_SHADOW }}
           >
-            <ChevronLeft size={14} /> Previous
-          </button>
-
-          <div />
-
-          {currentIndex < questions.length - 1 ? (
-            <button
-              onClick={() => goTo(currentIndex + 1)}
-              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors py-1"
-            >
-              Next <ChevronRight size={14} />
-            </button>
-          ) : phase === 'answering' ? (
-            <button
-              onClick={handleFinish}
-              disabled={!allAnswered}
-              className="flex items-center gap-2 text-xs font-semibold px-4 py-2 rounded-lg transition-all duration-150 disabled:opacity-30 disabled:cursor-default active:scale-[0.97]"
+            <div
+              className="absolute top-0 left-0 right-0 h-[3px]"
               style={{
-                color: allAnswered ? '#fff' : undefined,
-                background: allAnswered
-                  ? 'linear-gradient(135deg, #E23D28 0%, #F5A623 100%)'
-                  : undefined,
-                boxShadow: allAnswered
-                  ? '0 2px 10px rgba(226,61,40,0.28)'
-                  : undefined,
+                background:
+                  'linear-gradient(90deg, #C8331F 0%, #E23D28 45%, #F5A623 100%)',
               }}
-            >
-              Finish & mark all
-            </button>
-          ) : (
+            />
+
+            {phase === 'review' && currentFeedback ? (
+              <FeedbackCard
+                feedback={currentFeedback}
+                questionNumber={currentIndex + 1}
+                onJamHelp={() =>
+                  handleJamHelp(
+                    currentQuestion,
+                    buildAnswerForMarking(currentQuestion),
+                    currentFeedback
+                  )
+                }
+              />
+            ) : phase === 'marking' && isMarking ? (
+              <div className="flex flex-col items-center justify-center py-16 gap-3">
+                <div
+                  className="w-6 h-6 rounded-full animate-spin"
+                  style={{
+                    background:
+                      'conic-gradient(from 0deg, #E23D28, #F5A623, #E23D28)',
+                    maskImage:
+                      'radial-gradient(farthest-side, transparent 60%, black 61%)',
+                    WebkitMaskImage:
+                      'radial-gradient(farthest-side, transparent 60%, black 61%)',
+                  }}
+                />
+                <p className="text-sm text-muted-foreground">
+                  Marking question {currentIndex + 1}...
+                </p>
+              </div>
+            ) : (
+              <>
+                <QuestionCard
+                  questionNumber={currentIndex + 1}
+                  totalQuestions={questions.length}
+                  questionText={currentQuestion?.question_text ?? ''}
+                  marks={currentQuestion?.marks ?? 0}
+                  parts={currentQuestion?.parts}
+                  answer={answers[currentQuestion?.id ?? ''] ?? ''}
+                  onAnswerChange={handleAnswerChange}
+                  diagramType={currentQuestion?.diagram_type}
+                  diagramParams={currentQuestion?.diagram_params}
+                  diagramUrl={currentQuestion?.diagram_url}
+                  partAnswers={partAnswers[currentQuestion?.id ?? ''] ?? {}}
+                  onPartAnswerChange={handlePartAnswerChange}
+                />
+
+                {phase === 'answering' &&
+                  currentQuestion &&
+                  hasAnswer(currentQuestion) &&
+                  !feedbacks[currentQuestion.id] && (
+                    <div className="mt-6 flex justify-end">
+                      <button
+                        onClick={() => markAnswer(currentQuestion.id)}
+                        disabled={!!markingId}
+                        className="flex items-center gap-2 text-xs font-semibold px-4 py-2 rounded-lg transition-all duration-150 disabled:opacity-40 active:scale-[0.97]"
+                        style={{
+                          color: '#fff',
+                          background:
+                            'linear-gradient(135deg, #E23D28 0%, #F5A623 100%)',
+                          boxShadow: '0 2px 10px rgba(226,61,40,0.30)',
+                        }}
+                      >
+                        {markingId === currentQuestion.id ? (
+                          <Loader2 size={12} className="animate-spin" />
+                        ) : (
+                          <Send size={12} />
+                        )}
+                        Mark this question
+                      </button>
+                    </div>
+                  )}
+
+                {phase === 'answering' &&
+                  currentQuestion &&
+                  feedbacks[currentQuestion.id] && (
+                    <div className="mt-8 pt-6 border-t border-border/40">
+                      <FeedbackCard
+                        feedback={feedbacks[currentQuestion.id]}
+                        questionNumber={currentIndex + 1}
+                        onJamHelp={() =>
+                          handleJamHelp(
+                            currentQuestion,
+                            buildAnswerForMarking(currentQuestion),
+                            feedbacks[currentQuestion.id]
+                          )
+                        }
+                      />
+                    </div>
+                  )}
+              </>
+            )}
+          </div>
+
+          <div className="flex items-center justify-between mt-6 px-1">
             <button
-              onClick={onExit}
-              className="flex items-center gap-2 text-xs font-semibold px-4 py-2 rounded-lg transition-all duration-150 active:scale-[0.97]"
-              style={{
-                color: '#fff',
-                background: 'linear-gradient(135deg, #E23D28 0%, #F5A623 100%)',
-                boxShadow: '0 2px 10px rgba(226,61,40,0.28)',
-              }}
+              onClick={() => goTo(currentIndex - 1)}
+              disabled={currentIndex === 0}
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-default transition-colors py-1"
             >
-              Done
+              <ChevronLeft size={14} /> Previous
             </button>
-          )}
+            <div />
+            {currentIndex < questions.length - 1 ? (
+              <button
+                onClick={() => goTo(currentIndex + 1)}
+                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors py-1"
+              >
+                Next <ChevronRight size={14} />
+              </button>
+            ) : phase === 'answering' ? (
+              <button
+                onClick={handleFinish}
+                disabled={!allAnswered}
+                className="flex items-center gap-2 text-xs font-semibold px-4 py-2 rounded-lg transition-all duration-150 disabled:opacity-30 disabled:cursor-default active:scale-[0.97]"
+                style={{
+                  color: allAnswered ? '#fff' : undefined,
+                  background: allAnswered
+                    ? 'linear-gradient(135deg, #E23D28 0%, #F5A623 100%)'
+                    : undefined,
+                  boxShadow: allAnswered
+                    ? '0 2px 10px rgba(226,61,40,0.28)'
+                    : undefined,
+                }}
+              >
+                Finish & mark all
+              </button>
+            ) : (
+              <button
+                onClick={onExit}
+                className="flex items-center gap-2 text-xs font-semibold px-4 py-2 rounded-lg transition-all duration-150 active:scale-[0.97]"
+                style={{
+                  color: '#fff',
+                  background:
+                    'linear-gradient(135deg, #E23D28 0%, #F5A623 100%)',
+                  boxShadow: '0 2px 10px rgba(226,61,40,0.28)',
+                }}
+              >
+                Done
+              </button>
+            )}
+          </div>
         </div>
       </div>
-    </div>
+
+      {jamHelpQuestion && jamHelpFeedback && (
+        <JamHelpPanel
+          isOpen={jamHelpOpen}
+          onClose={() => setJamHelpOpen(false)}
+          questionText={jamHelpQuestion.question_text}
+          studentAnswer={jamHelpAnswer}
+          feedback={jamHelpFeedback}
+          subject={config.subject}
+          tier={config.tier}
+          examBoard={config.examBoard}
+        />
+      )}
+    </>
   );
 }
