@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { QuestionCard } from './QuestionCard';
 import { FeedbackCard, MarkingFeedback } from './FeedbackCard';
@@ -155,6 +155,9 @@ export function PracticeRoom({ config, onExit }: PracticeRoomProps) {
   const [generatingQuestions, setGeneratingQuestions] = useState(false);
   const [markingGuidance, setMarkingGuidance] = useState<string | null>(null);
 
+  // Timer: records when questions first become available
+  const sessionStartTime = useRef<number | null>(null);
+
   useEffect(() => {
     loadQuestions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -199,6 +202,7 @@ export function PracticeRoom({ config, onExit }: PracticeRoomProps) {
         setFeedbacks({});
         setPhase('answering');
         setGeneratingQuestions(false);
+        sessionStartTime.current = Date.now();
       } else {
         await generateAIQuestions();
       }
@@ -233,6 +237,7 @@ export function PracticeRoom({ config, onExit }: PracticeRoomProps) {
       setPartAnswers({});
       setFeedbacks({});
       setPhase('answering');
+      sessionStartTime.current = Date.now();
     } catch (e: any) {
       toast({
         title: 'Question generation failed',
@@ -322,15 +327,72 @@ export function PracticeRoom({ config, onExit }: PracticeRoomProps) {
     }
   };
 
+  const saveSession = async (
+    finalFeedbacks: Record<string, MarkingFeedback>
+  ) => {
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const durationSeconds = sessionStartTime.current
+        ? Math.round((Date.now() - sessionStartTime.current) / 1000)
+        : 0;
+
+      const marksAwarded = Object.values(finalFeedbacks).reduce(
+        (s, f) => s + f.marks_awarded,
+        0
+      );
+      const marksAvailable = Object.values(finalFeedbacks).reduce(
+        (s, f) => s + f.marks_available,
+        0
+      );
+
+      const questionResults = questions.map((q, i) => {
+        const fb = finalFeedbacks[q.id];
+        return {
+          question_order: i + 1,
+          marks_awarded: fb?.marks_awarded ?? 0,
+          marks_available: fb?.marks_available ?? q.marks,
+          question_text: q.question_text,
+        };
+      });
+
+      await supabase.from('session_results').insert({
+        user_id: user.id,
+        subtopic_id: config.subtopicId,
+        marks_awarded: marksAwarded,
+        marks_available: marksAvailable,
+        questions_attempted: questions.filter((q) => hasAnswer(q)).length,
+        duration_seconds: durationSeconds,
+        question_results: questionResults,
+      });
+    } catch (e) {
+      // Fail silently — don't interrupt the student's review experience
+      console.error('Failed to save session result:', e);
+    }
+  };
+
   const handleFinish = async () => {
     setPhase('marking');
+    const updatedFeedbacks = { ...feedbacks };
     for (const q of questions) {
       if (hasAnswer(q) && !feedbacks[q.id]) {
         await markAnswer(q.id);
+        // markAnswer updates state but we need the latest value for saveSession
+        // so we re-read from the ref after each mark
       }
     }
     setPhase('review');
     setCurrentIndex(0);
+    // Use a short timeout to ensure feedbacks state has fully updated before saving
+    setTimeout(async () => {
+      setFeedbacks((prev) => {
+        saveSession(prev);
+        return prev;
+      });
+    }, 100);
   };
 
   const allAnswered = questions.every((q) => hasAnswer(q));
