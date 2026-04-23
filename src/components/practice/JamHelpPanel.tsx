@@ -13,7 +13,7 @@ interface JamHelpPanelProps {
   onClose: () => void;
   questionText: string;
   studentAnswer: string;
-  feedback: MarkingFeedback;
+  feedback?: MarkingFeedback | null;
   subject: string;
   tier: string;
   examBoard: string;
@@ -71,11 +71,12 @@ export function JamHelpPanel({
           messages: updatedMessages,
           questionText,
           studentAnswer,
-          markScheme: feedback.step_breakdown.map((s) => ({
-            criterion: s.criterion,
-          })),
-          marksAwarded: feedback.marks_awarded,
-          marksAvailable: feedback.marks_available,
+          markScheme:
+            feedback?.step_breakdown.map((s) => ({
+              criterion: s.criterion,
+            })) ?? [],
+          marksAwarded: feedback?.marks_awarded ?? 0,
+          marksAvailable: feedback?.marks_available ?? 0,
           subject,
           tier,
           examBoard,
@@ -113,6 +114,7 @@ export function JamHelpPanel({
 
   const turnsRemaining = MAX_TURNS - turnCount;
   const isExhausted = turnCount >= MAX_TURNS;
+  const hasBeenMarked = !!feedback;
 
   return (
     <>
@@ -180,11 +182,14 @@ export function JamHelpPanel({
                 }}
               >
                 <p className="font-semibold text-foreground mb-1">
-                  I've seen your answer and the mark scheme.
+                  {hasBeenMarked
+                    ? "I've seen your answer and the mark scheme."
+                    : 'Need a hand getting started?'}
                 </p>
                 <p className="text-muted-foreground text-[13px]">
-                  What part are you stuck on? Ask me anything about this
-                  question.
+                  {hasBeenMarked
+                    ? 'What part are you stuck on? Ask me anything about this question.'
+                    : "Ask me anything about this question and I'll help guide you."}
                 </p>
               </div>
               <p className="text-[11px] text-muted-foreground px-1">

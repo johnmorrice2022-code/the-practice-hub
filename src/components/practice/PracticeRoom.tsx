@@ -11,6 +11,7 @@ import {
   Loader2,
   Sparkles,
   Send,
+  MessageCircle,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
@@ -367,14 +368,15 @@ export function PracticeRoom({ config, onExit }: PracticeRoomProps) {
     }, 100);
   };
 
+  // feedback is optional — JAM Help can be opened before or after marking
   const handleJamHelp = (
     q: Question,
     answer: string,
-    feedback: MarkingFeedback
+    feedback?: MarkingFeedback | null
   ) => {
     setJamHelpQuestion(q);
     setJamHelpAnswer(answer);
-    setJamHelpFeedback(feedback);
+    setJamHelpFeedback(feedback ?? null);
     setJamHelpOpen(true);
   };
 
@@ -575,29 +577,44 @@ export function PracticeRoom({ config, onExit }: PracticeRoomProps) {
                   onPartAnswerChange={handlePartAnswerChange}
                 />
 
+                {/* Bottom action row: JAM Help (left) + Mark button (right, when answered) */}
                 {phase === 'answering' &&
                   currentQuestion &&
-                  hasAnswer(currentQuestion) &&
                   !feedbacks[currentQuestion.id] && (
-                    <div className="mt-6 flex justify-end">
+                    <div className="mt-4 flex items-center justify-between">
                       <button
-                        onClick={() => markAnswer(currentQuestion.id)}
-                        disabled={!!markingId}
-                        className="flex items-center gap-2 text-xs font-semibold px-4 py-2 rounded-lg transition-all duration-150 disabled:opacity-40 active:scale-[0.97]"
-                        style={{
-                          color: '#fff',
-                          background:
-                            'linear-gradient(135deg, #E23D28 0%, #F5A623 100%)',
-                          boxShadow: '0 2px 10px rgba(226,61,40,0.30)',
-                        }}
+                        onClick={() =>
+                          handleJamHelp(
+                            currentQuestion,
+                            buildAnswerForMarking(currentQuestion),
+                            null
+                          )
+                        }
+                        className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-[#E23D28] transition-colors"
                       >
-                        {markingId === currentQuestion.id ? (
-                          <Loader2 size={12} className="animate-spin" />
-                        ) : (
-                          <Send size={12} />
-                        )}
-                        Mark this question
+                        <MessageCircle size={12} /> JAM Help
                       </button>
+
+                      {hasAnswer(currentQuestion) && (
+                        <button
+                          onClick={() => markAnswer(currentQuestion.id)}
+                          disabled={!!markingId}
+                          className="flex items-center gap-2 text-xs font-semibold px-4 py-2 rounded-lg transition-all duration-150 disabled:opacity-40 active:scale-[0.97]"
+                          style={{
+                            color: '#fff',
+                            background:
+                              'linear-gradient(135deg, #E23D28 0%, #F5A623 100%)',
+                            boxShadow: '0 2px 10px rgba(226,61,40,0.30)',
+                          }}
+                        >
+                          {markingId === currentQuestion.id ? (
+                            <Loader2 size={12} className="animate-spin" />
+                          ) : (
+                            <Send size={12} />
+                          )}
+                          Mark this question
+                        </button>
+                      )}
                     </div>
                   )}
 
@@ -673,7 +690,8 @@ export function PracticeRoom({ config, onExit }: PracticeRoomProps) {
         </div>
       </div>
 
-      {jamHelpQuestion && jamHelpFeedback && (
+      {/* JAM Help panel — renders whenever a question is selected */}
+      {jamHelpQuestion && (
         <JamHelpPanel
           isOpen={jamHelpOpen}
           onClose={() => setJamHelpOpen(false)}
