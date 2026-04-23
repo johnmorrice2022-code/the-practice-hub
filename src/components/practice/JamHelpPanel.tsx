@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { X, Send, Loader2, MessageCircle } from 'lucide-react';
+import katex from 'katex';
 import { MarkingFeedback } from './FeedbackCard';
 
 interface Message {
@@ -20,6 +21,46 @@ interface JamHelpPanelProps {
 }
 
 const MAX_TURNS = 5;
+
+function renderMath(text: string): string {
+  if (!text) return '';
+
+  const placeholders: string[] = [];
+
+  let html = text.replace(/\$\$([\s\S]*?)\$\$/g, (_, math) => {
+    try {
+      const rendered = katex.renderToString(math.trim(), {
+        displayMode: true,
+        throwOnError: false,
+      });
+      const idx = placeholders.length;
+      placeholders.push(rendered);
+      return `%%DISPLAY_MATH_${idx}%%`;
+    } catch {
+      return `$$${math}$$`;
+    }
+  });
+
+  html = html.replace(/\$([^\$\n]+?)\$/g, (_, math) => {
+    try {
+      return katex.renderToString(math.trim(), {
+        displayMode: false,
+        throwOnError: false,
+      });
+    } catch {
+      return `$${math}$`;
+    }
+  });
+
+  placeholders.forEach((rendered, idx) => {
+    html = html.replace(`%%DISPLAY_MATH_${idx}%%`, rendered);
+  });
+
+  // Convert newlines to <br> for chat display
+  html = html.replace(/\n/g, '<br/>');
+
+  return html;
+}
 
 export function JamHelpPanel({
   isOpen,
@@ -203,24 +244,28 @@ export function JamHelpPanel({
               key={i}
               className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
-              <div
-                className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${msg.role === 'user' ? 'rounded-tr-sm' : 'rounded-tl-sm'}`}
-                style={
-                  msg.role === 'user'
-                    ? {
-                        background:
-                          'linear-gradient(135deg, #E23D28 0%, #F5A623 100%)',
-                        color: '#fff',
-                      }
-                    : {
-                        background: 'rgba(0,0,0,0.04)',
-                        color: 'var(--foreground)',
-                        border: '1px solid rgba(0,0,0,0.06)',
-                      }
-                }
-              >
-                {msg.content}
-              </div>
+              {msg.role === 'user' ? (
+                <div
+                  className="max-w-[85%] rounded-2xl rounded-tr-sm px-4 py-2.5 text-sm leading-relaxed"
+                  style={{
+                    background:
+                      'linear-gradient(135deg, #E23D28 0%, #F5A623 100%)',
+                    color: '#fff',
+                  }}
+                >
+                  {msg.content}
+                </div>
+              ) : (
+                <div
+                  className="max-w-[85%] rounded-2xl rounded-tl-sm px-4 py-2.5 text-sm leading-relaxed question-text"
+                  style={{
+                    background: 'rgba(0,0,0,0.04)',
+                    color: 'var(--foreground)',
+                    border: '1px solid rgba(0,0,0,0.06)',
+                  }}
+                  dangerouslySetInnerHTML={{ __html: renderMath(msg.content) }}
+                />
+              )}
             </div>
           ))}
 
