@@ -68,6 +68,7 @@ export function SubtopicLanding({
 
       {/* Action cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
         {/* Learn card */}
         {showLearn ? (
           hasLearningContent && onLearn ? (
@@ -79,16 +80,14 @@ export function SubtopicLanding({
               <div
                 className="absolute top-0 left-0 right-0 h-[3px]"
                 style={{
-                  background:
-                    'linear-gradient(135deg, #E23D28 0%, #F5A623 100%)',
+                  background: 'linear-gradient(135deg, #E23D28 0%, #F5A623 100%)',
                 }}
               />
               <div className="flex items-center gap-3 mb-3">
                 <div
                   className="w-9 h-9 rounded-lg flex items-center justify-center group-hover:opacity-90 transition-opacity"
                   style={{
-                    background:
-                      'linear-gradient(135deg, rgba(226,61,40,0.1) 0%, rgba(245,166,35,0.1) 100%)',
+                    background: 'linear-gradient(135deg, rgba(226,61,40,0.1) 0%, rgba(245,166,35,0.1) 100%)',
                   }}
                 >
                   <BookOpen size={18} className="text-[#E23D28]" />
@@ -100,7 +99,7 @@ export function SubtopicLanding({
               </p>
             </button>
           ) : h5pUrl ? (
-            
+            <a
               href={h5pUrl}
               target="_blank"
               rel="noopener noreferrer"
@@ -110,16 +109,14 @@ export function SubtopicLanding({
               <div
                 className="absolute top-0 left-0 right-0 h-[3px]"
                 style={{
-                  background:
-                    'linear-gradient(135deg, #E23D28 0%, #F5A623 100%)',
+                  background: 'linear-gradient(135deg, #E23D28 0%, #F5A623 100%)',
                 }}
               />
               <div className="flex items-center gap-3 mb-3">
                 <div
                   className="w-9 h-9 rounded-lg flex items-center justify-center group-hover:opacity-90 transition-opacity"
                   style={{
-                    background:
-                      'linear-gradient(135deg, rgba(226,61,40,0.1) 0%, rgba(245,166,35,0.1) 100%)',
+                    background: 'linear-gradient(135deg, rgba(226,61,40,0.1) 0%, rgba(245,166,35,0.1) 100%)',
                   }}
                 >
                   <BookOpen size={18} className="text-[#E23D28]" />
@@ -164,16 +161,14 @@ export function SubtopicLanding({
               <div
                 className="absolute top-0 left-0 right-0 h-[3px]"
                 style={{
-                  background:
-                    'linear-gradient(135deg, #E23D28 0%, #F5A623 100%)',
+                  background: 'linear-gradient(135deg, #E23D28 0%, #F5A623 100%)',
                 }}
               />
               <div className="flex items-center gap-3 mb-3">
                 <div
                   className="w-9 h-9 rounded-lg flex items-center justify-center group-hover:opacity-90 transition-opacity"
                   style={{
-                    background:
-                      'linear-gradient(135deg, rgba(226,61,40,0.1) 0%, rgba(245,166,35,0.1) 100%)',
+                    background: 'linear-gradient(135deg, rgba(226,61,40,0.1) 0%, rgba(245,166,35,0.1) 100%)',
                   }}
                 >
                   <Zap size={18} className="text-[#E23D28]" />
@@ -196,16 +191,14 @@ export function SubtopicLanding({
               <div
                 className="absolute top-0 left-0 right-0 h-[3px]"
                 style={{
-                  background:
-                    'linear-gradient(135deg, #E23D28 0%, #F5A623 100%)',
+                  background: 'linear-gradient(135deg, #E23D28 0%, #F5A623 100%)',
                 }}
               />
               <div className="flex items-center gap-3 mb-3">
                 <div
                   className="w-9 h-9 rounded-lg flex items-center justify-center group-hover:opacity-90 transition-opacity"
                   style={{
-                    background:
-                      'linear-gradient(135deg, rgba(226,61,40,0.1) 0%, rgba(245,166,35,0.1) 100%)',
+                    background: 'linear-gradient(135deg, rgba(226,61,40,0.1) 0%, rgba(245,166,35,0.1) 100%)',
                   }}
                 >
                   <Calculator size={18} className="text-[#E23D28]" />
@@ -215,7 +208,7 @@ export function SubtopicLanding({
                 </span>
               </div>
               <p className="text-sm text-muted-foreground leading-relaxed">
-                Papers 2 & 3 style. Exam questions with a calculator.
+                Papers 2 &amp; 3 style. Exam questions with a calculator.
               </p>
             </button>
           </>
@@ -229,16 +222,14 @@ export function SubtopicLanding({
             <div
               className="absolute top-0 left-0 right-0 h-[3px]"
               style={{
-                background:
-                  'linear-gradient(135deg, #E23D28 0%, #F5A623 100%)',
+                background: 'linear-gradient(135deg, #E23D28 0%, #F5A623 100%)',
               }}
             />
             <div className="flex items-center gap-3 mb-3">
               <div
                 className="w-9 h-9 rounded-lg flex items-center justify-center group-hover:opacity-90 transition-opacity"
                 style={{
-                  background:
-                    'linear-gradient(135deg, rgba(226,61,40,0.1) 0%, rgba(245,166,35,0.1) 100%)',
+                  background: 'linear-gradient(135deg, rgba(226,61,40,0.1) 0%, rgba(245,166,35,0.1) 100%)',
                 }}
               >
                 <Zap size={18} className="text-[#E23D28]" />
@@ -250,6 +241,7 @@ export function SubtopicLanding({
             </p>
           </button>
         )}
+
       </div>
     </div>
   );
