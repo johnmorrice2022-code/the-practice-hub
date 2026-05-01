@@ -125,12 +125,18 @@ function SessionProgress({
   );
 }
 
-export function PracticeRoom({ config, calculatorAllowed, onExit }: PracticeRoomProps) {
+export function PracticeRoom({
+  config,
+  calculatorAllowed,
+  onExit,
+}: PracticeRoomProps) {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [partAnswers, setPartAnswers] = useState<Record<string, Record<string, string>>>({});
+  const [partAnswers, setPartAnswers] = useState<
+    Record<string, Record<string, string>>
+  >({});
   const [phase, setPhase] = useState<SessionPhase>('answering');
   const [feedbacks, setFeedbacks] = useState<Record<string, MarkingFeedback>>(
     {}
@@ -482,7 +488,11 @@ export function PracticeRoom({ config, calculatorAllowed, onExit }: PracticeRoom
                 : `${totalMarks} marks total`}
               {/* Calculator indicator in header */}
               <span className="mx-2 text-border">·</span>
-              <span className={calculatorAllowed ? 'text-[#2D9A5F]' : 'text-[#E23D28]'}>
+              <span
+                className={
+                  calculatorAllowed ? 'text-[#2D9A5F]' : 'text-[#E23D28]'
+                }
+              >
                 {calculatorAllowed ? 'Calculator' : 'No calculator'}
               </span>
             </span>
