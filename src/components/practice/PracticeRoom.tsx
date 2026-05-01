@@ -34,6 +34,7 @@ interface Question {
 }
 interface PracticeRoomProps {
   config: SessionConfig;
+  calculatorAllowed: boolean;
   onExit: () => void;
 }
 type SessionPhase = 'answering' | 'marking' | 'review';
@@ -124,12 +125,12 @@ function SessionProgress({
   );
 }
 
-export function PracticeRoom({ config, onExit }: PracticeRoomProps) {
+export function PracticeRoom({ config, calculatorAllowed, onExit }: PracticeRoomProps) {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [partAnswers, setPartAnswers] = useState<
+  const [partAnswers, setPartAnswers] = useState
     Record<string, Record<string, string>>
   >({});
   const [phase, setPhase] = useState<SessionPhase>('answering');
@@ -204,7 +205,13 @@ export function PracticeRoom({ config, onExit }: PracticeRoomProps) {
     try {
       const { data, error } = await supabase.functions.invoke(
         'generate-questions',
-        { body: { subtopicId: config.subtopicId, count: 4 } }
+        {
+          body: {
+            subtopicId: config.subtopicId,
+            count: 4,
+            calculatorAllowed,
+          },
+        }
       );
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
@@ -368,7 +375,6 @@ export function PracticeRoom({ config, onExit }: PracticeRoomProps) {
     }, 100);
   };
 
-  // feedback is optional — JAM Help can be opened before or after marking
   const handleJamHelp = (
     q: Question,
     answer: string,
@@ -476,6 +482,11 @@ export function PracticeRoom({ config, onExit }: PracticeRoomProps) {
               {phase === 'review'
                 ? `${totalAwarded}/${totalAvailable} marks`
                 : `${totalMarks} marks total`}
+              {/* Calculator indicator in header */}
+              <span className="mx-2 text-border">·</span>
+              <span className={calculatorAllowed ? 'text-[#2D9A5F]' : 'text-[#E23D28]'}>
+                {calculatorAllowed ? 'Calculator' : 'No calculator'}
+              </span>
             </span>
             <div className="flex items-center gap-3">
               {phase === 'answering' && (
@@ -577,7 +588,6 @@ export function PracticeRoom({ config, onExit }: PracticeRoomProps) {
                   onPartAnswerChange={handlePartAnswerChange}
                 />
 
-                {/* Bottom action row: JAM Help (left) + Mark button (right, when answered) */}
                 {phase === 'answering' &&
                   currentQuestion &&
                   !feedbacks[currentQuestion.id] && (
@@ -690,7 +700,6 @@ export function PracticeRoom({ config, onExit }: PracticeRoomProps) {
         </div>
       </div>
 
-      {/* JAM Help panel — renders whenever a question is selected */}
       {jamHelpQuestion && (
         <JamHelpPanel
           isOpen={jamHelpOpen}

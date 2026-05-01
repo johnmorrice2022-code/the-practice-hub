@@ -25,6 +25,7 @@ const Practice = () => {
   const [view, setView] = useState<AppView>('setup');
   const [subtopicDetails, setSubtopicDetails] =
     useState<SubtopicDetails | null>(null);
+  const [calculatorAllowed, setCalculatorAllowed] = useState(false);
   const [searchParams] = useSearchParams();
 
   useEffect(() => {
@@ -105,10 +106,16 @@ const Practice = () => {
     }
   };
   const handleCheckComplete = () => setView('practice');
-  const handlePractise = () => setView('practice');
+
+  const handlePractise = (calcAllowed: boolean) => {
+    setCalculatorAllowed(calcAllowed);
+    setView('practice');
+  };
+
   const handleBackToLanding = () => setView('landing');
   const handleBackToSetup = () => {
     setSubtopicDetails(null);
+    setCalculatorAllowed(false);
     setView('setup');
   };
 
@@ -138,6 +145,7 @@ const Practice = () => {
     return (
       <PracticeRoom
         config={subtopicDetails.config}
+        calculatorAllowed={calculatorAllowed}
         onExit={handleBackToLanding}
       />
     );
