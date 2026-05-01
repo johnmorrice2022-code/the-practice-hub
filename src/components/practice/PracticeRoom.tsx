@@ -130,9 +130,7 @@ export function PracticeRoom({ config, calculatorAllowed, onExit }: PracticeRoom
   const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [partAnswers, setPartAnswers] = useState
-    Record<string, Record<string, string>>
-  >({});
+  const [partAnswers, setPartAnswers] = useState<Record<string, Record<string, string>>>({});
   const [phase, setPhase] = useState<SessionPhase>('answering');
   const [feedbacks, setFeedbacks] = useState<Record<string, MarkingFeedback>>(
     {}
