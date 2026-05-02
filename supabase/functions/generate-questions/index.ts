@@ -52,11 +52,11 @@ TYPE 1 — Single part question:
 
 TYPE 2 — Multi-part question:
 {
-  "question_text": "Here are the ages, in years, of 8 children: 14 10 10 13 15 9 15 10\\n(a) Work out the mean age. (2 marks)\\n(b) Work out the range of the ages. (2 marks)",
+  "question_text": "Here are the ages, in years, of 8 children: 14 10 10 13 15 9 15 10",
   "marks": 4,
   "parts": [
-    { "part_label": "a", "part_text": "(a) Work out the mean age.", "marks": 2 },
-    { "part_label": "b", "part_text": "(b) Work out the range of the ages.", "marks": 2 }
+    { "part_label": "a", "part_text": "Work out the mean age.", "marks": 2 },
+    { "part_label": "b", "part_text": "Work out the range of the ages.", "marks": 2 }
   ],
   "mark_scheme": [
     { "mark_type": "M", "part": "a", "criterion": "Correct method: sum of all ages divided by 8", "marks": 1 },
@@ -73,6 +73,7 @@ RULES:
 3. Use LaTeX notation as shown above — mandatory
 4. \\\\times must always use double escaped backslash
 5. At least one question must be multi-part (TYPE 2)
+5a. For TYPE 2 questions: question_text is the shared scenario stem ONLY — never include part sub-questions or mark allocations in question_text. Each part_text is the sub-question for that part only, with no (a)/(b) label prefix and no mark count.
 6. Mark schemes must be unambiguous
 7. Worked solution must have one step per line, separated by \\n
 8. Return ONLY a JSON object: { "questions": [...] } — no markdown, no preamble
@@ -121,7 +122,8 @@ MULTI-PART QUESTION RULES
 - Part (b) builds on the scenario at higher demand
 - Part (c) is a further extension, often involving fractions, probability, or ratio
 - NEVER split a single method into parts
-- Each part has its own mark allocation shown as (1), (2), or (3)
+- question_text must contain the shared scenario stem ONLY — never list the sub-questions inside question_text
+- Each part_text must contain only that part's sub-question, with no (a)/(b)/(c) label prefix and no mark count
 
 MARK SCHEME RULES — PEARSON EDEXCEL FOUNDATION
 M mark — method mark. Awarded for correct method even if arithmetic is wrong.
@@ -208,7 +210,8 @@ MULTI-PART QUESTION RULES
 - Part (b) builds on the scenario at higher demand
 - Part (c) is a further extension
 - NEVER split a single method into parts
-- Each part has its own mark allocation shown as (1), (2), or (3)
+- question_text must contain the shared scenario stem ONLY — never list the sub-questions inside question_text
+- Each part_text must contain only that part's sub-question, with no (a)/(b)/(c) label prefix and no mark count
 
 MARK SCHEME RULES — PEARSON EDEXCEL FOUNDATION
 M mark — method mark. Awarded for correct method even if arithmetic is wrong.
@@ -289,7 +292,8 @@ MULTI-PART QUESTION RULES
 - Part (a) is always the lower-demand entry point
 - Part (b) builds on the scenario at higher demand
 - NEVER split a single method into parts
-- Each part has its own mark allocation shown as (1), (2), or (3)
+- question_text must contain the shared scenario stem ONLY — never list the sub-questions inside question_text
+- Each part_text must contain only that part's sub-question, with no (a)/(b) label prefix and no mark count
 
 MARK SCHEME RULES — PEARSON EDEXCEL FOUNDATION
 M mark — method mark. Awarded for correct method even if arithmetic is wrong.
@@ -405,11 +409,11 @@ TYPE 1 — Single part question:
 
 TYPE 2 — Multi-part question:
 {
-  "question_text": "Stem text with $LaTeX$",
+  "question_text": "Stem text with $LaTeX$ — shared scenario only, no sub-questions listed here",
   "marks": 3,
   "parts": [
-    { "part_label": "a", "part_text": "(a) Part text with $LaTeX$", "marks": 2 },
-    { "part_label": "b", "part_text": "(b) Part text with $LaTeX$", "marks": 1 }
+    { "part_label": "a", "part_text": "Sub-question for part a only, no (a) prefix, no mark count", "marks": 2 },
+    { "part_label": "b", "part_text": "Sub-question for part b only, no (b) prefix, no mark count", "marks": 1 }
   ],
   "mark_scheme": [
     { "mark_type": "M", "part": "a", "criterion": "criterion with $LaTeX$", "marks": 1 },
@@ -418,6 +422,11 @@ TYPE 2 — Multi-part question:
   ],
   "worked_solution": "Part (a):\\n$step 1$\\n$step 2$\\nPart (b):\\n$step 1$"
 }
+
+MULTI-PART QUESTION RULES:
+- question_text is the shared scenario stem ONLY — never list sub-questions or mark allocations inside question_text
+- Each part_text is the sub-question for that part only — no (a)/(b) label prefix, no mark count
+- The app renders the part label and mark count automatically — do not duplicate them in the text
 
 RULES:
 1. Generate exactly ${count} questions in increasing difficulty
@@ -493,6 +502,10 @@ Critical examples:
 - Square root: "$\\\\sqrt{50}$" — NOT "$\\sqrt{50}$"
 - Fraction: "$\\\\frac{3}{4}$" — NOT "$\\frac{3}{4}$"
 - Times symbol: "$\\\\times$" — NOT "$\\times$"
+
+REMINDER FOR MULTI-PART QUESTIONS:
+- question_text = shared scenario stem ONLY (no sub-questions listed)
+- part_text = sub-question text only, no (a)/(b) prefix, no mark count
 
 Return ONLY this JSON structure:
 {
