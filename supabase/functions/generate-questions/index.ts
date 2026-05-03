@@ -162,7 +162,7 @@ RULES:
 `;
 
 // ─────────────────────────────────────────────
-// FOUNDATION PAPER PROMPT BUILDERS
+// FOUNDATION MATHS PAPER PROMPT BUILDERS
 // ─────────────────────────────────────────────
 
 function buildFoundationP1Prompt(subtopic: any, count: number): string {
@@ -697,89 +697,415 @@ ${HIGHER_OUTPUT_FORMAT.replace('{COUNT}', String(count))}`;
 }
 
 // ─────────────────────────────────────────────
-// PHYSICS PROMPT BUILDER (AQA, all tiers)
+// PHYSICS PROMPT BUILDERS — AQA 8463
+// Built from June 2024: 8463/1F, 8463/2F, 8463/1H, 8463/2H
 // ─────────────────────────────────────────────
 
-function buildPhysicsPrompt(subtopic: any, count: number): string {
-  const promptConfig = subtopic.prompt_config || {};
-
-  return `You are a senior AQA GCSE Physics examiner writing questions for ${subtopic.tier} tier, grade band ${subtopic.grade_band}.
-
-Subject: ${subtopic.subject}
-Exam board: AQA
-Tier: ${subtopic.tier}
-Grade band: ${subtopic.grade_band}
-Topic: ${subtopic.topic}
-Subtopic: ${subtopic.subtopic_name}
-${subtopic.description ? `Description: ${subtopic.description}` : ''}
-${promptConfig.system_prompt ? `\nEXPERT EXAMINER INSTRUCTIONS — follow these precisely:\n${promptConfig.system_prompt}` : ''}
-${promptConfig.context ? `\nExaminer notes: ${promptConfig.context}` : ''}
-${promptConfig.common_mistakes ? `\nCommon student errors to probe: ${promptConfig.common_mistakes}` : ''}
-${promptConfig.command_words ? `\nPreferred command words: ${promptConfig.command_words}` : ''}
-
-MARK TYPES FOR AQA PHYSICS:
-Every mark is a standalone 1-mark criterion. There are no M, A or B labels.
-Each mark is awarded for a specific correct step: correct substitution, correct calculation, correct answer with unit, correct recall, correct reasoning.
-Do not label marks with M, A or B. Each criterion in the mark scheme is simply worth 1 mark.
-
+const PHYSICS_SHARED_LATEX_RULES = `
 CRITICAL — MATHEMATICAL NOTATION:
 You MUST use LaTeX notation for ALL mathematical expressions in question_text, mark_scheme criteria, and worked_solution.
 In JSON strings, backslashes MUST be escaped as double backslashes (\\\\).
 
-Multiplication sign:    "$3 \\\\times 2$"
-Square roots:           "$\\\\sqrt{72}$"
-Fractions:              "$\\\\frac{6}{\\\\sqrt{3}}$"
-Powers:                 "$v^2$", "$10^3$"
+Correct JSON examples:
+Multiplication sign: "$3 \\\\times 2$"
+Fractions: "$\\\\frac{12}{0.4}$"
+Powers: "$v^2$", "$10^3$"
+Standard form: "$2.6 \\\\times 10^{-8}$"
+Units: "$m/s^2$", "$N/m$", "$kg/m^3$"
 
-NEVER use plain text for maths. Always use LaTeX with double-escaped backslashes.
+NEVER use:
+- \\times with a single backslash — always use \\\\times
+- Plain text such as "v squared" — use $v^2$
+- Plain text fractions such as "12/0.4" — use $\\\\frac{12}{0.4}$ where appropriate
 
 WORKED SOLUTION FORMAT:
-Write each step on a separate line using \\n between steps. One calculation step per line.
+Write each step on a separate line using \\n between steps.
+One calculation step per line.
+`;
 
+const PHYSICS_OUTPUT_FORMAT = `
 QUESTION FORMAT
 Each question must be one of two types:
 
 TYPE 1 — Single part question:
 {
-  "question_text": "A student measures a force of 12 N acting over an area of 0.4 $m^2$. Calculate the pressure. Give your answer in Pa.",
+  "question_text": "A student measures a force of 12 N acting over an area of 0.40 $m^2$. Calculate the pressure. Give your answer in Pa.",
   "marks": 2,
   "parts": [],
   "mark_scheme": [
-    { "mark_type": "step", "criterion": "Correct substitution: $P = \\\\frac{12}{0.4}$", "marks": 1 },
-    { "mark_type": "step", "criterion": "Correct answer: 30 Pa", "marks": 1 }
+    { "mark_type": "step", "criterion": "Correct substitution: $P = \\\\frac{12}{0.40}$", "marks": 1 },
+    { "mark_type": "step", "criterion": "Correct answer with unit: 30 Pa", "marks": 1 }
   ],
-  "worked_solution": "$P = \\\\frac{F}{A}$\\n$P = \\\\frac{12}{0.4}$\\n$P = 30$ Pa"
+  "worked_solution": "$P = \\\\frac{F}{A}$\\n$P = \\\\frac{12}{0.40}$\\n$P = 30$ Pa"
 }
 
 TYPE 2 — Multi-part question:
 {
-  "question_text": "Stem text — shared scenario only, no sub-questions listed here",
-  "marks": 3,
+  "question_text": "A student investigates how the resistance of a wire depends on the length of the wire. The student uses a cell, an ammeter, a voltmeter, a switch and a length of resistance wire.",
+  "marks": 5,
   "parts": [
-    { "part_label": "a", "part_text": "Sub-question for part a only, no (a) prefix, no mark count", "marks": 2 },
-    { "part_label": "b", "part_text": "Sub-question for part b only, no (b) prefix, no mark count", "marks": 1 }
+    { "part_label": "a", "part_text": "Name the independent variable in this investigation.", "marks": 1 },
+    { "part_label": "b", "part_text": "Describe how the student should collect results for this investigation.", "marks": 4 }
   ],
   "mark_scheme": [
-    { "mark_type": "step", "part": "a", "criterion": "criterion", "marks": 1 },
-    { "mark_type": "step", "part": "a", "criterion": "criterion", "marks": 1 },
-    { "mark_type": "step", "part": "b", "criterion": "criterion", "marks": 1 }
+    { "mark_type": "step", "part": "a", "criterion": "Length of the wire", "marks": 1 },
+    { "mark_type": "step", "part": "b", "criterion": "Measure the length of wire between the contacts", "marks": 1 },
+    { "mark_type": "step", "part": "b", "criterion": "Measure current and potential difference for each length", "marks": 1 },
+    { "mark_type": "step", "part": "b", "criterion": "Calculate resistance using $R = \\\\frac{V}{I}$", "marks": 1 },
+    { "mark_type": "step", "part": "b", "criterion": "Repeat for several lengths and plot a graph of resistance against length", "marks": 1 }
   ],
-  "worked_solution": "Part (a):\\n$step 1$\\n$step 2$\\nPart (b):\\n$step 1$"
+  "worked_solution": "Part (a):\\nThe independent variable is the length of the wire.\\nPart (b):\\nMeasure the length of wire between the contacts.\\nMeasure the current and potential difference.\\nCalculate resistance using $R = \\\\frac{V}{I}$.\\nRepeat for several lengths and plot a graph."
 }
 
 MULTI-PART QUESTION RULES:
-- question_text is the shared scenario stem ONLY — never list sub-questions inside question_text
-- Each part_text is the sub-question for that part only — no (a)/(b) label prefix, no mark count
+- question_text is the shared scenario stem ONLY
+- Do not list sub-questions inside question_text
+- Each part_text is the sub-question only
+- Do not include "(a)" or "(b)" in part_text
+- Do not include mark counts inside part_text
+- The app renders labels and mark counts automatically
 
 RULES:
-1. Generate exactly ${count} questions in increasing difficulty
-2. Questions must read exactly like real AQA past paper questions
+1. Generate exactly {COUNT} questions in increasing difficulty
+2. Questions must read like real AQA GCSE Physics 8463 exam questions
 3. Use LaTeX notation — mandatory
 4. \\\\times must always use double escaped backslash
-5. At least one question must be multi-part (TYPE 2)
-6. Mark schemes must be unambiguous
-7. Worked solution must have one step per line, separated by \\n
-8. Return ONLY a JSON object, no markdown, no preamble`;
+5. At least one question must be multi-part
+6. Mark schemes must use AQA-style standalone marking points
+7. Do not use Edexcel M/A/B/C/P mark types for Physics
+8. Every mark_scheme item must use "mark_type": "step"
+9. Worked solution must have one step per line, separated by \\n
+10. Return ONLY a JSON object: { "questions": [...] } — no markdown, no preamble
+`;
+
+function inferPhysicsPaper(subtopic: any): 'paper1' | 'paper2' {
+  const promptConfig = subtopic.prompt_config || {};
+  const explicitPaper = String(
+    promptConfig.paper || promptConfig.physics_paper || ''
+  ).toLowerCase();
+
+  if (
+    explicitPaper === 'paper1' ||
+    explicitPaper === 'paper 1' ||
+    explicitPaper === 'p1'
+  ) {
+    return 'paper1';
+  }
+
+  if (
+    explicitPaper === 'paper2' ||
+    explicitPaper === 'paper 2' ||
+    explicitPaper === 'p2'
+  ) {
+    return 'paper2';
+  }
+
+  const haystack = `${subtopic.topic || ''} ${subtopic.subtopic_name || ''} ${
+    subtopic.slug || ''
+  }`.toLowerCase();
+
+  const paper1Terms = [
+    'energy',
+    'electricity',
+    'current',
+    'charge',
+    'resistance',
+    'potential difference',
+    'mains',
+    'circuit',
+    'thermistor',
+    'iv',
+    'i-v',
+    'particle',
+    'density',
+    'specific heat',
+    'specific latent',
+    'latent heat',
+    'gas pressure',
+    'atomic',
+    'radioactive',
+    'radioactivity',
+    'radiation',
+    'half-life',
+    'half life',
+    'nuclear',
+    'fission',
+    'fusion',
+  ];
+
+  if (paper1Terms.some((term) => haystack.includes(term))) {
+    return 'paper1';
+  }
+
+  return 'paper2';
+}
+
+function normalisePhysicsTier(
+  subtopic: any,
+  studentPhysicsTier?: string
+): 'foundation' | 'higher' {
+  const fromRequest = String(studentPhysicsTier || '').toLowerCase();
+
+  if (fromRequest.includes('foundation')) return 'foundation';
+  if (fromRequest.includes('higher')) return 'higher';
+
+  const fromSubtopic = String(subtopic.tier || '').toLowerCase();
+
+  if (fromSubtopic.includes('foundation')) return 'foundation';
+  if (fromSubtopic.includes('higher')) return 'higher';
+
+  return 'foundation';
+}
+
+function buildPhysicsFoundationP1Prompt(subtopic: any, count: number): string {
+  return buildPhysicsPromptVariant(subtopic, count, 'foundation', 'paper1');
+}
+
+function buildPhysicsFoundationP2Prompt(subtopic: any, count: number): string {
+  return buildPhysicsPromptVariant(subtopic, count, 'foundation', 'paper2');
+}
+
+function buildPhysicsHigherP1Prompt(subtopic: any, count: number): string {
+  return buildPhysicsPromptVariant(subtopic, count, 'higher', 'paper1');
+}
+
+function buildPhysicsHigherP2Prompt(subtopic: any, count: number): string {
+  return buildPhysicsPromptVariant(subtopic, count, 'higher', 'paper2');
+}
+
+function buildPhysicsPromptVariant(
+  subtopic: any,
+  count: number,
+  physicsTier: 'foundation' | 'higher',
+  physicsPaper: 'paper1' | 'paper2'
+): string {
+  const promptConfig = subtopic.prompt_config || {};
+
+  const tierLabel = physicsTier === 'foundation' ? 'Foundation' : 'Higher';
+  const paperLabel = physicsPaper === 'paper1' ? 'Paper 1' : 'Paper 2';
+
+  const contentProfile =
+    physicsPaper === 'paper1'
+      ? `
+PAPER 1 CONTENT PROFILE:
+Energy, electricity, particle model of matter, atomic structure, radiation, radioactivity and nuclear physics.
+
+Authentic AQA Paper 1 contexts include:
+- energy stores and transfers
+- energy resources and efficiency
+- work done, power, kinetic energy, gravitational potential energy and elastic potential energy
+- mains electricity, fuses, plugs, current, charge, resistance and potential difference
+- thermistors, circuit symbols, series and parallel circuits
+- density, measuring volume, specific heat capacity and specific latent heat
+- gas pressure and particle explanations
+- background radiation, alpha/beta/gamma radiation, half-life, activity, contamination and irradiation
+- nuclear fission, nuclear power and radioactive waste
+`
+      : `
+PAPER 2 CONTENT PROFILE:
+Forces, motion, waves, magnetism, electromagnetism and space physics.
+
+Authentic AQA Paper 2 contexts include:
+- scalar and vector quantities
+- resultant force, acceleration, work done, weight and pressure
+- distance-time and velocity-time graphs
+- springs, moments, gears and braking distance
+- transverse and longitudinal waves, wave speed, frequency, period and wavelength
+- electromagnetic spectrum, colour, reflection, refraction and lenses
+- magnets, electromagnets, motor effect, generator effect and microphones
+- stars, life cycle of stars, red-shift and the expanding Universe
+- seismic waves and structure of the Earth
+`;
+
+  const tierStyle =
+    physicsTier === 'foundation'
+      ? `
+FOUNDATION TIER STYLE — AQA 8463:
+Write in the style of AQA GCSE Physics Foundation Tier June 2024.
+
+Foundation questions are heavily scaffolded. They often break one context into several short parts before asking for a calculation or explanation.
+
+Use these formats frequently:
+- "Tick one box."
+- "Tick two boxes."
+- "Choose the answer from the box."
+- "Complete the sentence."
+- "Write down the equation which links..."
+- "Use the equation:"
+- "Use the Physics Equations Sheet to answer..."
+- "Calculate..."
+- "Give a reason for your answer."
+- "Suggest one..."
+- "Describe a method..."
+
+Foundation demand profile:
+- Mostly 1-mark and 2-mark parts
+- Occasional 3-mark calculations
+- Occasional 4-mark comparison or explanation
+- Occasional 6-mark required practical method question
+- Calculations should normally be scaffolded
+- Equations should often be given directly
+- Use familiar contexts and concrete wording
+- Keep explanation questions tightly bounded
+- Avoid abstract textbook phrasing
+- Avoid making students choose between several equations unless the question explicitly says to use the Physics Equations Sheet
+
+Foundation calculation rules:
+- Give the equation directly for many 2-mark calculations
+- Use manageable numbers
+- Include units in the answer line
+- Reward substitution, calculation and unit as separate AQA-style points where appropriate
+- Do not make calculations harder than the Physics being tested
+`
+      : `
+HIGHER TIER STYLE — AQA 8463:
+Write in the style of AQA GCSE Physics Higher Tier June 2024.
+
+Higher questions are less scaffolded and require more interpretation. They often combine graph reading, unit conversion, equation selection, rearrangement and explanation.
+
+Use these command words frequently:
+- "Calculate"
+- "Determine"
+- "Explain"
+- "Suggest"
+- "Describe"
+- "Compare"
+- "Use information from Figure..."
+- "Use the Physics Equations Sheet."
+
+Higher demand profile:
+- Fewer tick-box questions than Foundation
+- More 3-mark, 4-mark, 5-mark and 6-mark tasks
+- Multi-step calculations are expected
+- Students may need to select and rearrange equations
+- Unit conversions are expected, especially cm to m, ms to s, kPa to Pa, MW to W, kJ to J, g to kg, cm³ to m³
+- Graph and table interpretation should be used
+- Explanation questions should test mechanisms, not vague recall
+- Practical questions should test variables, control variables, resolution, uncertainty, repeatability, line of best fit and proportionality
+
+Higher calculation rules:
+- Use realistic AQA numerical values
+- Include unit conversion where appropriate
+- Award marks for conversion, substitution, rearrangement, calculation and unit
+- Include "Determine" questions where students must read from a graph or combine graph information with an equation
+- Do not simply make Foundation questions with harder numbers
+`;
+
+  const practicalRules = `
+AQA PRACTICAL SKILLS RULES:
+Include practical/data-handling questions when suitable for the subtopic.
+
+Practical questions may test:
+- independent, dependent and control variables
+- measuring instruments and resolution
+- repeat readings and calculating a mean
+- identifying anomalies
+- reducing random error
+- zero error and systematic error
+- drawing or interpreting a line of best fit
+- recognising direct proportionality
+- describing a method step by step
+- safety precautions
+
+For 6-mark practical method questions:
+The mark scheme should reward six standalone points such as:
+1. suitable apparatus or setup
+2. measurement of independent variable
+3. measurement of dependent variable
+4. control variable
+5. repeat readings / calculate mean
+6. plot graph or describe relationship
+`;
+
+  const markingRules = `
+MARK SCHEME RULES — AQA PHYSICS:
+Every mark is a standalone 1-mark criterion.
+Do not use Edexcel M, A, B, C or P marks.
+Use mark_type: "step" for every Physics mark.
+
+Award marks for:
+- correct recall statement
+- correct equation selected or written, only when the question asks for the equation
+- correct substitution
+- correct rearrangement
+- correct unit conversion
+- correct calculation
+- correct final answer
+- correct unit
+- correct comparison or conclusion
+- correct explanation point
+
+Important AQA convention:
+If the equation is given in the question, do not award a separate mark simply for writing the equation again.
+If the question asks "Write down the equation which links...", then award 1 mark for the correct equation.
+
+For calculations:
+- If 2 marks: usually substitution/process + answer/unit
+- If 3 marks: equation/rearrangement or conversion + substitution + answer/unit
+- If 4+ marks: break the process into clear standalone points
+- Apply error carried forward where appropriate and state it in the criterion, e.g. "Correct calculation using the candidate's value from part (a)"
+
+For explanations:
+- Each mark should correspond to one clear physics idea
+- Avoid vague criteria like "good explanation"
+- Do not require exact wording unless the scientific term is essential
+
+Always include a final TOTAL item:
+{ "mark_type": "step", "criterion": "TOTAL", "marks": total_marks }
+`;
+
+  return `You are a senior AQA GCSE Physics examiner writing questions for AQA 8463 ${tierLabel} Tier ${paperLabel}.
+
+Your task is to generate exactly ${count} exam-style question groups for The Hub Jam. The questions will be marked by a separate AI examiner, so every question must include a complete, unambiguous AQA-style mark scheme.
+
+Subject: ${subtopic.subject}
+Exam board: AQA
+Tier: ${tierLabel}
+Paper: ${paperLabel}
+Grade band: ${subtopic.grade_band}
+Topic: ${subtopic.topic}
+Subtopic: ${subtopic.subtopic_name}
+${subtopic.description ? `Description: ${subtopic.description}` : ''}
+
+${contentProfile}
+
+TOPICS IN SCOPE FOR THIS SUBTOPIC:
+${promptConfig.system_prompt || `Generate questions that directly test ${subtopic.subtopic_name} within ${subtopic.topic}. Stay tightly within this subtopic.`}
+
+${promptConfig.marking_guidance ? `\nSUBTOPIC-SPECIFIC MARKING GUIDANCE — highest priority:\n${promptConfig.marking_guidance}` : ''}
+
+${promptConfig.context ? `\nExaminer notes:\n${promptConfig.context}` : ''}
+
+${promptConfig.common_mistakes ? `\nCommon student errors to probe:\n${promptConfig.common_mistakes}` : ''}
+
+${tierStyle}
+
+${practicalRules}
+
+${markingRules}
+
+QUESTION STRUCTURE:
+Generate ${count} questions in increasing difficulty.
+Each generated question may be single-part or multi-part.
+At least one question must be multi-part.
+Each question should feel like a short AQA exam-paper question group, not a generic textbook exercise.
+
+AQA WORDING STYLE:
+Use simple, direct AQA-style language.
+Prefer concrete contexts over abstract prompts.
+Use "student", "teacher", "child", "person", "machine", "appliance", "source", "object" and similar AQA-style nouns.
+Do not force named characters in Physics. AQA Physics usually uses "a student", "a teacher", "a person", etc.
+
+FORBIDDEN FOR AI-GENERATED PHYSICS QUESTIONS:
+Do not generate questions that require the app to display a complex custom diagram unless diagram_params are explicitly provided.
+Do not ask students to draw arrows, complete ray diagrams, plot graphs, or draw lines of best fit unless the response can be typed.
+Do not make the answer depend on seeing an image that has not been generated.
+You may describe simple tables or data in text.
+You may include small data tables in question_text using plain text.
+
+${PHYSICS_SHARED_LATEX_RULES}
+
+${PHYSICS_OUTPUT_FORMAT.replace('{COUNT}', String(count))}`;
 }
 
 // ─────────────────────────────────────────────
@@ -795,7 +1121,10 @@ serve(async (req) => {
       subtopicId,
       count = 4,
       calculatorAllowed = false,
+      studentTier,
+      physicsTier,
     } = await req.json();
+
     if (!subtopicId) throw new Error('subtopicId is required');
 
     const supabase = createClient(
@@ -813,15 +1142,16 @@ serve(async (req) => {
 
     const isFoundation = subtopic.tier?.toLowerCase() === 'foundation';
     const isHigher = subtopic.tier?.toLowerCase() === 'higher';
+
     const isMaths =
       subtopic.subject?.toLowerCase().includes('maths') ||
       subtopic.subject?.toLowerCase().includes('math');
 
-    // Route to the correct prompt builder
+    const isPhysics = subtopic.subject?.toLowerCase().includes('physics');
+
     let systemPrompt: string;
 
     if (isMaths && isFoundation) {
-      // Foundation Maths: three paper prompts from 1MA1/1F, 2F, 3F
       if (calculatorAllowed) {
         systemPrompt =
           Math.random() < 0.5
@@ -831,7 +1161,6 @@ serve(async (req) => {
         systemPrompt = buildFoundationP1Prompt(subtopic, count);
       }
     } else if (isMaths && isHigher) {
-      // Higher Maths: three paper prompts from 1MA1/1H, 2H, 3H
       if (calculatorAllowed) {
         systemPrompt =
           Math.random() < 0.5
@@ -840,12 +1169,49 @@ serve(async (req) => {
       } else {
         systemPrompt = buildHigherP1Prompt(subtopic, count);
       }
+    } else if (isPhysics) {
+      const resolvedPhysicsTier = normalisePhysicsTier(
+        subtopic,
+        physicsTier || studentTier
+      );
+
+      const resolvedPhysicsPaper = inferPhysicsPaper(subtopic);
+
+      if (
+        resolvedPhysicsTier === 'foundation' &&
+        resolvedPhysicsPaper === 'paper1'
+      ) {
+        systemPrompt = buildPhysicsFoundationP1Prompt(subtopic, count);
+      } else if (
+        resolvedPhysicsTier === 'foundation' &&
+        resolvedPhysicsPaper === 'paper2'
+      ) {
+        systemPrompt = buildPhysicsFoundationP2Prompt(subtopic, count);
+      } else if (
+        resolvedPhysicsTier === 'higher' &&
+        resolvedPhysicsPaper === 'paper1'
+      ) {
+        systemPrompt = buildPhysicsHigherP1Prompt(subtopic, count);
+      } else {
+        systemPrompt = buildPhysicsHigherP2Prompt(subtopic, count);
+      }
     } else {
-      // Physics (AQA, all tiers)
-      systemPrompt = buildPhysicsPrompt(subtopic, count);
+      systemPrompt = buildPhysicsPromptVariant(
+        subtopic,
+        count,
+        'foundation',
+        'paper1'
+      );
     }
 
-    const userPrompt = `Generate ${count} GCSE exam questions for: "${subtopic.subtopic_name}" (${subtopic.topic}, Pearson Edexcel ${subtopic.tier} tier, grade ${subtopic.grade_band}).
+    const examBoardLabel = isPhysics ? 'AQA' : 'Pearson Edexcel';
+    const tierLabelForPrompt = isPhysics
+      ? normalisePhysicsTier(subtopic, physicsTier || studentTier)
+      : subtopic.tier;
+
+    const markTypeExample = isPhysics ? 'step' : 'M';
+
+    const userPrompt = `Generate ${count} GCSE exam questions for: "${subtopic.subtopic_name}" (${subtopic.topic}, ${examBoardLabel} ${tierLabelForPrompt} tier, grade ${subtopic.grade_band}).
 
 REMINDER: All mathematical expressions MUST use LaTeX with double-escaped backslashes in JSON.
 
@@ -866,7 +1232,7 @@ Return ONLY this JSON structure:
       "question_text": "string with $LaTeX$",
       "marks": 2,
       "parts": [],
-      "mark_scheme": [{ "mark_type": "M", "criterion": "string with $LaTeX$", "marks": 1 }],
+      "mark_scheme": [{ "mark_type": "${markTypeExample}", "criterion": "string with $LaTeX$", "marks": 1 }],
       "worked_solution": "one step per line using \\n",
       "diagram_type": null,
       "diagram_params": null
@@ -910,6 +1276,7 @@ Return ONLY this JSON structure:
       .trim();
 
     let parsed: { questions: any[] };
+
     try {
       parsed = JSON.parse(cleaned);
     } catch {
@@ -938,6 +1305,7 @@ Return ONLY this JSON structure:
     });
   } catch (e) {
     console.error('generate-questions error:', e);
+
     return new Response(
       JSON.stringify({
         error: e instanceof Error ? e.message : 'Unknown error',
