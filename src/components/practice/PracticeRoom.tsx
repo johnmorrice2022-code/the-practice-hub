@@ -31,6 +31,7 @@ interface Question {
   diagram_type?: string | null;
   diagram_params?: Record<string, unknown> | null;
   diagram_url?: string | null;
+  diagram_component?: string | null;
 }
 interface PracticeRoomProps {
   config: SessionConfig;
@@ -165,7 +166,7 @@ export function PracticeRoom({
         supabase
           .from('seeded_questions')
           .select(
-            'id, question_text, marks, question_order, mark_scheme, worked_solution, diagram_url'
+            'id, question_text, marks, question_order, mark_scheme, worked_solution, diagram_url, diagram_component, diagram_params'
           )
           .eq('subtopic_id', config.subtopicId)
           .order('question_order'),
@@ -184,8 +185,9 @@ export function PracticeRoom({
             ...q,
             parts: [],
             diagram_type: null,
-            diagram_params: null,
+            diagram_params: (q as any).diagram_params || null,
             diagram_url: (q as any).diagram_url || null,
+            diagram_component: (q as any).diagram_component || null,
           }))
         );
         setCurrentIndex(0);
@@ -226,6 +228,7 @@ export function PracticeRoom({
           diagram_type: q.diagram_type || null,
           diagram_params: q.diagram_params || null,
           diagram_url: q.diagram_url || null,
+          diagram_component: q.diagram_component || null,
         }))
       );
       setCurrentIndex(0);
@@ -592,6 +595,7 @@ export function PracticeRoom({
                   diagramType={currentQuestion?.diagram_type}
                   diagramParams={currentQuestion?.diagram_params}
                   diagramUrl={currentQuestion?.diagram_url}
+                  diagramComponent={currentQuestion?.diagram_component}
                   partAnswers={partAnswers[currentQuestion?.id ?? ''] ?? {}}
                   onPartAnswerChange={handlePartAnswerChange}
                 />

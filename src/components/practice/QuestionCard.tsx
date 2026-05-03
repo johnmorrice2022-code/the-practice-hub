@@ -4,6 +4,7 @@ import {
   TheoremType,
   DiagramParams,
 } from '@/components/diagrams';
+import { getQuestionDiagram } from '@/components/diagrams/questionDiagramRegistry';
 import { MathInputToolbar } from './MathInputToolbar';
 import katex from 'katex';
 
@@ -24,6 +25,7 @@ interface QuestionCardProps {
   diagramType?: string | null;
   diagramParams?: Record<string, unknown> | null;
   diagramUrl?: string | null;
+  diagramComponent?: string | null;
   partAnswers?: Record<string, string>;
   onPartAnswerChange?: (partLabel: string, value: string) => void;
 }
@@ -142,10 +144,19 @@ export function QuestionCard({
   diagramType,
   diagramParams,
   diagramUrl,
+  diagramComponent,
   partAnswers = {},
   onPartAnswerChange,
 }: QuestionCardProps) {
   const isMultiPart = parts && parts.length > 0;
+
+  // Render priority for diagrams:
+  //   1. diagramComponent set + registered (parametric components from the
+  //      questionDiagramRegistry, e.g. 'probability-tree')
+  //   2. diagramUrl set (image from Supabase Storage)
+  //   3. diagramType set (legacy single-component path for CircleTheoremDiagram)
+  //   4. None
+  const RegisteredDiagram = getQuestionDiagram(diagramComponent);
 
   return (
     <div className="space-y-8">
@@ -174,8 +185,23 @@ export function QuestionCard({
         dangerouslySetInnerHTML={{ __html: renderMathInText(questionText) }}
       />
 
+      {/* Diagram — registered parametric component (probability-tree, etc.) */}
+      {RegisteredDiagram && diagramParams && (
+        <div className="flex justify-center py-2">
+          <div
+            className="bg-[#FAF7F2] border border-border/40 rounded-xl p-5 w-full"
+            style={{
+              maxWidth: 680,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+            }}
+          >
+            <RegisteredDiagram params={diagramParams} />
+          </div>
+        </div>
+      )}
+
       {/* Diagram — image from Supabase Storage */}
-      {diagramUrl && (
+      {!RegisteredDiagram && diagramUrl && (
         <div className="flex justify-center py-2">
           <div
             className="bg-[#FAF7F2] border border-border/40 rounded-xl p-5 w-full"
@@ -194,8 +220,8 @@ export function QuestionCard({
         </div>
       )}
 
-      {/* Diagram — programmatic SVG */}
-      {diagramType && !diagramUrl && (
+      {/* Diagram — legacy programmatic SVG (CircleTheoremDiagram) */}
+      {!RegisteredDiagram && !diagramUrl && diagramType && (
         <CircleTheoremDiagram
           theoremType={diagramType as TheoremType}
           params={(diagramParams ?? {}) as DiagramParams}
