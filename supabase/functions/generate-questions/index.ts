@@ -130,7 +130,7 @@ TYPE 1 — Single part question:
 
 TYPE 2 — Multi-part question:
 {
-  "question_text": "The cost of a first class stamp increased from 76p to 85p. The cost of a second class stamp increased from 65p to 66p. Filip says, \\"The percentage increase in the cost of a first class stamp is more than 7 times the percentage increase in the cost of a second class stamp.\\"",
+  "question_text": "The cost of a first class stamp increased from 76p to 85p. The cost of a second class stamp increased from 65p to 66p. Filip says, \"The percentage increase in the cost of a first class stamp is more than 7 times the percentage increase in the cost of a second class stamp.\"",
   "marks": 4,
   "parts": [
     { "part_label": "a", "part_text": "Work out the percentage increase in the cost of a first class stamp.", "marks": 2 },
@@ -698,7 +698,8 @@ ${HIGHER_OUTPUT_FORMAT.replace('{COUNT}', String(count))}`;
 
 // ─────────────────────────────────────────────
 // PHYSICS PROMPT BUILDERS — AQA 8463
-// Built from June 2024: 8463/1F, 8463/2F, 8463/1H, 8463/2H
+// Strong AQA-style version built from June 2024 papers:
+// 8463/1F, 8463/2F, 8463/1H, 8463/2H
 // ─────────────────────────────────────────────
 
 const PHYSICS_SHARED_LATEX_RULES = `
@@ -734,7 +735,8 @@ TYPE 1 — Single part question:
   "parts": [],
   "mark_scheme": [
     { "mark_type": "step", "criterion": "Correct substitution: $P = \\\\frac{12}{0.40}$", "marks": 1 },
-    { "mark_type": "step", "criterion": "Correct answer with unit: 30 Pa", "marks": 1 }
+    { "mark_type": "step", "criterion": "Correct answer with unit: 30 Pa", "marks": 1 },
+    { "mark_type": "step", "criterion": "TOTAL", "marks": 2 }
   ],
   "worked_solution": "$P = \\\\frac{F}{A}$\\n$P = \\\\frac{12}{0.40}$\\n$P = 30$ Pa"
 }
@@ -752,7 +754,8 @@ TYPE 2 — Multi-part question:
     { "mark_type": "step", "part": "b", "criterion": "Measure the length of wire between the contacts", "marks": 1 },
     { "mark_type": "step", "part": "b", "criterion": "Measure current and potential difference for each length", "marks": 1 },
     { "mark_type": "step", "part": "b", "criterion": "Calculate resistance using $R = \\\\frac{V}{I}$", "marks": 1 },
-    { "mark_type": "step", "part": "b", "criterion": "Repeat for several lengths and plot a graph of resistance against length", "marks": 1 }
+    { "mark_type": "step", "part": "b", "criterion": "Repeat for several lengths and plot a graph of resistance against length", "marks": 1 },
+    { "mark_type": "step", "criterion": "TOTAL", "marks": 5 }
   ],
   "worked_solution": "Part (a):\\nThe independent variable is the length of the wire.\\nPart (b):\\nMeasure the length of wire between the contacts.\\nMeasure the current and potential difference.\\nCalculate resistance using $R = \\\\frac{V}{I}$.\\nRepeat for several lengths and plot a graph."
 }
@@ -767,15 +770,16 @@ MULTI-PART QUESTION RULES:
 
 RULES:
 1. Generate exactly {COUNT} questions in increasing difficulty
-2. Questions must read like real AQA GCSE Physics 8463 exam questions
+2. Questions must read like real AQA GCSE Physics 8463 questions, not generic textbook questions
 3. Use LaTeX notation — mandatory
 4. \\\\times must always use double escaped backslash
 5. At least one question must be multi-part
 6. Mark schemes must use AQA-style standalone marking points
 7. Do not use Edexcel M/A/B/C/P mark types for Physics
 8. Every mark_scheme item must use "mark_type": "step"
-9. Worked solution must have one step per line, separated by \\n
-10. Return ONLY a JSON object: { "questions": [...] } — no markdown, no preamble
+9. Every mark scheme must include a final TOTAL item
+10. Worked solution must have one step per line, separated by \\n
+11. Return ONLY a JSON object: { "questions": [...] } — no markdown, no preamble
 `;
 
 function inferPhysicsPaper(subtopic: any): 'paper1' | 'paper2' {
@@ -890,47 +894,157 @@ function buildPhysicsPromptVariant(
 PAPER 1 CONTENT PROFILE:
 Energy, electricity, particle model of matter, atomic structure, radiation, radioactivity and nuclear physics.
 
-Authentic AQA Paper 1 contexts include:
-- energy stores and transfers
-- energy resources and efficiency
-- work done, power, kinetic energy, gravitational potential energy and elastic potential energy
-- mains electricity, fuses, plugs, current, charge, resistance and potential difference
-- thermistors, circuit symbols, series and parallel circuits
-- density, measuring volume, specific heat capacity and specific latent heat
-- gas pressure and particle explanations
-- background radiation, alpha/beta/gamma radiation, half-life, activity, contamination and irradiation
-- nuclear fission, nuclear power and radioactive waste
+Use Paper 1-style contexts such as:
+- static electricity generators, sparks, domes, charge transfer and electric fields
+- vending machines, thermistors, components, current, potential difference and resistance
+- bungee rides, springs, elastic potential energy, kinetic energy and gravitational potential energy
+- measuring cylinders, balances, density and volume displacement
+- syringes, gas pressure, particles and temperature change
+- radioactive rocks, background radiation, alpha/beta/gamma radiation and half-life
+- plugs, fuses, three-core cables, charge flow and latent heat
+- I-V characteristics, filament lamps, resistors and unknown components
+- wind turbines, energy resources, energy storage methods and climate change
+- nuclear fission, nuclear power stations and radioactive waste
 `
       : `
 PAPER 2 CONTENT PROFILE:
 Forces, motion, waves, magnetism, electromagnetism and space physics.
 
-Authentic AQA Paper 2 contexts include:
-- scalar and vector quantities
-- resultant force, acceleration, work done, weight and pressure
-- distance-time and velocity-time graphs
-- springs, moments, gears and braking distance
-- transverse and longitudinal waves, wave speed, frequency, period and wavelength
-- electromagnetic spectrum, colour, reflection, refraction and lenses
-- magnets, electromagnets, motor effect, generator effect and microphones
-- stars, life cycle of stars, red-shift and the expanding Universe
-- seismic waves and structure of the Earth
+Use Paper 2-style contexts such as:
+- galaxies, the Sun, stars, fusion, red-shift and the expanding Universe
+- bar magnets, plotting compasses, magnetic fields and current-carrying wires
+- trolleys, acceleration, mass, resultant force and variables
+- transverse waves, longitudinal waves, frequency, period, wavelength and sound
+- distance-time graphs and velocity-time graphs
+- electromagnetic spectrum, colour, filters, reflection and refraction
+- swimming pools, pressure, weight, springs and acceleration
+- glass blocks, protractors, angles of incidence/refraction and ray diagrams
+- baby walkers, work done, moments and gears
+- seismic waves, P-waves and S-waves
+- generator effect, moving-coil microphones and induced current
+`;
+
+  const foundationArchetypes =
+    physicsPaper === 'paper1'
+      ? `
+FOUNDATION PAPER 1 QUESTION ARCHETYPES:
+Use these patterns heavily:
+
+1. Recognition / sentence completion:
+- "Complete the sentence. Choose the answer from the box."
+- "Which particles are transferred..."
+- "What is the frequency/potential difference of the mains supply..."
+
+2. Guided calculation:
+- Give the equation directly.
+- Provide two known quantities.
+- Ask for the result and unit.
+- Usually 2 or 3 marks.
+
+3. Table or graph reading:
+- Give a small text table.
+- Ask for a difference, mean, change, or relationship.
+- Do not require the student to see a drawn graph unless the values are described in text.
+
+4. Practical method:
+- Ask how a student could measure or investigate something.
+- Mark points should include apparatus, measurements, repeats, control variable and graph.
+
+5. Energy store / transfer:
+- Ask for a named store OR a transfer pathway, never confuse the two.
+`
+      : `
+FOUNDATION PAPER 2 QUESTION ARCHETYPES:
+Use these patterns heavily:
+
+1. Recognition / recall:
+- "Which of the following..."
+- "Complete the sentence. Choose the answer from the box."
+- "Give one example..."
+
+2. Diagram interpretation converted to typed form:
+- Describe the diagram in words rather than relying on an actual image.
+- Ask for direction, strongest field, scalar/vector, amplitude/wavelength, etc.
+
+3. Guided calculation:
+- Give the equation directly.
+- Use accessible numbers.
+- Ask for result and unit.
+
+4. Graph/data interpretation:
+- Give values in text or a small table.
+- Ask for total distance, average speed, gradient meaning, change, or relationship.
+
+5. Practical method:
+- Ask for a concrete method: apparatus, measurement, changing one variable, repeats, graph.
+`;
+
+  const higherArchetypes =
+    physicsPaper === 'paper1'
+      ? `
+HIGHER PAPER 1 QUESTION ARCHETYPES:
+Use these patterns heavily:
+
+1. Compare with calculations:
+- Compare two methods, devices or energy resources.
+- Require at least one calculation and a written advantage/disadvantage.
+
+2. Multi-step equation calculation:
+- Students may need to select/rearrange equations from the Physics Equations Sheet.
+- Include unit conversion where appropriate.
+
+3. Mechanism explanation:
+- Ask "Explain why..." for particles, static electricity, electric fields, energy losses or pressure.
+
+4. Practical/data interpretation:
+- Ask for method, error, resolution, uncertainty, repeatability, line of best fit or relationship.
+
+5. Graph/table determination:
+- Provide small text tables or described graph data.
+- Ask students to determine a value and explain how they used the data.
+
+6. Radiation/nuclear:
+- Ask about contamination vs irradiation, alpha/beta/gamma penetration, half-life, activity or nuclear fission.
+`
+      : `
+HIGHER PAPER 2 QUESTION ARCHETYPES:
+Use these patterns heavily:
+
+1. Required practical / method:
+- Refraction, force and acceleration, wave speed, or other Paper 2 practicals.
+- Include variables, measurements, repeats, graph and relationship.
+
+2. Multi-step calculation:
+- Pressure in liquids, moments, wave speed, distance from velocity-time graph, braking distance or work done.
+- Include unit conversion where appropriate.
+
+3. Graph interpretation:
+- Ask students to determine distance from area, acceleration/deceleration from gradient, or compare sections.
+
+4. Explanation using data:
+- Ask students to explain braking force, red-shift, seismic waves, generator effect or electromagnetic radiation.
+
+5. Space physics:
+- Ask about objects in the solar system, red-shift, galaxy motion, stellar fusion and formation of elements.
+
+6. Electromagnetism:
+- Ask about induced current, generator effect, direction changes, microphones and magnetic fields.
 `;
 
   const tierStyle =
     physicsTier === 'foundation'
       ? `
-FOUNDATION TIER STYLE — AQA 8463:
-Write in the style of AQA GCSE Physics Foundation Tier June 2024.
+FOUNDATION TIER STYLE — STRICT:
+Write in the style of AQA GCSE Physics Foundation Tier.
 
-Foundation questions are heavily scaffolded. They often break one context into several short parts before asking for a calculation or explanation.
+Foundation questions are scaffolded question groups. They often break one context into short parts before asking for a calculation or explanation.
 
 Use these formats frequently:
+- "Complete the sentence. Choose the answer from the box."
 - "Tick one box."
 - "Tick two boxes."
-- "Choose the answer from the box."
-- "Complete the sentence."
-- "Write down the equation which links..."
+- "Write down..."
+- "State..."
 - "Use the equation:"
 - "Use the Physics Equations Sheet to answer..."
 - "Calculate..."
@@ -940,28 +1054,25 @@ Use these formats frequently:
 
 Foundation demand profile:
 - Mostly 1-mark and 2-mark parts
-- Occasional 3-mark calculations
-- Occasional 4-mark comparison or explanation
-- Occasional 6-mark required practical method question
-- Calculations should normally be scaffolded
-- Equations should often be given directly
-- Use familiar contexts and concrete wording
+- Calculations are usually 2 or 3 marks
+- Give the equation directly for many Foundation calculations
+- Keep numbers manageable
+- Keep wording concrete and familiar
 - Keep explanation questions tightly bounded
-- Avoid abstract textbook phrasing
-- Avoid making students choose between several equations unless the question explicitly says to use the Physics Equations Sheet
+- Avoid long abstract textbook questions
+- Avoid making students select from many equations unless the question explicitly says "Use the Physics Equations Sheet"
 
-Foundation calculation rules:
-- Give the equation directly for many 2-mark calculations
-- Use manageable numbers
-- Include units in the answer line
-- Reward substitution, calculation and unit as separate AQA-style points where appropriate
-- Do not make calculations harder than the Physics being tested
+Foundation session structure:
+Question 1: very accessible recall/recognition, 1-2 marks
+Question 2: short scaffolded application, 2-3 marks
+Question 3: calculation or data handling, 2-4 marks
+Question 4: multi-part AQA-style question group, 4-6 marks
 `
       : `
-HIGHER TIER STYLE — AQA 8463:
-Write in the style of AQA GCSE Physics Higher Tier June 2024.
+HIGHER TIER STYLE — STRICT:
+Write in the style of AQA GCSE Physics Higher Tier.
 
-Higher questions are less scaffolded and require more interpretation. They often combine graph reading, unit conversion, equation selection, rearrangement and explanation.
+Higher questions are less scaffolded and should require interpretation, calculation or explanation.
 
 Use these command words frequently:
 - "Calculate"
@@ -970,25 +1081,66 @@ Use these command words frequently:
 - "Suggest"
 - "Describe"
 - "Compare"
-- "Use information from Figure..."
+- "Use information from..."
 - "Use the Physics Equations Sheet."
 
 Higher demand profile:
 - Fewer tick-box questions than Foundation
 - More 3-mark, 4-mark, 5-mark and 6-mark tasks
-- Multi-step calculations are expected
-- Students may need to select and rearrange equations
-- Unit conversions are expected, especially cm to m, ms to s, kPa to Pa, MW to W, kJ to J, g to kg, cm³ to m³
-- Graph and table interpretation should be used
-- Explanation questions should test mechanisms, not vague recall
-- Practical questions should test variables, control variables, resolution, uncertainty, repeatability, line of best fit and proportionality
-
-Higher calculation rules:
-- Use realistic AQA numerical values
-- Include unit conversion where appropriate
-- Award marks for conversion, substitution, rearrangement, calculation and unit
-- Include "Determine" questions where students must read from a graph or combine graph information with an equation
+- Include multi-step calculations
+- Include unit conversions where appropriate
+- Include graph/table interpretation where possible
+- Explanation questions must test physical mechanisms, not vague recall
+- Practical questions must test variables, resolution, uncertainty, repeatability, graph skills and proportionality
 - Do not simply make Foundation questions with harder numbers
+
+Higher session structure:
+Question 1: accessible but still Higher-style, 2-3 marks
+Question 2: interpretation or calculation, 3-4 marks
+Question 3: multi-step calculation or explanation, 4-5 marks
+Question 4: demanding AQA-style question group, 5-6 marks
+`;
+
+  const energyStoreAbsoluteRules = `
+ENERGY STORES ABSOLUTE RULE — NON-NEGOTIABLE:
+When writing or marking any question about energy stores, you must use ONLY the eight AQA energy stores:
+
+1. magnetic
+2. electrostatic potential
+3. chemical potential
+4. kinetic
+5. gravitational potential
+6. elastic potential
+7. nuclear
+8. thermal
+
+The word "potential" is required for:
+- electrostatic potential
+- chemical potential
+- gravitational potential
+- elastic potential
+
+Never write, imply, accept or include in a mark scheme:
+- electrical energy store
+- electrical store
+- light energy store
+- sound energy store
+- heat energy store
+- potential energy store on its own
+
+Electricity, light and sound are transfer pathways, not energy stores.
+
+Battery rule:
+- A charged battery stores energy in its chemical potential store.
+- During charging, energy is transferred electrically to the chemical potential store of the battery.
+- Do not ask for "the energy store in the charger".
+- Do not write "electrical store / mains electricity" in a mark scheme.
+- Correct wording: "energy is transferred electrically from the mains/charger to the chemical potential store of the battery."
+
+Capacitor/static charge rule:
+- Electrostatic potential store is for separated charges / charged objects, not ordinary phone batteries.
+
+Before returning JSON, check your own mark schemes. If any criterion contains "electrical store", "light store" or "sound store", rewrite it before returning.
 `;
 
   const practicalRules = `
@@ -1054,6 +1206,26 @@ Always include a final TOTAL item:
 { "mark_type": "step", "criterion": "TOTAL", "marks": total_marks }
 `;
 
+  const antiGenericRules = `
+ANTI-GENERIC QUESTION RULES:
+Do not generate bland textbook questions such as:
+- "Explain energy transfers in a device."
+- "State the energy store in X and where it came from."
+- "Describe how electricity works."
+- "What is energy?"
+- "Explain forces in everyday life."
+
+Every question must have an AQA-style exam-paper shape:
+- a concrete scenario
+- precise command wording
+- clear mark allocation
+- a mark scheme with standalone points
+- no invented stores or vague physics language
+
+Do not generate repeated phone-charger questions.
+If using a battery context, it must test chemical potential store and electrical transfer correctly.
+`;
+
   return `You are a senior AQA GCSE Physics examiner writing questions for AQA 8463 ${tierLabel} Tier ${paperLabel}.
 
 Your task is to generate exactly ${count} exam-style question groups for The Hub Jam. The questions will be marked by a separate AI examiner, so every question must include a complete, unambiguous AQA-style mark scheme.
@@ -1080,9 +1252,15 @@ ${promptConfig.common_mistakes ? `\nCommon student errors to probe:\n${promptCon
 
 ${tierStyle}
 
+${physicsTier === 'foundation' ? foundationArchetypes : higherArchetypes}
+
+${energyStoreAbsoluteRules}
+
 ${practicalRules}
 
 ${markingRules}
+
+${antiGenericRules}
 
 QUESTION STRUCTURE:
 Generate ${count} questions in increasing difficulty.
@@ -1102,6 +1280,16 @@ Do not ask students to draw arrows, complete ray diagrams, plot graphs, or draw 
 Do not make the answer depend on seeing an image that has not been generated.
 You may describe simple tables or data in text.
 You may include small data tables in question_text using plain text.
+
+FINAL SELF-CHECK BEFORE RETURNING JSON:
+Before returning the JSON, check:
+1. Does every question stay inside the requested subtopic?
+2. Does the style match ${tierLabel} Tier ${paperLabel}?
+3. Does every Physics mark use "mark_type": "step"?
+4. Does every mark scheme include TOTAL?
+5. Have you avoided "electrical store", "light store" and "sound store"?
+6. Are transfer pathways described as transfers, not stores?
+7. Are the questions AQA-shaped rather than generic?
 
 ${PHYSICS_SHARED_LATEX_RULES}
 
