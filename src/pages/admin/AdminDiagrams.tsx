@@ -46,7 +46,7 @@ interface LearningRow {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const ADMIN_EMAIL = 'johnmorrice2022@gmail.com'; // ← your email
+const ADMIN_EMAIL = 'johnmorrice2022@gmail.com';
 const ALLOWED_TYPES = ['image/svg+xml', 'image/png', 'image/jpeg', 'image/jpg'];
 const ALLOWED_EXTENSIONS = '.svg,.png,.jpg,.jpeg';
 
@@ -200,46 +200,32 @@ export default function AdminDiagrams() {
       .getPublicUrl(storagePath);
     const publicUrl = urlData.publicUrl;
 
-    // Write diagram_url back via jsonb_set
-    // Path: sections -> [sectionIdx] -> paragraphs -> [paraIdx] -> diagram_url
-    const jsonPath = `{${sectionIdx},paragraphs,${paraIdx},diagram_url}`;
+    // Write diagram_url back: fetch sections, patch, update
+    const { data: current } = await supabase
+      .from('learning_content')
+      .select('sections')
+      .eq('id', rowId)
+      .single();
 
-    const { error: dbError } = await supabase.rpc('set_diagram_url', {
-      p_row_id: rowId,
-      p_path: jsonPath,
-      p_url: publicUrl,
-    });
+    if (current) {
+      const updatedSections = JSON.parse(JSON.stringify(current.sections));
+      if (
+        updatedSections[sectionIdx] &&
+        updatedSections[sectionIdx].paragraphs &&
+        updatedSections[sectionIdx].paragraphs[paraIdx] !== undefined
+      ) {
+        updatedSections[sectionIdx].paragraphs[paraIdx].diagram_url = publicUrl;
+        const { error: updateError } = await supabase
+          .from('learning_content')
+          .update({ sections: updatedSections })
+          .eq('id', rowId);
 
-    if (dbError) {
-      // Fallback: direct update using jsonb_set via a raw approach
-      // Try updating via select + manual patch
-      const { data: current } = await supabase
-        .from('learning_content')
-        .select('sections')
-        .eq('id', rowId)
-        .single();
-
-      if (current) {
-        const updatedSections = JSON.parse(JSON.stringify(current.sections));
-        if (
-          updatedSections[sectionIdx] &&
-          updatedSections[sectionIdx].paragraphs &&
-          updatedSections[sectionIdx].paragraphs[paraIdx] !== undefined
-        ) {
-          updatedSections[sectionIdx].paragraphs[paraIdx].diagram_url =
-            publicUrl;
-          const { error: updateError } = await supabase
-            .from('learning_content')
-            .update({ sections: updatedSections })
-            .eq('id', rowId);
-
-          if (updateError) {
-            setUploadStates((s) => ({
-              ...s,
-              [key]: { status: 'error', message: updateError.message },
-            }));
-            return;
-          }
+        if (updateError) {
+          setUploadStates((s) => ({
+            ...s,
+            [key]: { status: 'error', message: updateError.message },
+          }));
+          return;
         }
       }
     }
@@ -258,7 +244,6 @@ export default function AdminDiagrams() {
 
     setUploadStates((s) => ({ ...s, [key]: { status: 'success' } }));
 
-    // Clear success state after 3s
     setTimeout(() => {
       setUploadStates((s) => ({ ...s, [key]: { status: 'idle' } }));
     }, 3000);
@@ -329,10 +314,7 @@ export default function AdminDiagrams() {
       {/* Header */}
       <div
         className="sticky top-0 z-20 border-b"
-        style={{
-          background: '#f9f3eb',
-          borderColor: 'rgba(0,0,0,0.08)',
-        }}
+        style={{ background: '#f9f3eb', borderColor: 'rgba(0,0,0,0.08)' }}
       >
         <div className="max-w-4xl mx-auto px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -381,20 +363,20 @@ export default function AdminDiagrams() {
                 className="w-full appearance-none bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 pr-10 text-sm text-gray-800 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 transition-all cursor-pointer"
               >
                 <option value="">— Choose a subtopic —</option>
-                {Object.entries(grouped).map(([subject, topics]) => (
-                  <optgroup key={subject} label={`── ${subject} ──`}>
-                    {Object.entries(topics).map(([topic, subs]) => (
-                      <optgroup key={topic} label={`   ${topic}`}>
-                        {subs.map((s) => (
-                          <option key={s.slug} value={s.slug}>
-                            {'      '}
-                            {s.subtopic_name} ({s.exam_board})
-                          </option>
-                        ))}
-                      </optgroup>
-                    ))}
-                  </optgroup>
-                ))}
+                {Object.entries(grouped).map(([subject, topics]) =>
+                  Object.entries(topics).map(([topic, subs]) => (
+                    <optgroup
+                      key={`${subject}-${topic}`}
+                      label={`${subject} — ${topic}`}
+                    >
+                      {subs.map((s) => (
+                        <option key={s.slug} value={s.slug}>
+                          {s.subtopic_name} ({s.exam_board})
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))
+                )}
               </select>
               <ChevronDown
                 size={14}
@@ -436,7 +418,6 @@ export default function AdminDiagrams() {
         {!loadingContent &&
           learningRows.map((row) =>
             row.sections.map((section, sIdx) => {
-              // Skip non-standard sections
               if (section.type === 'index' || section.type === 'interactive')
                 return null;
               if (!section.paragraphs?.length) return null;
@@ -532,7 +513,7 @@ export default function AdminDiagrams() {
                             </div>
                           )}
 
-                          {/* Upload button (shown when no diagram, or as hidden replace) */}
+                          {/* Upload button */}
                           {!hasDiagram && (
                             <button
                               onClick={() =>
