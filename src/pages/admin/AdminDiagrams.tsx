@@ -40,7 +40,6 @@ interface Section {
 
 interface LearningRow {
   id: string;
-  section_index: number;
   sections: Section[];
 }
 
@@ -62,8 +61,6 @@ function truncate(text: string, max = 80): string {
   return plain.length > max ? plain.slice(0, max) + '…' : plain;
 }
 
-// ─── Upload state per paragraph ───────────────────────────────────────────────
-
 interface UploadState {
   status: 'idle' | 'uploading' | 'success' | 'error';
   message?: string;
@@ -74,11 +71,9 @@ interface UploadState {
 export default function AdminDiagrams() {
   const navigate = useNavigate();
 
-  // Auth gate
   const [authChecked, setAuthChecked] = useState(false);
   const [authed, setAuthed] = useState(false);
 
-  // Data
   const [subtopics, setSubtopics] = useState<Subtopic[]>([]);
   const [selectedSlug, setSelectedSlug] = useState('');
   const [selectedSubtopic, setSelectedSubtopic] = useState<Subtopic | null>(
@@ -86,7 +81,6 @@ export default function AdminDiagrams() {
   );
   const [learningRows, setLearningRows] = useState<LearningRow[]>([]);
 
-  // UI state
   const [loadingSubtopics, setLoadingSubtopics] = useState(true);
   const [loadingContent, setLoadingContent] = useState(false);
   const [uploadStates, setUploadStates] = useState<Record<string, UploadState>>(
@@ -133,16 +127,21 @@ export default function AdminDiagrams() {
       setSelectedSubtopic(null);
       return;
     }
+
+    // Resolve the full subtopic object from the slug
     const sub = subtopics.find((s) => s.slug === selectedSlug) ?? null;
     setSelectedSubtopic(sub);
+
+    if (!sub) return;
+
     setLoadingContent(true);
     setUploadStates({});
 
+    // Query by subtopic_id (UUID) — not slug
     supabase
       .from('learning_content')
-      .select('id, section_index, sections')
-      .eq('subtopic_slug', selectedSlug)
-      .order('section_index')
+      .select('id, sections')
+      .eq('subtopic_id', sub.id)
       .then(({ data, error }) => {
         if (!error && data) {
           setLearningRows(data as LearningRow[]);
@@ -171,7 +170,6 @@ export default function AdminDiagrams() {
 
     setUploadStates((s) => ({ ...s, [key]: { status: 'uploading' } }));
 
-    // Build storage path: diagrams/[subject]/[topic]/[slug]/[filename]
     const subject = selectedSubtopic!.subject
       .toLowerCase()
       .replace(/\s+/g, '-');
@@ -181,7 +179,6 @@ export default function AdminDiagrams() {
     const filename = `para-${sectionIdx}-${paraIdx}-${Date.now()}.${ext}`;
     const storagePath = `diagrams/${subject}/${topic}/${slug}/${filename}`;
 
-    // Upload to Supabase Storage
     const { error: uploadError } = await supabase.storage
       .from('diagrams')
       .upload(storagePath, file, { upsert: true });
@@ -194,13 +191,12 @@ export default function AdminDiagrams() {
       return;
     }
 
-    // Get public URL
     const { data: urlData } = supabase.storage
       .from('diagrams')
       .getPublicUrl(storagePath);
     const publicUrl = urlData.publicUrl;
 
-    // Write diagram_url back: fetch sections, patch, update
+    // Fetch current sections, patch, write back
     const { data: current } = await supabase
       .from('learning_content')
       .select('sections')
@@ -209,11 +205,7 @@ export default function AdminDiagrams() {
 
     if (current) {
       const updatedSections = JSON.parse(JSON.stringify(current.sections));
-      if (
-        updatedSections[sectionIdx] &&
-        updatedSections[sectionIdx].paragraphs &&
-        updatedSections[sectionIdx].paragraphs[paraIdx] !== undefined
-      ) {
+      if (updatedSections[sectionIdx]?.paragraphs?.[paraIdx] !== undefined) {
         updatedSections[sectionIdx].paragraphs[paraIdx].diagram_url = publicUrl;
         const { error: updateError } = await supabase
           .from('learning_content')
@@ -243,7 +235,6 @@ export default function AdminDiagrams() {
     );
 
     setUploadStates((s) => ({ ...s, [key]: { status: 'success' } }));
-
     setTimeout(() => {
       setUploadStates((s) => ({ ...s, [key]: { status: 'idle' } }));
     }, 3000);
