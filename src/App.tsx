@@ -17,6 +17,7 @@ import Settings from './pages/Settings';
 import NotFound from './pages/NotFound';
 import AuthCallback from './pages/AuthCallback';
 import AdminDiagrams from './pages/admin/AdminDiagrams';
+import AdminProbabilityQuestions from './pages/admin/AdminProbabilityQuestions';
 
 const queryClient = new QueryClient();
 
@@ -29,6 +30,10 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/admin/diagrams" element={<AdminDiagrams />} />
+            <Route
+              path="/admin/probability-questions"
+              element={<AdminProbabilityQuestions />}
+            />
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
