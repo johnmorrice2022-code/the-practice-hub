@@ -128,7 +128,6 @@ export default function AdminDiagrams() {
       return;
     }
 
-    // Resolve the full subtopic object from the slug
     const sub = subtopics.find((s) => s.slug === selectedSlug) ?? null;
     setSelectedSubtopic(sub);
 
@@ -137,7 +136,6 @@ export default function AdminDiagrams() {
     setLoadingContent(true);
     setUploadStates({});
 
-    // Query by subtopic_id (UUID) — not slug
     supabase
       .from('learning_content')
       .select('id, sections')
@@ -196,7 +194,6 @@ export default function AdminDiagrams() {
       .getPublicUrl(storagePath);
     const publicUrl = urlData.publicUrl;
 
-    // Fetch current sections, patch, write back
     const { data: current } = await supabase
       .from('learning_content')
       .select('sections')
@@ -222,7 +219,6 @@ export default function AdminDiagrams() {
       }
     }
 
-    // Optimistic local update
     setLearningRows((rows) =>
       rows.map((row) => {
         if (row.id !== rowId) return row;
@@ -418,7 +414,6 @@ export default function AdminDiagrams() {
                   key={`${row.id}-${sIdx}`}
                   className="bg-white rounded-xl shadow-sm border border-black/5 overflow-hidden"
                 >
-                  {/* Section header */}
                   <div
                     className="px-6 py-4 border-b"
                     style={{
@@ -440,7 +435,6 @@ export default function AdminDiagrams() {
                     </div>
                   </div>
 
-                  {/* Paragraphs */}
                   <div className="divide-y divide-gray-50">
                     {section.paragraphs.map((para, pIdx) => {
                       const key = `${row.id}-${sIdx}-${pIdx}`;
@@ -452,7 +446,6 @@ export default function AdminDiagrams() {
 
                       return (
                         <div key={pIdx} className="px-6 py-5 space-y-4">
-                          {/* Style badge + preview text */}
                           <div className="flex items-start gap-3">
                             <StyleBadge label={label} />
                             <p className="text-xs text-gray-500 leading-relaxed flex-1 mt-0.5">
@@ -460,7 +453,6 @@ export default function AdminDiagrams() {
                             </p>
                           </div>
 
-                          {/* Existing diagram */}
                           {hasDiagram && (
                             <div className="flex items-start gap-4 p-4 rounded-lg bg-gray-50 border border-gray-100">
                               <img
@@ -504,7 +496,6 @@ export default function AdminDiagrams() {
                             </div>
                           )}
 
-                          {/* Upload button */}
                           {!hasDiagram && (
                             <button
                               onClick={() =>
@@ -558,7 +549,6 @@ export default function AdminDiagrams() {
                             </button>
                           )}
 
-                          {/* Hidden file input */}
                           <input
                             type="file"
                             accept={ALLOWED_EXTENSIONS}
