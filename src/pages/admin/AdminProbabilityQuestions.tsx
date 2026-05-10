@@ -11,6 +11,7 @@
 // - Right panel: form with live ProbabilityTree preview
 // - Save immediately, form resets for next question
 // - Edit loads question back into form; save updates in place
+// - "Generate mark scheme" button calls generate-mark-scheme edge function
 
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -35,6 +36,7 @@ import {
   Eye,
   RotateCcw,
   ArrowLeft,
+  Sparkles,
 } from 'lucide-react';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -56,7 +58,6 @@ interface SeededQuestion {
   subtopic_id: string;
 }
 
-// Form state for a single branch
 interface BranchForm {
   outcome: string;
   num: string;
@@ -65,10 +66,9 @@ interface BranchForm {
   highlight: boolean;
 }
 
-// Form state for a path probability row
 interface PathProbForm {
-  path0: string; // stage-1 outcome
-  path1: string; // stage-2 outcome
+  path0: string;
+  path1: string;
   num: string;
   den: string;
   highlight: boolean;
@@ -78,10 +78,8 @@ interface FormState {
   questionText: string;
   marks: string;
   workedSolution: string;
-  markScheme: string; // free-text JSON or plain text
-  // Stage 1 branches (always 2 for now)
+  markScheme: string;
   s1: [BranchForm, BranchForm];
-  // Stage 2 branches — 2 per stage-1 branch = 4 total
   s2: [BranchForm, BranchForm, BranchForm, BranchForm];
   showPathProbs: boolean;
   pathProbs: PathProbForm[];
@@ -111,10 +109,10 @@ function emptyForm(): FormState {
     markScheme: '',
     s1: [{ ...EMPTY_BRANCH }, { ...EMPTY_BRANCH }],
     s2: [
-      { ...EMPTY_BRANCH }, // hangs off s1[0]
-      { ...EMPTY_BRANCH }, // hangs off s1[0]
-      { ...EMPTY_BRANCH }, // hangs off s1[1]
-      { ...EMPTY_BRANCH }, // hangs off s1[1]
+      { ...EMPTY_BRANCH },
+      { ...EMPTY_BRANCH },
+      { ...EMPTY_BRANCH },
+      { ...EMPTY_BRANCH },
     ],
     showPathProbs: false,
     pathProbs: [
@@ -133,7 +131,6 @@ function toNum(s: string): number {
   return isNaN(n) ? 0 : n;
 }
 
-/** Build a ProbabilityTreeConfig from the current form state for the live preview */
 function formToConfig(form: FormState): ProbabilityTreeConfig {
   const s1Branches: Branch[] = form.s1.map((b) => ({
     outcome: b.outcome || '?',
@@ -142,7 +139,6 @@ function formToConfig(form: FormState): ProbabilityTreeConfig {
     highlight: b.highlight,
   }));
 
-  // s2[0], s2[1] hang off s1[0]; s2[2], s2[3] hang off s1[1]
   const s2Branches: Branch[] = [
     { ...form.s2[0], fromOutcome: form.s1[0].outcome || '?' },
     { ...form.s2[1], fromOutcome: form.s1[0].outcome || '?' },
@@ -177,12 +173,10 @@ function formToConfig(form: FormState): ProbabilityTreeConfig {
   return config;
 }
 
-/** Build the diagram_params object to store in DB (same shape as ProbabilityTreeConfig) */
 function formToDiagramParams(form: FormState): ProbabilityTreeConfig {
   return formToConfig(form);
 }
 
-/** Reverse: load an existing question's diagram_params back into form state */
 function configToForm(q: SeededQuestion, base: FormState): FormState {
   const cfg = q.diagram_params;
   if (!cfg?.stages) return base;
@@ -202,7 +196,6 @@ function configToForm(q: SeededQuestion, base: FormState): FormState {
     };
   }) as [BranchForm, BranchForm];
 
-  // s2: 4 slots — [0,1] hang off s1[0], [2,3] hang off s1[1]
   const s2: [BranchForm, BranchForm, BranchForm, BranchForm] = [
     stage2.filter((b) => b.fromOutcome === stage1[0]?.outcome)[0],
     stage2.filter((b) => b.fromOutcome === stage1[0]?.outcome)[1],
@@ -227,7 +220,6 @@ function configToForm(q: SeededQuestion, base: FormState): FormState {
     highlight: pp.highlight ?? false,
   }));
 
-  // Pad to 4
   while (pathProbs.length < 4) pathProbs.push({ ...EMPTY_PATH_PROB });
 
   return {
@@ -269,6 +261,8 @@ export default function AdminProbabilityQuestions() {
   >('idle');
   const [saveError, setSaveError] = useState('');
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [generatingMarkScheme, setGeneratingMarkScheme] = useState(false);
+  const [markSchemeError, setMarkSchemeError] = useState('');
 
   // ── Auth ────────────────────────────────────────────────────────────────────
 
@@ -288,7 +282,6 @@ export default function AdminProbabilityQuestions() {
 
   useEffect(() => {
     if (!authed) return;
-
     supabase
       .from('subtopics')
       .select('id')
@@ -363,6 +356,7 @@ export default function AdminProbabilityQuestions() {
     setEditingId(null);
     setSaveStatus('idle');
     setSaveError('');
+    setMarkSchemeError('');
   }
 
   function loadForEdit(q: SeededQuestion) {
@@ -370,7 +364,54 @@ export default function AdminProbabilityQuestions() {
     setEditingId(q.id);
     setSaveStatus('idle');
     setSaveError('');
+    setMarkSchemeError('');
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // ── Generate mark scheme ─────────────────────────────────────────────────────
+
+  async function handleGenerateMarkScheme() {
+    if (!form.questionText.trim()) {
+      setMarkSchemeError('Add a question text first.');
+      return;
+    }
+    if (!form.workedSolution.trim()) {
+      setMarkSchemeError(
+        'Add a worked solution first — Claude needs it to write accurate criteria.'
+      );
+      return;
+    }
+
+    setGeneratingMarkScheme(true);
+    setMarkSchemeError('');
+
+    try {
+      const { data, error } = await supabase.functions.invoke(
+        'generate-mark-scheme',
+        {
+          body: {
+            questionText: form.questionText.trim(),
+            marksAvailable: toNum(form.marks),
+            workedSolution: form.workedSolution.trim(),
+            diagramComponent: 'probability-tree',
+            diagramParams: formToDiagramParams(form),
+            examBoard: 'Edexcel',
+            subject: 'Maths',
+            tier: 'Foundation',
+          },
+        }
+      );
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      const formatted = JSON.stringify(data.markScheme, null, 2);
+      setForm((f) => ({ ...f, markScheme: formatted }));
+    } catch (e: any) {
+      setMarkSchemeError(e.message || 'Generation failed — try again.');
+    } finally {
+      setGeneratingMarkScheme(false);
+    }
   }
 
   // ── Save ─────────────────────────────────────────────────────────────────────
@@ -381,8 +422,6 @@ export default function AdminProbabilityQuestions() {
     setSaveError('');
 
     const diagramParams = formToDiagramParams(form);
-
-    // Compute next question_order if creating
     const maxOrder = questions.reduce(
       (m, q) => Math.max(m, q.question_order),
       0
@@ -392,7 +431,7 @@ export default function AdminProbabilityQuestions() {
     try {
       markSchemeValue = JSON.parse(form.markScheme);
     } catch {
-      markSchemeValue = form.markScheme; // store as plain string if not valid JSON
+      markSchemeValue = form.markScheme;
     }
 
     const payload = {
@@ -424,7 +463,6 @@ export default function AdminProbabilityQuestions() {
 
     setSaveStatus('success');
     await fetchQuestions();
-
     setTimeout(() => {
       resetForm();
     }, 1200);
@@ -446,11 +484,7 @@ export default function AdminProbabilityQuestions() {
     setDeleteId(null);
   }
 
-  // ── Preview ───────────────────────────────────────────────────────────────────
-
   const previewConfig = formToConfig(form);
-
-  // ── Render ────────────────────────────────────────────────────────────────────
 
   if (!authChecked || !authed) return null;
 
@@ -483,10 +517,10 @@ export default function AdminProbabilityQuestions() {
           </div>
           <div className="flex items-center gap-4">
             <button
-              onClick={() => navigate('/admin/diagrams')}
+              onClick={() => navigate('/admin')}
               className="text-xs text-gray-400 hover:text-gray-600 transition-colors flex items-center gap-1"
             >
-              <ArrowLeft size={12} /> Diagram CMS
+              <ArrowLeft size={12} /> Admin Hub
             </button>
             <button
               onClick={() => navigate('/')}
@@ -545,7 +579,6 @@ export default function AdminProbabilityQuestions() {
               </div>
             )}
 
-            {/* New question button (when editing) */}
             {editingId && (
               <button
                 onClick={resetForm}
@@ -565,7 +598,6 @@ export default function AdminProbabilityQuestions() {
               RIGHT: Authoring form + preview
           ═══════════════════════════════════════════════════════════════════ */}
           <div className="space-y-6">
-            {/* ── Form header ── */}
             <div className="flex items-center justify-between">
               <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-400">
                 {editingId ? 'Editing question' : 'New question'}
@@ -591,7 +623,7 @@ export default function AdminProbabilityQuestions() {
                   onChange={(e) =>
                     setForm((f) => ({ ...f, questionText: e.target.value }))
                   }
-                  placeholder="e.g. A bag contains 4 red and 2 blue balls. Two balls are drawn without replacement. Complete the probability tree and find P(both red)."
+                  placeholder="e.g. A bag contains 4 red and 2 blue balls..."
                   rows={3}
                   className="w-full text-sm text-gray-800 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 resize-none transition-all"
                 />
@@ -643,7 +675,6 @@ export default function AdminProbabilityQuestions() {
                   Two branches hang off each stage-1 outcome.
                 </p>
 
-                {/* Off s1[0] */}
                 <div className="mb-5">
                   <div className="flex items-center gap-2 mb-3">
                     <span
@@ -669,7 +700,6 @@ export default function AdminProbabilityQuestions() {
                   </div>
                 </div>
 
-                {/* Off s1[1] */}
                 <div>
                   <div className="flex items-center gap-2 mb-3">
                     <span
@@ -730,8 +760,7 @@ export default function AdminProbabilityQuestions() {
                 {form.showPathProbs && (
                   <div className="space-y-3">
                     <p className="text-[11px] text-gray-400">
-                      One row per terminal path (e.g. Red → Red). Enter the
-                      combined probability.
+                      One row per terminal path (e.g. Red → Red).
                     </p>
                     {form.pathProbs.map((pp, i) => (
                       <PathProbEditor
@@ -752,18 +781,6 @@ export default function AdminProbabilityQuestions() {
             <Card>
               <CardSection label="Mark scheme & worked solution">
                 <label className="block text-[11px] text-gray-500 mb-1">
-                  Mark scheme (JSON array or plain text)
-                </label>
-                <textarea
-                  value={form.markScheme}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, markScheme: e.target.value }))
-                  }
-                  placeholder={`[\n  {"criterion": "Correct P(Red) = 4/6", "marks": 1},\n  {"criterion": "Correct P(Red|Red) = 3/5", "marks": 1},\n  {"criterion": "P(both red) = 12/30 = 2/5", "marks": 1}\n]`}
-                  rows={6}
-                  className="w-full text-xs text-gray-700 font-mono bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 resize-none transition-all"
-                />
-                <label className="block text-[11px] text-gray-500 mb-1 mt-4">
                   Worked solution
                 </label>
                 <textarea
@@ -775,6 +792,57 @@ export default function AdminProbabilityQuestions() {
                   rows={4}
                   className="w-full text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 resize-none transition-all"
                 />
+
+                <div className="mt-4 flex items-center justify-between mb-1">
+                  <label className="block text-[11px] text-gray-500">
+                    Mark scheme (JSON array)
+                  </label>
+                  <button
+                    onClick={handleGenerateMarkScheme}
+                    disabled={
+                      generatingMarkScheme ||
+                      !form.questionText.trim() ||
+                      !form.workedSolution.trim()
+                    }
+                    className="flex items-center gap-1.5 text-[11px] font-medium px-3 py-1.5 rounded-lg transition-all disabled:opacity-40"
+                    style={{
+                      background: '#FEF9F0',
+                      color: '#F5A623',
+                      border: '1px solid #F5A623',
+                    }}
+                  >
+                    {generatingMarkScheme ? (
+                      <>
+                        <Loader2 size={11} className="animate-spin" />{' '}
+                        Generating…
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles size={11} /> Generate
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {markSchemeError && (
+                  <p className="text-[11px] text-red-500 mb-2">
+                    {markSchemeError}
+                  </p>
+                )}
+
+                <textarea
+                  value={form.markScheme}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, markScheme: e.target.value }))
+                  }
+                  placeholder={`[\n  {"criterion": "..."},\n  {"criterion": "..."}\n]`}
+                  rows={8}
+                  className="w-full text-xs text-gray-700 font-mono bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 resize-none transition-all"
+                />
+                <p className="text-[10px] text-gray-400 mt-1">
+                  Add question text and worked solution first, then click
+                  Generate. Review before saving.
+                </p>
               </CardSection>
             </Card>
 
@@ -907,7 +975,6 @@ function BranchEditor({
       <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
         {label}
       </p>
-
       <div>
         <label className="text-[10px] text-gray-400 block mb-1">Outcome</label>
         <input
@@ -918,7 +985,6 @@ function BranchEditor({
           className="w-full text-sm bg-white border border-gray-200 rounded-md px-2.5 py-1.5 focus:outline-none focus:border-amber-400 transition-colors"
         />
       </div>
-
       <div>
         <label className="text-[10px] text-gray-400 block mb-1">
           Probability
@@ -943,7 +1009,6 @@ function BranchEditor({
           />
         </div>
       </div>
-
       <div className="flex items-center gap-4 pt-1">
         <CheckboxField
           label="Hidden"
@@ -1074,7 +1139,6 @@ function QuestionCard({
       }}
     >
       <div className="px-4 py-3">
-        {/* Top row */}
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
@@ -1107,8 +1171,6 @@ function QuestionCard({
             {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
           </button>
         </div>
-
-        {/* Actions */}
         <div className="flex items-center gap-3 mt-3">
           <button
             onClick={onEdit}
@@ -1135,8 +1197,6 @@ function QuestionCard({
           </button>
         </div>
       </div>
-
-      {/* Expanded preview */}
       {expanded && (
         <div className="border-t border-gray-50 px-4 py-3 bg-gray-50/50">
           <div className="overflow-x-auto">
