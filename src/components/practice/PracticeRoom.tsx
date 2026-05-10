@@ -4,6 +4,7 @@ import { QuestionCard } from './QuestionCard';
 import { FeedbackCard, MarkingFeedback } from './FeedbackCard';
 import { JamHelpPanel } from './JamHelpPanel';
 import { SessionConfig } from './SessionSetup';
+import { TreeAnswers } from '@/components/diagrams/InteractiveProbabilityTree';
 import {
   ChevronLeft,
   ChevronRight,
@@ -138,6 +139,10 @@ export function PracticeRoom({
   const [partAnswers, setPartAnswers] = useState<
     Record<string, Record<string, string>>
   >({});
+  // Tree answers: questionId -> { branchId -> { num, den } }
+  const [treeAnswers, setTreeAnswers] = useState<Record<string, TreeAnswers>>(
+    {}
+  );
   const [phase, setPhase] = useState<SessionPhase>('answering');
   const [feedbacks, setFeedbacks] = useState<Record<string, MarkingFeedback>>(
     {}
@@ -193,6 +198,7 @@ export function PracticeRoom({
         setCurrentIndex(0);
         setAnswers({});
         setPartAnswers({});
+        setTreeAnswers({});
         setFeedbacks({});
         setPhase('answering');
         setGeneratingQuestions(false);
@@ -234,6 +240,7 @@ export function PracticeRoom({
       setCurrentIndex(0);
       setAnswers({});
       setPartAnswers({});
+      setTreeAnswers({});
       setFeedbacks({});
       setPhase('answering');
       sessionStartTime.current = Date.now();
@@ -256,6 +263,7 @@ export function PracticeRoom({
     if (!currentQuestion) return;
     setAnswers((prev) => ({ ...prev, [currentQuestion.id]: value }));
   };
+
   const handlePartAnswerChange = (partLabel: string, value: string) => {
     if (!currentQuestion) return;
     setPartAnswers((prev) => ({
@@ -267,8 +275,47 @@ export function PracticeRoom({
     }));
   };
 
+  const handleTreeAnswerChange = (questionId: string, values: TreeAnswers) => {
+    setTreeAnswers((prev) => ({ ...prev, [questionId]: values }));
+  };
+
+  /**
+   * Serialise tree answers for a question into a human-readable string
+   * suitable for the mark-answer prompt.
+   * e.g. "Filled branches: s1-0 = 4/6, s2-0 = 3/5, s2-1 = 2/5"
+   */
+  function serialiseTreeAnswers(questionId: string): string {
+    const ta = treeAnswers[questionId];
+    if (!ta || Object.keys(ta).length === 0) return '';
+    const entries = Object.entries(ta)
+      .filter(([, v]) => v.num.trim() || v.den.trim())
+      .map(([id, v]) => `${id} = ${v.num || '?'}/${v.den || '?'}`);
+    if (entries.length === 0) return '';
+    return `Filled branches: ${entries.join(', ')}`;
+  }
+
   const buildAnswerForMarking = (q: Question): string => {
     const isMultiPart = q.parts && q.parts.length > 0;
+
+    // Check if this is an interactive probability tree question
+    const hasHiddenBranches =
+      q.diagram_component === 'probability-tree' &&
+      q.diagram_params != null &&
+      (() => {
+        try {
+          const cfg = q.diagram_params as {
+            stages?: Array<{ branches?: Array<{ hidden?: boolean }> }>;
+          };
+          return (
+            cfg.stages?.some((s) =>
+              s.branches?.some((b) => b.hidden === true)
+            ) ?? false
+          );
+        } catch {
+          return false;
+        }
+      })();
+
     if (isMultiPart) {
       const parts = partAnswers[q.id] || {};
       return q.parts
@@ -278,6 +325,18 @@ export function PracticeRoom({
         )
         .join('\n\n');
     }
+
+    // For interactive tree questions, prepend the filled fractions to any
+    // written working so the examiner prompt has full context.
+    if (hasHiddenBranches) {
+      const treePart = serialiseTreeAnswers(q.id);
+      const writtenPart = answers[q.id]?.trim() || '';
+      if (treePart && writtenPart) return `${treePart}\n\n${writtenPart}`;
+      if (treePart) return treePart;
+      if (writtenPart) return writtenPart;
+      return '';
+    }
+
     return answers[q.id] || '';
   };
 
@@ -287,6 +346,34 @@ export function PracticeRoom({
       const parts = partAnswers[q.id] || {};
       return q.parts.some((p) => parts[p.part_label]?.trim());
     }
+
+    // For interactive tree questions, any filled branch counts as an answer
+    const hasHiddenBranches =
+      q.diagram_component === 'probability-tree' &&
+      q.diagram_params != null &&
+      (() => {
+        try {
+          const cfg = q.diagram_params as {
+            stages?: Array<{ branches?: Array<{ hidden?: boolean }> }>;
+          };
+          return (
+            cfg.stages?.some((s) =>
+              s.branches?.some((b) => b.hidden === true)
+            ) ?? false
+          );
+        } catch {
+          return false;
+        }
+      })();
+
+    if (hasHiddenBranches) {
+      const ta = treeAnswers[q.id];
+      if (ta && Object.values(ta).some((v) => v.num.trim() || v.den.trim()))
+        return true;
+      // Also accept written answer in the textarea
+      return !!answers[q.id]?.trim();
+    }
+
     return !!answers[q.id]?.trim();
   };
 
@@ -489,7 +576,6 @@ export function PracticeRoom({
               {phase === 'review'
                 ? `${totalAwarded}/${totalAvailable} marks`
                 : `${totalMarks} marks total`}
-              {/* Calculator indicator in header */}
               <span className="mx-2 text-border">·</span>
               <span
                 className={
@@ -598,6 +684,11 @@ export function PracticeRoom({
                   diagramComponent={currentQuestion?.diagram_component}
                   partAnswers={partAnswers[currentQuestion?.id ?? ''] ?? {}}
                   onPartAnswerChange={handlePartAnswerChange}
+                  treeAnswers={treeAnswers[currentQuestion?.id ?? ''] ?? {}}
+                  onTreeAnswerChange={(values) =>
+                    handleTreeAnswerChange(currentQuestion?.id ?? '', values)
+                  }
+                  treeDisabled={phase !== 'answering'}
                 />
 
                 {phase === 'answering' &&

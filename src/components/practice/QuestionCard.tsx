@@ -5,6 +5,10 @@ import {
   DiagramParams,
 } from '@/components/diagrams';
 import { getQuestionDiagram } from '@/components/diagrams/questionDiagramRegistry';
+import {
+  InteractiveProbabilityTree,
+  TreeAnswers,
+} from '@/components/diagrams/InteractiveProbabilityTree';
 import { MathInputToolbar } from './MathInputToolbar';
 import katex from 'katex';
 
@@ -28,12 +32,17 @@ interface QuestionCardProps {
   diagramComponent?: string | null;
   partAnswers?: Record<string, string>;
   onPartAnswerChange?: (partLabel: string, value: string) => void;
+  /** Current tree answers for interactive probability trees */
+  treeAnswers?: TreeAnswers;
+  /** Called when the student fills in a hidden branch */
+  onTreeAnswerChange?: (values: TreeAnswers) => void;
+  /** When true, interactive tree inputs are disabled (review mode) */
+  treeDisabled?: boolean;
 }
 
 function renderMathInText(text: string): string {
   if (!text) return '';
 
-  // Step 1: split into paragraphs FIRST, before any rendering
   const blocks = text
     .split('\n\n')
     .map((block) => block.replace(/\n/g, ' '))
@@ -66,8 +75,6 @@ function renderMathInText(text: string): string {
     }
   });
 
-  // Step 2: wrap in paragraphs AFTER rendering — but only split on \n\n
-  // Single \n within a block becomes a space (safe for maths text)
   html = html
     .split('\n\n')
     .map((block) => `<p>${block}</p>`)
@@ -79,6 +86,7 @@ function renderMathInText(text: string): string {
 
   return html;
 }
+
 function AutoTextarea({
   value,
   onChange,
@@ -99,10 +107,7 @@ function AutoTextarea({
 
   return (
     <div>
-      {/* Toolbar + symbol panel + preview toggle — sits above the textarea */}
       <MathInputToolbar textareaRef={ref} value={value} onChange={onChange} />
-
-      {/* Textarea — border-radius adjusted: top corners rounded, bottom attached to preview */}
       <textarea
         ref={ref}
         value={value}
@@ -119,16 +124,6 @@ function AutoTextarea({
           fontFamily: "'Courier New', Courier, monospace",
         }}
       />
-
-      {/* The MathInputToolbar renders its preview panel after the textarea
-          via a portal-like pattern — but since it's above in the DOM,
-          we render the preview separately here for correct visual stacking.
-          
-          Note: The preview is actually rendered inside MathInputToolbar
-          as the last child, which appears after this textarea in the
-          visual flow because MathInputToolbar wraps everything. 
-          
-          See the restructured layout below. */}
     </div>
   );
 }
@@ -147,16 +142,41 @@ export function QuestionCard({
   diagramComponent,
   partAnswers = {},
   onPartAnswerChange,
+  treeAnswers = {},
+  onTreeAnswerChange,
+  treeDisabled = false,
 }: QuestionCardProps) {
   const isMultiPart = parts && parts.length > 0;
 
-  // Render priority for diagrams:
-  //   1. diagramComponent set + registered (parametric components from the
-  //      questionDiagramRegistry, e.g. 'probability-tree')
-  //   2. diagramUrl set (image from Supabase Storage)
-  //   3. diagramType set (legacy single-component path for CircleTheoremDiagram)
-  //   4. None
-  const RegisteredDiagram = getQuestionDiagram(diagramComponent);
+  // Determine whether this is an interactive probability tree question.
+  // A question is interactive if it has hidden branches (at least one branch
+  // with hidden: true in the diagram_params stages).
+  const isProbabilityTree = diagramComponent === 'probability-tree';
+  const hasHiddenBranches =
+    isProbabilityTree &&
+    diagramParams != null &&
+    (() => {
+      try {
+        const cfg = diagramParams as {
+          stages?: Array<{ branches?: Array<{ hidden?: boolean }> }>;
+        };
+        return (
+          cfg.stages?.some((s) => s.branches?.some((b) => b.hidden === true)) ??
+          false
+        );
+      } catch {
+        return false;
+      }
+    })();
+
+  // For non-interactive probability trees (no hidden branches), fall through
+  // to the registry path as before.
+  const RegisteredDiagram =
+    isProbabilityTree && !hasHiddenBranches
+      ? getQuestionDiagram(diagramComponent)
+      : !isProbabilityTree
+        ? getQuestionDiagram(diagramComponent)
+        : null;
 
   return (
     <div className="space-y-8">
@@ -185,15 +205,44 @@ export function QuestionCard({
         dangerouslySetInnerHTML={{ __html: renderMathInText(questionText) }}
       />
 
-      {/* Diagram — registered parametric component (probability-tree, etc.) */}
+      {/* Interactive probability tree (hidden branches) */}
+      {hasHiddenBranches && diagramParams && (
+        <div className="flex justify-center py-2">
+          <div
+            className="bg-[#FAF7F2] border border-border/40 rounded-xl p-5 w-full"
+            style={{ maxWidth: 680, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}
+          >
+            {onTreeAnswerChange ? (
+              <InteractiveProbabilityTree
+                config={diagramParams as any}
+                values={treeAnswers}
+                onChange={onTreeAnswerChange}
+                disabled={treeDisabled}
+              />
+            ) : (
+              // Fallback: non-interactive render (e.g. in admin preview)
+              <InteractiveProbabilityTree
+                config={diagramParams as any}
+                values={{}}
+                onChange={() => {}}
+                disabled
+              />
+            )}
+            {!treeDisabled && (
+              <p className="text-[11px] text-gray-400 mt-3 text-center">
+                Fill in the missing probabilities on the tree.
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Non-interactive registered diagram (probability-tree with no hidden branches, or other types) */}
       {RegisteredDiagram && diagramParams && (
         <div className="flex justify-center py-2">
           <div
             className="bg-[#FAF7F2] border border-border/40 rounded-xl p-5 w-full"
-            style={{
-              maxWidth: 680,
-              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-            }}
+            style={{ maxWidth: 680, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}
           >
             <RegisteredDiagram params={diagramParams} />
           </div>
@@ -201,14 +250,11 @@ export function QuestionCard({
       )}
 
       {/* Diagram — image from Supabase Storage */}
-      {!RegisteredDiagram && diagramUrl && (
+      {!hasHiddenBranches && !RegisteredDiagram && diagramUrl && (
         <div className="flex justify-center py-2">
           <div
             className="bg-[#FAF7F2] border border-border/40 rounded-xl p-5 w-full"
-            style={{
-              maxWidth: 400,
-              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-            }}
+            style={{ maxWidth: 400, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}
           >
             <img
               src={diagramUrl}
@@ -220,13 +266,16 @@ export function QuestionCard({
         </div>
       )}
 
-      {/* Diagram — legacy programmatic SVG (CircleTheoremDiagram) */}
-      {!RegisteredDiagram && !diagramUrl && diagramType && (
-        <CircleTheoremDiagram
-          theoremType={diagramType as TheoremType}
-          params={(diagramParams ?? {}) as DiagramParams}
-        />
-      )}
+      {/* Legacy CircleTheoremDiagram */}
+      {!hasHiddenBranches &&
+        !RegisteredDiagram &&
+        !diagramUrl &&
+        diagramType && (
+          <CircleTheoremDiagram
+            theoremType={diagramType as TheoremType}
+            params={(diagramParams ?? {}) as DiagramParams}
+          />
+        )}
 
       {isMultiPart ? (
         <div className="space-y-6">

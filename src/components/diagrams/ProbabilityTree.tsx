@@ -57,6 +57,21 @@ export type ProbabilityTreeConfig = {
   pathProbabilities?: PathProbability[];
 };
 
+/**
+ * Describes the SVG-space position of a hidden branch placeholder.
+ * Used by InteractiveProbabilityTree to overlay HTML inputs.
+ */
+export type HiddenPosition = {
+  /** unique id: e.g. "s1-0", "s2-2" */
+  id: string;
+  /** centre-x of the placeholder in SVG coordinate space */
+  cx: number;
+  /** centre-y of the placeholder in SVG coordinate space */
+  cy: number;
+  /** approximate half-width of the placeholder box in SVG space */
+  halfWidth: number;
+};
+
 // --- Constants ---
 
 const ROOT_X = 60;
@@ -85,27 +100,13 @@ function deg2rad(deg: number): number {
   return (deg * Math.PI) / 180;
 }
 
-/**
- * Compute the angles (in degrees from horizontal) for each branch in a fan.
- * For 2 branches: [-spread, +spread] (positive = upward in screen coords means -y).
- * For 3 branches: [-spread, 0, +spread].
- * For N branches: evenly distributed across [-spread, +spread].
- *
- * Note: in SVG, +y points DOWN. We use the convention that angle > 0 means
- * the branch points UP (toward smaller y). Caller subtracts y when applying.
- */
 function fanAngles(count: number, spreadDeg: number): number[] {
   if (count === 1) return [0];
   if (count === 2) return [spreadDeg, -spreadDeg];
-  // For N >= 3: evenly distribute from +spread (top) to -spread (bottom)
   const step = (2 * spreadDeg) / (count - 1);
   return Array.from({ length: count }, (_, i) => spreadDeg - i * step);
 }
 
-/**
- * Compute endpoint of a line given start, length, and angle (degrees from horizontal).
- * Positive angle = UP (smaller y).
- */
 function lineEnd(
   startX: number,
   startY: number,
@@ -119,13 +120,6 @@ function lineEnd(
   };
 }
 
-/**
- * Compute label position for a probability label.
- * Sits at the line's midpoint, offset perpendicular to the line direction.
- * Upper-half branches (angle > 0) get labels ABOVE the line.
- * Lower-half branches (angle < 0) get labels BELOW the line.
- * Horizontal branches (angle == 0) get labels above by convention.
- */
 function probLabelPosition(
   startX: number,
   startY: number,
@@ -135,14 +129,9 @@ function probLabelPosition(
 ): { x: number; y: number } {
   const midX = (startX + endX) / 2;
   const midY = (startY + endY) / 2;
-  // Perpendicular direction: rotate the line's direction by 90°.
-  // Line direction unit vector: (cos a, -sin a) (since +angle = up = -y)
-  // Perpendicular "up" (toward smaller y) unit vector: (-sin a, -cos a)
   const rad = deg2rad(angleDeg);
   const perpX = -Math.sin(rad);
   const perpY = -Math.cos(rad);
-  // For upper branches (angle >= 0) move along perp (up). For lower branches
-  // (angle < 0) move opposite (down).
   const sign = angleDeg >= 0 ? 1 : -1;
   return {
     x: midX + sign * perpX * PROB_LABEL_PERP_OFFSET,
@@ -162,13 +151,6 @@ type FractionProps = {
   hidden?: boolean;
 };
 
-/**
- * Draws a stacked fraction (numerator over vinculum over denominator) centred
- * at (cx, cy). Drawn in raw SVG (not KaTeX) so positioning and sizing are
- * fully under our control.
- *
- * If hidden is true, renders a dashed placeholder instead of the digits.
- */
 function Fraction({
   num,
   den,
@@ -184,6 +166,8 @@ function Fraction({
   );
 
   if (hidden) {
+    // Render a subtle dashed outline — the HTML input overlay sits on top.
+    // Keep this visible so the student can see where to fill in.
     return (
       <g transform={`translate(${cx}, ${cy})`}>
         <rect
@@ -192,8 +176,8 @@ function Fraction({
           width={(halfWidth + 3) * 2}
           height={24}
           rx={3}
-          fill="none"
-          stroke={colour}
+          fill="rgba(245,166,35,0.06)"
+          stroke="#F5A623"
           strokeWidth={0.8}
           strokeDasharray="3 2"
         />
@@ -237,7 +221,20 @@ function Fraction({
 
 // --- Main component ---
 
-export function ProbabilityTree({ config }: { config: ProbabilityTreeConfig }) {
+interface ProbabilityTreeProps {
+  config: ProbabilityTreeConfig;
+  /**
+   * Optional callback fired synchronously during render with the SVG-space
+   * positions of every hidden branch placeholder. Used by
+   * InteractiveProbabilityTree to position HTML input overlays.
+   */
+  onHiddenPositions?: (positions: HiddenPosition[]) => void;
+}
+
+export function ProbabilityTree({
+  config,
+  onHiddenPositions,
+}: ProbabilityTreeProps) {
   if (!config?.stages || config.stages.length === 0) {
     return null;
   }
@@ -253,14 +250,6 @@ export function ProbabilityTree({ config }: { config: ProbabilityTreeConfig }) {
   );
 
   // --- Stage 2 layout ---
-  // For each stage-1 branch, find the stage-2 branches that hang off it.
-  // stage 2 branches are matched by their fromOutcome === stage-1 outcome.
-  // If no stage-2 branches exist, the tree is 1-stage (still valid).
-  //
-  // GCSE convention: stage-2 lines do NOT start at the stage-1 line endpoint.
-  // They start STAGE_GAP_X to the right of it, leaving a clear gap for the
-  // bend label (stage-1 outcome) to sit in. The lines visually "interrupt"
-  // at the word — this is what a GCSE student expects to see.
   type Stage2Layout = {
     branch: Branch;
     parentIndex: number;
@@ -277,7 +266,6 @@ export function ProbabilityTree({ config }: { config: ProbabilityTreeConfig }) {
       );
       const childAngles = fanAngles(childBranches.length, STAGE_2_ANGLE_DEG);
       const parentEnd = stage1Endpoints[parentIndex];
-      // Stage 2 fan starts at parentEnd shifted right by STAGE_GAP_X (same y).
       const fanStart = { x: parentEnd.x + STAGE_GAP_X, y: parentEnd.y };
       childBranches.forEach((b, i) => {
         const end = lineEnd(
@@ -297,9 +285,69 @@ export function ProbabilityTree({ config }: { config: ProbabilityTreeConfig }) {
     });
   }
 
-  // --- Render ---
+  // --- Collect hidden positions and fire callback ---
+  if (onHiddenPositions) {
+    const hiddenPositions: HiddenPosition[] = [];
 
-  // Compute viewBox height dynamically: find max y across all endpoints + buffer.
+    stage1Branches.forEach((b, i) => {
+      if (b.hidden) {
+        const end = stage1Endpoints[i];
+        const labelPos = probLabelPosition(
+          ROOT_X,
+          ROOT_Y,
+          end.x,
+          end.y,
+          stage1Angles[i]
+        );
+        const halfWidth = Math.max(
+          10,
+          4 +
+            4 *
+              Math.max(
+                String(b.probability.num).length,
+                String(b.probability.den).length
+              )
+        );
+        hiddenPositions.push({
+          id: `s1-${i}`,
+          cx: labelPos.x,
+          cy: labelPos.y,
+          halfWidth,
+        });
+      }
+    });
+
+    stage2Layouts.forEach((l, i) => {
+      if (l.branch.hidden) {
+        const labelPos = probLabelPosition(
+          l.start.x,
+          l.start.y,
+          l.end.x,
+          l.end.y,
+          l.angleDeg
+        );
+        const halfWidth = Math.max(
+          10,
+          4 +
+            4 *
+              Math.max(
+                String(l.branch.probability.num).length,
+                String(l.branch.probability.den).length
+              )
+        );
+        hiddenPositions.push({
+          id: `s2-${i}`,
+          cx: labelPos.x,
+          cy: labelPos.y,
+          halfWidth,
+        });
+      }
+    });
+
+    onHiddenPositions(hiddenPositions);
+  }
+
+  // --- ViewBox ---
   const allYs = [
     ROOT_Y,
     ...stage1Endpoints.map((p) => p.y),
@@ -307,18 +355,21 @@ export function ProbabilityTree({ config }: { config: ProbabilityTreeConfig }) {
   ];
   const minY = Math.min(...allYs);
   const maxY = Math.max(...allYs);
-  // Add 50px top buffer (for outcome labels above lines) and 50px bottom buffer.
   const vbY = minY - 50;
   const vbHeight = maxY - minY + 100;
 
-  // For path probability rendering, we need to find the y-coordinate of each
-  // terminal (stage-2) branch endpoint, or stage-1 endpoint if 1-stage.
   const terminalLayouts = stage2Layouts.length > 0 ? stage2Layouts : null;
+
+  // ViewBox width and height — needed by InteractiveProbabilityTree for coordinate maths
+  const VB_WIDTH = 680;
+  const VB_HEIGHT = vbHeight;
+  const VB_Y = vbY;
 
   return (
     <svg
       width="100%"
-      viewBox={`0 ${vbY} 680 ${vbHeight}`}
+      viewBox={`0 ${VB_Y} ${VB_WIDTH} ${VB_HEIGHT}`}
+      data-vb={`0 ${VB_Y} ${VB_WIDTH} ${VB_HEIGHT}`}
       role="img"
       xmlns="http://www.w3.org/2000/svg"
     >
@@ -371,7 +422,7 @@ export function ProbabilityTree({ config }: { config: ProbabilityTreeConfig }) {
         );
       })}
 
-      {/* Stage 1 outcome labels (at the bend / line endpoint) */}
+      {/* Stage 1 outcome labels */}
       {stage1Branches.map((b, i) => {
         const end = stage1Endpoints[i];
         const colour = b.highlight ? COLOUR_HIGHLIGHT : COLOUR_DEFAULT;
@@ -449,30 +500,24 @@ export function ProbabilityTree({ config }: { config: ProbabilityTreeConfig }) {
         );
       })}
 
-      {/* Path probabilities at far right (optional) */}
+      {/* Path probabilities */}
       {config.showPathProbabilities &&
         config.pathProbabilities &&
         terminalLayouts &&
         config.pathProbabilities.map((pp, i) => {
-          // Find the matching terminal endpoint by walking the path.
-          // We match: stage1 outcome === path[0], stage2 fromOutcome === path[0]
-          // and stage2 outcome === path[1].
           const terminal = terminalLayouts.find((l) => {
             const s1 = stage1Branches[l.parentIndex];
             return s1.outcome === pp.path[0] && l.branch.outcome === pp.path[1];
           });
           if (!terminal) return null;
 
-          // Get the stage-1 and stage-2 probabilities for this path.
           const s1Branch = stage1Branches[terminal.parentIndex];
           const s2Branch = terminal.branch;
-
           const colour = pp.highlight ? COLOUR_HIGHLIGHT : COLOUR_DEFAULT;
           const y = terminal.end.y;
 
           return (
             <g key={`pp-${i}`} transform={`translate(${PATH_PROB_X}, ${y})`}>
-              {/* First fraction (stage 1) */}
               <Fraction
                 num={s1Branch.probability.num}
                 den={s1Branch.probability.den}
@@ -481,7 +526,6 @@ export function ProbabilityTree({ config }: { config: ProbabilityTreeConfig }) {
                 colour={colour}
                 fontSize={14}
               />
-              {/* × symbol */}
               <text
                 x={20}
                 y={9}
@@ -491,7 +535,6 @@ export function ProbabilityTree({ config }: { config: ProbabilityTreeConfig }) {
               >
                 ×
               </text>
-              {/* Second fraction (stage 2) */}
               <Fraction
                 num={s2Branch.probability.num}
                 den={s2Branch.probability.den}
@@ -500,7 +543,6 @@ export function ProbabilityTree({ config }: { config: ProbabilityTreeConfig }) {
                 colour={colour}
                 fontSize={14}
               />
-              {/* = symbol */}
               <text
                 x={60}
                 y={9}
@@ -510,7 +552,6 @@ export function ProbabilityTree({ config }: { config: ProbabilityTreeConfig }) {
               >
                 =
               </text>
-              {/* Result fraction */}
               <Fraction
                 num={pp.probability.num}
                 den={pp.probability.den}
