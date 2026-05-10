@@ -3,18 +3,14 @@
 // Wraps ProbabilityTree with HTML input overlays for hidden branches.
 // Used in QuestionCard when diagramComponent === 'probability-tree' and
 // the question has at least one hidden branch (a "complete the tree" question).
-//
-// Architecture:
-// - Renders ProbabilityTree inside a relative-positioned container
-// - ProbabilityTree fires onHiddenPositions with SVG-space coords of each
-//   hidden placeholder during render
-// - A ResizeObserver watches the SVG element's rendered size
-// - On every render + resize, SVG coords are mapped to DOM coords using the
-//   viewBox transform, and fraction inputs are absolutely positioned over
-//   each placeholder
-// - Student values bubble up via onChange
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 import { ProbabilityTree, HiddenPosition } from './ProbabilityTree';
 import type { ProbabilityTreeConfig } from './ProbabilityTree';
 
@@ -25,19 +21,13 @@ export type TreeAnswers = Record<string, FractionValue>;
 
 interface InteractiveProbabilityTreeProps {
   config: ProbabilityTreeConfig;
-  /** Called whenever the student changes any input */
   onChange: (values: TreeAnswers) => void;
-  /** Current answer values (controlled) */
   values: TreeAnswers;
-  /** When true, inputs are disabled (review mode) */
   disabled?: boolean;
 }
 
-// --- Coordinate helpers ---
+// --- Coordinate conversion ---
 
-/**
- * Parse a viewBox string "minX minY width height" into its components.
- */
 function parseViewBox(
   vb: string
 ): { minX: number; minY: number; w: number; h: number } | null {
@@ -47,50 +37,44 @@ function parseViewBox(
 }
 
 /**
- * Convert an SVG-space point to a CSS absolute position within the SVG's
- * bounding box, accounting for the viewBox transform (preserveAspectRatio
- * xMidYMid meet, which is the SVG default).
- *
- * Returns { left, top } as percentage strings for use in style.
+ * Convert SVG-space (cx, cy) to pixel offsets relative to the container div.
+ * Accounts for preserveAspectRatio xMidYMid meet (SVG default).
  */
-function svgToDOM(
+function svgToContainer(
   cx: number,
   cy: number,
-  svgEl: SVGSVGElement
+  svgEl: SVGSVGElement,
+  containerEl: HTMLDivElement
 ): { left: number; top: number } | null {
-  const vbAttr = svgEl.getAttribute('data-vb') || svgEl.getAttribute('viewBox');
+  const vbAttr = svgEl.getAttribute('data-vb');
   if (!vbAttr) return null;
   const vb = parseViewBox(vbAttr);
   if (!vb) return null;
 
-  const rect = svgEl.getBoundingClientRect();
-  const containerEl = svgEl.parentElement;
-  if (!containerEl) return null;
+  const svgRect = svgEl.getBoundingClientRect();
   const containerRect = containerEl.getBoundingClientRect();
 
-  // SVG renders with preserveAspectRatio xMidYMid meet by default.
-  // Compute the scale and offset that maps viewBox coords to rendered pixels.
-  const scaleX = rect.width / vb.w;
-  const scaleY = rect.height / vb.h;
+  const scaleX = svgRect.width / vb.w;
+  const scaleY = svgRect.height / vb.h;
   const scale = Math.min(scaleX, scaleY);
 
-  // The SVG element itself may be smaller than its bounding box due to meet.
   const renderedW = vb.w * scale;
   const renderedH = vb.h * scale;
 
-  // Offset of rendered content within the SVG element (centred by xMidYMid)
-  const offsetX = (rect.width - renderedW) / 2;
-  const offsetY = (rect.height - renderedH) / 2;
+  // xMidYMid centering offsets within the SVG element
+  const offsetX = (svgRect.width - renderedW) / 2;
+  const offsetY = (svgRect.height - renderedH) / 2;
 
-  // Map SVG coords to pixels within the SVG element
-  const pxX = (cx - vb.minX) * scale + offsetX;
-  const pxY = (cy - vb.minY) * scale + offsetY;
+  const pxInSvgX = (cx - vb.minX) * scale + offsetX;
+  const pxInSvgY = (cy - vb.minY) * scale + offsetY;
 
-  // Convert to pixels relative to the container (the relative-positioned div)
-  const left = rect.left - containerRect.left + pxX;
-  const top = rect.top - containerRect.top + pxY;
+  const svgOffsetLeft = svgRect.left - containerRect.left;
+  const svgOffsetTop = svgRect.top - containerRect.top;
 
-  return { left, top };
+  return {
+    left: svgOffsetLeft + pxInSvgX,
+    top: svgOffsetTop + pxInSvgY,
+  };
 }
 
 // --- FractionInput ---
@@ -112,19 +96,19 @@ function FractionInput({
   left,
   top,
 }: FractionInputProps) {
-  const inputStyle: React.CSSProperties = {
-    width: 28,
-    height: 20,
-    fontSize: 12,
+  const inputBase: React.CSSProperties = {
+    width: 32,
+    height: 22,
+    fontSize: 13,
     textAlign: 'center',
     border: 'none',
-    borderBottom: '1px solid #F5A623',
     background: 'transparent',
     outline: 'none',
     fontFamily: 'Helvetica Neue, Helvetica, Arial, sans-serif',
     color: '#222',
     padding: 0,
     lineHeight: 1,
+    display: 'block',
   };
 
   return (
@@ -137,12 +121,16 @@ function FractionInput({
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        gap: 0,
         pointerEvents: disabled ? 'none' : 'auto',
         zIndex: 10,
+        background: 'rgba(250,247,242,0.92)',
+        borderRadius: 4,
+        padding: '2px 4px',
+        boxShadow: disabled
+          ? 'none'
+          : '0 0 0 1.5px #F5A623, 0 2px 6px rgba(245,166,35,0.2)',
       }}
     >
-      {/* Numerator */}
       <input
         type="text"
         inputMode="numeric"
@@ -150,18 +138,11 @@ function FractionInput({
         onChange={(e) => onChange(id, 'num', e.target.value)}
         disabled={disabled}
         aria-label={`Numerator for branch ${id}`}
-        style={inputStyle}
+        style={inputBase}
       />
-      {/* Vinculum */}
       <div
-        style={{
-          width: 28,
-          height: 1,
-          background: '#F5A623',
-          margin: '1px 0',
-        }}
+        style={{ width: 28, height: 1, background: '#F5A623', margin: '1px 0' }}
       />
-      {/* Denominator */}
       <input
         type="text"
         inputMode="numeric"
@@ -169,7 +150,7 @@ function FractionInput({
         onChange={(e) => onChange(id, 'den', e.target.value)}
         disabled={disabled}
         aria-label={`Denominator for branch ${id}`}
-        style={inputStyle}
+        style={inputBase}
       />
     </div>
   );
@@ -184,53 +165,68 @@ export function InteractiveProbabilityTree({
   disabled = false,
 }: InteractiveProbabilityTreeProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const svgRef = useRef<SVGSVGElement | null>(null);
 
-  // Hidden positions in SVG space — set during ProbabilityTree render
-  const [hiddenPositions, setHiddenPositions] = useState<HiddenPosition[]>([]);
+  // Hidden positions in SVG space — captured synchronously during ProbabilityTree render
+  const hiddenPositionsRef = useRef<HiddenPosition[]>([]);
 
-  // DOM positions — recomputed on resize
+  // DOM positions — pixel coords relative to container, triggers re-render
   const [domPositions, setDomPositions] = useState<
     Record<string, { left: number; top: number }>
   >({});
 
-  // Recompute DOM positions from SVG-space positions
   const recompute = useCallback(() => {
-    if (!svgRef.current || hiddenPositions.length === 0) return;
+    const container = containerRef.current;
+    if (!container) return;
+    const svgEl = container.querySelector('svg') as SVGSVGElement | null;
+    if (!svgEl) return;
+    const positions = hiddenPositionsRef.current;
+    if (positions.length === 0) return;
+
     const next: Record<string, { left: number; top: number }> = {};
-    for (const hp of hiddenPositions) {
-      const pos = svgToDOM(hp.cx, hp.cy, svgRef.current);
+    for (const hp of positions) {
+      const pos = svgToContainer(hp.cx, hp.cy, svgEl, container);
       if (pos) next[hp.id] = pos;
     }
     setDomPositions(next);
-  }, [hiddenPositions]);
+  }, []);
 
-  // Watch container size
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const ro = new ResizeObserver(() => recompute());
-    ro.observe(el);
-    recompute();
-    return () => ro.disconnect();
-  }, [recompute]);
+  // Capture hidden positions during ProbabilityTree render (called synchronously in render)
+  const handleHiddenPositions = useCallback((positions: HiddenPosition[]) => {
+    hiddenPositionsRef.current = positions;
+  }, []);
 
-  // Also recompute when hidden positions change (new question loaded)
-  useEffect(() => {
-    recompute();
-  }, [recompute]);
+  // Run after every commit to keep positions in sync (useLayoutEffect avoids flash)
+  // Guard against infinite loop: only call setDomPositions when values actually change
+  const prevPositionsRef = useRef<string>('');
+  useLayoutEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const svgEl = container.querySelector('svg') as SVGSVGElement | null;
+    if (!svgEl) return;
+    const positions = hiddenPositionsRef.current;
+    if (positions.length === 0) return;
 
-  // Find the SVG element after first render
-  useEffect(() => {
-    if (!containerRef.current) return;
-    const svg = containerRef.current.querySelector('svg');
-    if (svg) svgRef.current = svg as SVGSVGElement;
-    recompute();
+    const next: Record<string, { left: number; top: number }> = {};
+    for (const hp of positions) {
+      const pos = svgToContainer(hp.cx, hp.cy, svgEl, container);
+      if (pos) next[hp.id] = pos;
+    }
+
+    const serialised = JSON.stringify(next);
+    if (serialised !== prevPositionsRef.current) {
+      prevPositionsRef.current = serialised;
+      setDomPositions(next);
+    }
   });
 
-  const handlePositions = useCallback((positions: HiddenPosition[]) => {
-    setHiddenPositions(positions);
-  }, []);
+  // Recompute on resize
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const ro = new ResizeObserver(() => recompute());
+    ro.observe(container);
+    return () => ro.disconnect();
+  }, [recompute]);
 
   const handleChange = useCallback(
     (id: string, field: 'num' | 'den', val: string) => {
@@ -242,10 +238,12 @@ export function InteractiveProbabilityTree({
 
   return (
     <div ref={containerRef} style={{ position: 'relative', width: '100%' }}>
-      <ProbabilityTree config={config} onHiddenPositions={handlePositions} />
+      <ProbabilityTree
+        config={config}
+        onHiddenPositions={handleHiddenPositions}
+      />
 
-      {/* Overlay inputs for each hidden branch */}
-      {hiddenPositions.map((hp) => {
+      {hiddenPositionsRef.current.map((hp) => {
         const pos = domPositions[hp.id];
         if (!pos) return null;
         return (
