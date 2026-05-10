@@ -18,6 +18,7 @@ import NotFound from './pages/NotFound';
 import AuthCallback from './pages/AuthCallback';
 import AdminDiagrams from './pages/admin/AdminDiagrams';
 import AdminProbabilityQuestions from './pages/admin/AdminProbabilityQuestions';
+import AdminHub from './pages/admin/AdminHub';
 
 const queryClient = new QueryClient();
 
@@ -29,6 +30,7 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
+            <Route path="/admin" element={<AdminHub />} />
             <Route path="/admin/diagrams" element={<AdminDiagrams />} />
             <Route
               path="/admin/probability-questions"
