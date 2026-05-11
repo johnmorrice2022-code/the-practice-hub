@@ -822,6 +822,17 @@ PAPER 3H QUESTION TYPES — AUTHENTICALLY HIGHER 3H
 - Capture-recapture or sampling estimation with a stated assumption
 - Index laws: simplify expressions with negative and fractional indices
 
+"IS [NAME] CORRECT?" FORMAT (statistics variant)
+- A named person makes a statistical claim (e.g. confuses modal class with highest frequency)
+- Part (a): calculate the correct value
+- Part (b): evaluate the claim with a stated reason
+- Always include a B1 or C1 for the correct evaluative statement
+
+COMPARE DISTRIBUTIONS FORMAT
+- Always compare both an average (mean or median) AND spread (range or IQR)
+- Each comparison must reference the context — not just "A has a higher median"
+- Award one mark per valid contextual comparison
+
 MARK SCHEME RULES — PEARSON EDEXCEL HIGHER
 M mark — method mark. Awarded for correct method even if arithmetic is wrong.
 A mark — accuracy mark. Dependent on preceding M mark.
@@ -832,6 +843,8 @@ ft — follow through. Award if correct method applied to candidate's earlier an
 cao — correct answer only. No follow through.
 Always include a TOTAL entry as the final mark scheme item.
 ECF: note explicitly where error carried forward applies.
+For recurring decimal proofs: M1 for correct multiplier strategy, A1 for correct fraction, B1 for simplified form.
+For non-linear simultaneous equations: M1 correct substitution, M1 forming quadratic, A1 A1 for each solution pair.
 
 TOPICS IN SCOPE FOR THIS SUBTOPIC
 ${promptConfig.system_prompt || `Topic: ${subtopic.subtopic_name}. Generate a question that directly tests this topic at Higher tier grade band ${subtopic.grade_band}.`}
@@ -856,7 +869,7 @@ Question: "Solve $4(2x - 1) = 3x + 11$"
 Mark scheme: M1 for expanding bracket correctly ($8x - 4 = 3x + 11$), M1 for collecting like terms ($5x = 15$), A1 for $x = 3$
 Worked solution: "$4(2x - 1) = 3x + 11$\\n$8x - 4 = 3x + 11$\\n$8x - 3x = 11 + 4$\\n$5x = 15$\\n$x = 15 \\\\div 5$\\n$x = 3$"
 
-NOTE: These examples show style and structure only. Generate a completely new question with different values every time.
+NOTE: These examples show style and structure only. Generate a completely new question with different values every time. If the subtopic requires a different style (real-world context, multi-part), follow the subtopic-specific instruction above.
 
 FORBIDDEN QUESTION TYPES — ALWAYS SEEDED, NEVER AI-GENERATED
 Never generate questions requiring:
