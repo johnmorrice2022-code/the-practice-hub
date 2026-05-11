@@ -836,7 +836,6 @@ ${HIGHER_OUTPUT_FORMAT.replace('{COUNT}', String(count))}`;
 
 // ─────────────────────────────────────────────
 // PHYSICS PROMPT BUILDERS — AQA 8463
-// Built from June 2024: 8463/1F, 8463/2F, 8463/1H, 8463/2H
 // ─────────────────────────────────────────────
 
 const PHYSICS_SHARED_LATEX_RULES = `
@@ -1312,7 +1311,6 @@ serve(async (req) => {
         subtopic,
         physicsTier || studentTier
       );
-
       const resolvedPhysicsPaper = inferPhysicsPaper(subtopic);
 
       if (
@@ -1382,29 +1380,33 @@ Return ONLY this JSON structure:
     if (!ANTHROPIC_API_KEY)
       throw new Error('ANTHROPIC_API_KEY is not configured');
 
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'x-api-key': ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 4000,
-        system: systemPrompt,
-        messages: [{ role: 'user', content: userPrompt }],
-      }),
-    });
+    // Fetch all questions from Claude in one call (reliable JSON)
+    const anthropicResponse = await fetch(
+      'https://api.anthropic.com/v1/messages',
+      {
+        method: 'POST',
+        headers: {
+          'x-api-key': ANTHROPIC_API_KEY,
+          'anthropic-version': '2023-06-01',
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 4000,
+          system: systemPrompt,
+          messages: [{ role: 'user', content: userPrompt }],
+        }),
+      }
+    );
 
-    if (!response.ok) {
-      const status = response.status;
-      const text = await response.text();
+    if (!anthropicResponse.ok) {
+      const status = anthropicResponse.status;
+      const text = await anthropicResponse.text();
       console.error('Anthropic error:', status, text);
       throw new Error(`Anthropic API returned ${status}`);
     }
 
-    const result = await response.json();
+    const result = await anthropicResponse.json();
     const rawText = result.content?.[0]?.text;
     if (!rawText) throw new Error('Empty response from Claude');
 
@@ -1414,7 +1416,6 @@ Return ONLY this JSON structure:
       .trim();
 
     let parsed: { questions: any[] };
-
     try {
       parsed = JSON.parse(cleaned);
     } catch {
@@ -1426,24 +1427,43 @@ Return ONLY this JSON structure:
       throw new Error('No questions returned');
     }
 
-    const questions = parsed.questions.map((q: any, i: number) => ({
-      id: crypto.randomUUID(),
-      question_text: q.question_text,
-      marks: q.marks,
-      parts: q.parts || [],
-      mark_scheme: q.mark_scheme,
-      worked_solution: q.worked_solution,
-      diagram_type: q.diagram_type || null,
-      diagram_params: q.diagram_params || null,
-      question_order: i + 1,
-    }));
+    // Stream questions one-by-one as NDJSON so the client can render Q1
+    // as soon as it arrives rather than waiting for all 4.
+    const { readable, writable } = new TransformStream();
+    const writer = writable.getWriter();
+    const encoder = new TextEncoder();
 
-    return new Response(JSON.stringify({ questions }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    (async () => {
+      try {
+        for (let i = 0; i < parsed.questions.length; i++) {
+          const q = parsed.questions[i];
+          const question = {
+            id: crypto.randomUUID(),
+            question_text: q.question_text,
+            marks: q.marks,
+            parts: q.parts || [],
+            mark_scheme: q.mark_scheme,
+            worked_solution: q.worked_solution,
+            diagram_type: q.diagram_type || null,
+            diagram_params: q.diagram_params || null,
+            question_order: i + 1,
+          };
+          await writer.write(encoder.encode(JSON.stringify(question) + '\n'));
+        }
+      } finally {
+        await writer.close();
+      }
+    })();
+
+    return new Response(readable, {
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'application/x-ndjson',
+        'X-Content-Type-Options': 'nosniff',
+      },
     });
   } catch (e) {
     console.error('generate-questions error:', e);
-
     return new Response(
       JSON.stringify({
         error: e instanceof Error ? e.message : 'Unknown error',

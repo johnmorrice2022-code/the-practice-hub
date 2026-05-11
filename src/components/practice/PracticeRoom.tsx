@@ -139,7 +139,6 @@ export function PracticeRoom({
   const [partAnswers, setPartAnswers] = useState<
     Record<string, Record<string, string>>
   >({});
-  // Tree answers: questionId -> { branchId -> { num, den } }
   const [treeAnswers, setTreeAnswers] = useState<Record<string, TreeAnswers>>(
     {}
   );
@@ -185,7 +184,7 @@ export function PracticeRoom({
         (subtopicRes.data?.prompt_config as any)?.marking_guidance || null;
       setMarkingGuidance(guidance);
       if (seededRes.data && seededRes.data.length > 0) {
-        // Shuffle seeded questions so "New set" produces a different order
+        // Shuffle seeded questions so New set produces a different order
         const shuffled = [...seededRes.data].sort(() => Math.random() - 0.5);
         setQuestions(
           shuffled.map((q) => ({
@@ -216,36 +215,80 @@ export function PracticeRoom({
   const generateAIQuestions = async () => {
     setGeneratingQuestions(true);
     setLoading(false);
+    setQuestions([]);
+    setCurrentIndex(0);
+    setAnswers({});
+    setPartAnswers({});
+    setTreeAnswers({});
+    setFeedbacks({});
+    setPhase('answering');
+    sessionStartTime.current = Date.now();
+
     try {
-      const { data, error } = await supabase.functions.invoke(
-        'generate-questions',
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-questions`,
         {
-          body: {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({
             subtopicId: config.subtopicId,
             count: 4,
             calculatorAllowed,
-          },
+          }),
         }
       );
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      setQuestions(
-        data.questions.map((q: any) => ({
-          ...q,
-          parts: q.parts || [],
-          diagram_type: q.diagram_type || null,
-          diagram_params: q.diagram_params || null,
-          diagram_url: q.diagram_url || null,
-          diagram_component: q.diagram_component || null,
-        }))
-      );
-      setCurrentIndex(0);
-      setAnswers({});
-      setPartAnswers({});
-      setTreeAnswers({});
-      setFeedbacks({});
-      setPhase('answering');
-      sessionStartTime.current = Date.now();
+
+      if (!response.ok) throw new Error(`Request failed: ${response.status}`);
+      if (!response.body) throw new Error('No response body');
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let firstQuestion = true;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() ?? '';
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed) continue;
+          try {
+            const q = JSON.parse(trimmed);
+            setQuestions((prev) => [
+              ...prev,
+              {
+                ...q,
+                parts: q.parts || [],
+                diagram_type: q.diagram_type || null,
+                diagram_params: q.diagram_params || null,
+                diagram_url: q.diagram_url || null,
+                diagram_component: q.diagram_component || null,
+              },
+            ]);
+            if (firstQuestion) {
+              firstQuestion = false;
+              // Hide the loading skeleton as soon as Q1 arrives
+              setGeneratingQuestions(false);
+            }
+          } catch {
+            console.error('Failed to parse question line:', trimmed);
+          }
+        }
+      }
     } catch (e: any) {
       toast({
         title: 'Question generation failed',
@@ -281,11 +324,6 @@ export function PracticeRoom({
     setTreeAnswers((prev) => ({ ...prev, [questionId]: values }));
   };
 
-  /**
-   * Serialise tree answers for a question into a human-readable string
-   * suitable for the mark-answer prompt.
-   * e.g. "Filled branches: s1-0 = 4/6, s2-0 = 3/5, s2-1 = 2/5"
-   */
   function serialiseTreeAnswers(questionId: string): string {
     const ta = treeAnswers[questionId];
     if (!ta || Object.keys(ta).length === 0) return '';
@@ -299,7 +337,6 @@ export function PracticeRoom({
   const buildAnswerForMarking = (q: Question): string => {
     const isMultiPart = q.parts && q.parts.length > 0;
 
-    // Check if this is an interactive probability tree question
     const hasHiddenBranches =
       q.diagram_component === 'probability-tree' &&
       q.diagram_params != null &&
@@ -328,8 +365,6 @@ export function PracticeRoom({
         .join('\n\n');
     }
 
-    // For interactive tree questions, prepend the filled fractions to any
-    // written working so the examiner prompt has full context.
     if (hasHiddenBranches) {
       const treePart = serialiseTreeAnswers(q.id);
       const writtenPart = answers[q.id]?.trim() || '';
@@ -349,7 +384,6 @@ export function PracticeRoom({
       return q.parts.some((p) => parts[p.part_label]?.trim());
     }
 
-    // For interactive tree questions, any filled branch counts as an answer
     const hasHiddenBranches =
       q.diagram_component === 'probability-tree' &&
       q.diagram_params != null &&
@@ -372,7 +406,6 @@ export function PracticeRoom({
       const ta = treeAnswers[q.id];
       if (ta && Object.values(ta).some((v) => v.num.trim() || v.den.trim()))
         return true;
-      // Also accept written answer in the textarea
       return !!answers[q.id]?.trim();
     }
 
@@ -482,7 +515,8 @@ export function PracticeRoom({
     setJamHelpOpen(true);
   };
 
-  const allAnswered = questions.every((q) => hasAnswer(q));
+  const allAnswered =
+    questions.length > 0 && questions.every((q) => hasAnswer(q));
   const currentFeedback = currentQuestion
     ? feedbacks[currentQuestion.id]
     : null;
@@ -496,7 +530,9 @@ export function PracticeRoom({
     0
   );
   const progressPct =
-    phase === 'review' ? 100 : ((currentIndex + 1) / questions.length) * 100;
+    phase === 'review'
+      ? 100
+      : ((currentIndex + 1) / Math.max(questions.length, 1)) * 100;
 
   if (loading || generatingQuestions) {
     return (
