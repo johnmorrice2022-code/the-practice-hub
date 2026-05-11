@@ -561,6 +561,29 @@ ECF: note explicitly where error carried forward applies.
 TOPICS IN SCOPE FOR THIS SUBTOPIC
 ${promptConfig.system_prompt || `Topic: ${subtopic.subtopic_name}. Generate questions that directly test this topic at Higher tier grade band ${subtopic.grade_band}.`}
 
+REAL-WORLD CONTEXT OVERRIDE
+If the TOPICS IN SCOPE section above specifies that questions should be pure algebraic tasks with no real-world context, that instruction overrides the general real-world context rule above. Always follow the subtopic-specific instruction.
+
+FEW-SHOT EXAMPLES — CORRECT QUESTION STYLE FOR THIS SUBTOPIC
+Use these as a model for question structure, command words, mark scheme format, and worked solution format.
+
+EXAMPLE 1 — Easy (1 mark, single step):
+Question: "Solve $3x = 21$"
+Mark scheme: B1 for $x = 7$
+Worked solution: "$3x = 21$\\n$x = 21 \\\\div 3$\\n$x = 7$"
+
+EXAMPLE 2 — Medium (2 marks, two step):
+Question: "Solve $5x + 3 = 28$"
+Mark scheme: M1 for correct first step ($5x = 25$), A1 for $x = 5$
+Worked solution: "$5x + 3 = 28$\\n$5x = 28 - 3$\\n$5x = 25$\\n$x = 25 \\\\div 5$\\n$x = 5$"
+
+EXAMPLE 3 — Hard (3 marks, brackets and unknowns on both sides):
+Question: "Solve $4(2x - 1) = 3x + 11$"
+Mark scheme: M1 for expanding bracket correctly ($8x - 4 = 3x + 11$), M1 for collecting like terms ($5x = 15$), A1 for $x = 3$
+Worked solution: "$4(2x - 1) = 3x + 11$\\n$8x - 4 = 3x + 11$\\n$8x - 3x = 11 + 4$\\n$5x = 15$\\n$x = 15 \\\\div 5$\\n$x = 3$"
+
+NOTE: These examples show style and structure only. Generate completely new questions with different equations and values every time. If the subtopic requires a different style (real-world context, multi-part), follow the subtopic-specific instruction above and use these examples only as a format reference.
+
 FORBIDDEN QUESTION TYPES — ALWAYS SEEDED, NEVER AI-GENERATED
 Never generate questions requiring:
 - Drawing or completing graphs on a coordinate grid
@@ -651,6 +674,29 @@ For comparison/decision questions: always include a C1 mark for the correct conc
 
 TOPICS IN SCOPE FOR THIS SUBTOPIC
 ${promptConfig.system_prompt || `Topic: ${subtopic.subtopic_name}. Generate questions that directly test this topic at Higher tier grade band ${subtopic.grade_band}.`}
+
+REAL-WORLD CONTEXT OVERRIDE
+If the TOPICS IN SCOPE section above specifies that questions should be pure algebraic tasks with no real-world context, that instruction overrides the general real-world context rule above. Always follow the subtopic-specific instruction.
+
+FEW-SHOT EXAMPLES — CORRECT QUESTION STYLE FOR THIS SUBTOPIC
+Use these as a model for question structure, command words, mark scheme format, and worked solution format.
+
+EXAMPLE 1 — Easy (1 mark, single step):
+Question: "Solve $3x = 21$"
+Mark scheme: B1 for $x = 7$
+Worked solution: "$3x = 21$\\n$x = 21 \\\\div 3$\\n$x = 7$"
+
+EXAMPLE 2 — Medium (2 marks, two step):
+Question: "Solve $5x + 3 = 28$"
+Mark scheme: M1 for correct first step ($5x = 25$), A1 for $x = 5$
+Worked solution: "$5x + 3 = 28$\\n$5x = 28 - 3$\\n$5x = 25$\\n$x = 25 \\\\div 5$\\n$x = 5$"
+
+EXAMPLE 3 — Hard (3 marks, brackets and unknowns on both sides):
+Question: "Solve $4(2x - 1) = 3x + 11$"
+Mark scheme: M1 for expanding bracket correctly ($8x - 4 = 3x + 11$), M1 for collecting like terms ($5x = 15$), A1 for $x = 3$
+Worked solution: "$4(2x - 1) = 3x + 11$\\n$8x - 4 = 3x + 11$\\n$8x - 3x = 11 + 4$\\n$5x = 15$\\n$x = 15 \\\\div 5$\\n$x = 3$"
+
+NOTE: These examples show style and structure only. Generate completely new questions with different equations and values every time. If the subtopic requires a different style (real-world context, multi-part), follow the subtopic-specific instruction above and use these examples only as a format reference.
 
 FORBIDDEN QUESTION TYPES — ALWAYS SEEDED, NEVER AI-GENERATED
 Never generate questions requiring:
@@ -745,6 +791,29 @@ For non-linear simultaneous equations: M1 correct substitution, M1 forming quadr
 
 TOPICS IN SCOPE FOR THIS SUBTOPIC
 ${promptConfig.system_prompt || `Topic: ${subtopic.subtopic_name}. Generate questions that directly test this topic at Higher tier grade band ${subtopic.grade_band}.`}
+
+REAL-WORLD CONTEXT OVERRIDE
+If the TOPICS IN SCOPE section above specifies that questions should be pure algebraic tasks with no real-world context, that instruction overrides the general real-world context rule above. Always follow the subtopic-specific instruction.
+
+FEW-SHOT EXAMPLES — CORRECT QUESTION STYLE FOR THIS SUBTOPIC
+Use these as a model for question structure, command words, mark scheme format, and worked solution format.
+
+EXAMPLE 1 — Easy (1 mark, single step):
+Question: "Solve $3x = 21$"
+Mark scheme: B1 for $x = 7$
+Worked solution: "$3x = 21$\\n$x = 21 \\\\div 3$\\n$x = 7$"
+
+EXAMPLE 2 — Medium (2 marks, two step):
+Question: "Solve $5x + 3 = 28$"
+Mark scheme: M1 for correct first step ($5x = 25$), A1 for $x = 5$
+Worked solution: "$5x + 3 = 28$\\n$5x = 28 - 3$\\n$5x = 25$\\n$x = 25 \\\\div 5$\\n$x = 5$"
+
+EXAMPLE 3 — Hard (3 marks, brackets and unknowns on both sides):
+Question: "Solve $4(2x - 1) = 3x + 11$"
+Mark scheme: M1 for expanding bracket correctly ($8x - 4 = 3x + 11$), M1 for collecting like terms ($5x = 15$), A1 for $x = 3$
+Worked solution: "$4(2x - 1) = 3x + 11$\\n$8x - 4 = 3x + 11$\\n$8x - 3x = 11 + 4$\\n$5x = 15$\\n$x = 15 \\\\div 5$\\n$x = 3$"
+
+NOTE: These examples show style and structure only. Generate completely new questions with different equations and values every time. If the subtopic requires a different style (real-world context, multi-part), follow the subtopic-specific instruction above and use these examples only as a format reference.
 
 FORBIDDEN QUESTION TYPES — ALWAYS SEEDED, NEVER AI-GENERATED
 Never generate questions requiring:
