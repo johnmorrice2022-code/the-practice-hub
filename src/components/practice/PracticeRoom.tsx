@@ -185,8 +185,10 @@ export function PracticeRoom({
         (subtopicRes.data?.prompt_config as any)?.marking_guidance || null;
       setMarkingGuidance(guidance);
       if (seededRes.data && seededRes.data.length > 0) {
+        // Shuffle seeded questions so "New set" produces a different order
+        const shuffled = [...seededRes.data].sort(() => Math.random() - 0.5);
         setQuestions(
-          seededRes.data.map((q) => ({
+          shuffled.map((q) => ({
             ...q,
             parts: [],
             diagram_type: null,
@@ -588,10 +590,10 @@ export function PracticeRoom({
             <div className="flex items-center gap-3">
               {phase === 'answering' && (
                 <button
-                  onClick={generateAIQuestions}
+                  onClick={loadQuestions}
                   disabled={generatingQuestions}
                   className="text-xs text-muted-foreground/60 hover:text-[#E23D28] transition-colors flex items-center gap-1"
-                  title="Generate new questions"
+                  title="New set of questions"
                 >
                   <Sparkles size={12} /> New set
                 </button>
