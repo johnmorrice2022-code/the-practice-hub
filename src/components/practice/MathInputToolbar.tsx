@@ -287,6 +287,41 @@ function isInStructuralPart(block: Block, pos: number): boolean {
 // KATEX PREVIEW
 // ═══════════════════════════════════════════════════════════════════════
 
+// Tokens that contain a LaTeX command, digit, or maths operator are passed
+// through to KaTeX as-is. Pure word tokens (plain English) are wrapped in
+// \text{} so KaTeX renders them as readable prose with normal spacing.
+function processLineForKaTeX(line: string): string {
+  const MATH_TOKEN = /[\\^_{}=+\-*/<>0-9]|\\[a-zA-Z]/;
+  // Split on whitespace but keep the whitespace tokens so we can reassemble
+  const tokens = line.trim().split(/(\s+)/);
+
+  let result = '';
+  let plainBuffer = '';
+
+  const flushPlain = () => {
+    if (!plainBuffer) return;
+    result += `\\text{${plainBuffer}}`;
+    plainBuffer = '';
+  };
+
+  for (const token of tokens) {
+    if (/^\s+$/.test(token)) {
+      // Whitespace: add a space to whichever context we're currently in
+      plainBuffer += ' ';
+    } else if (MATH_TOKEN.test(token)) {
+      // Maths token — flush any plain text first, then emit as-is
+      flushPlain();
+      result += token;
+    } else {
+      // Pure word — accumulate into plain buffer
+      plainBuffer += token;
+    }
+  }
+  flushPlain();
+
+  return result;
+}
+
 function KaTeXPreview({ text }: { text: string }) {
   const trimmed = text.trim();
 
@@ -314,8 +349,11 @@ function KaTeXLine({ line }: { line: string }) {
 
   useEffect(() => {
     if (!ref.current) return;
+
+    const processed = processLineForKaTeX(line);
+
     try {
-      ref.current.innerHTML = katex.renderToString(line.trim(), {
+      ref.current.innerHTML = katex.renderToString(processed, {
         displayMode: true,
         throwOnError: false,
       });
