@@ -63,188 +63,168 @@ Write each step on a separate line using \\n between steps. One calculation step
 `;
 
 // ─────────────────────────────────────────────
-// SINGLE QUESTION OUTPUT FORMATS
+// OUTPUT FORMATS
 // ─────────────────────────────────────────────
 
-const FOUNDATION_SINGLE_QUESTION_FORMAT = `
+const FOUNDATION_OUTPUT_FORMAT = `
 QUESTION FORMAT
-Generate exactly ONE question. It must be one of two types:
+Each question must be one of two types:
 
 TYPE 1 — Single part question:
 {
-  "question": {
-    "question_text": "Javid hires a car for 10 days. He pays £45 for each day. He also pays £30 for insurance. Javid pays with ten £50 notes. Work out how much change he should get. (3 marks)",
-    "marks": 3,
-    "parts": [],
-    "mark_scheme": [
-      { "mark_type": "M", "criterion": "Correct method to find total cost ($45 \\\\times 10 + 30$)", "marks": 1 },
-      { "mark_type": "A", "criterion": "Total cost = £480", "marks": 1 },
-      { "mark_type": "A", "criterion": "Change = £20", "marks": 1 }
-    ],
-    "worked_solution": "$45 \\\\times 10 = 450$\\n$450 + 30 = 480$\\n$10 \\\\times 50 = 500$\\n$500 - 480 = £20$",
-    "diagram_type": null,
-    "diagram_params": null
-  }
+  "question_text": "Javid hires a car for 10 days. He pays £45 for each day. He also pays £30 for insurance. Javid pays with ten £50 notes. Work out how much change he should get. (3 marks)",
+  "marks": 3,
+  "parts": [],
+  "mark_scheme": [
+    { "mark_type": "M", "criterion": "Correct method to find total cost ($45 \\\\times 10 + 30$)", "marks": 1 },
+    { "mark_type": "A", "criterion": "Total cost = £480", "marks": 1 },
+    { "mark_type": "A", "criterion": "Change = £20", "marks": 1 }
+  ],
+  "worked_solution": "$45 \\\\times 10 = 450$\\n$450 + 30 = 480$\\n$10 \\\\times 50 = 500$\\n$500 - 480 = £20$"
 }
 
 TYPE 2 — Multi-part question:
 {
-  "question": {
-    "question_text": "Here are the ages, in years, of 8 children: 14 10 10 13 15 9 15 10",
-    "marks": 4,
-    "parts": [
-      { "part_label": "a", "part_text": "Work out the mean age.", "marks": 2 },
-      { "part_label": "b", "part_text": "Work out the range of the ages.", "marks": 2 }
-    ],
-    "mark_scheme": [
-      { "mark_type": "M", "part": "a", "criterion": "Correct method: sum of all ages divided by 8", "marks": 1 },
-      { "mark_type": "A", "part": "a", "criterion": "Mean = 12 years", "marks": 1 },
-      { "mark_type": "M", "part": "b", "criterion": "Correct method: highest minus lowest ($15 - 9$)", "marks": 1 },
-      { "mark_type": "A", "part": "b", "criterion": "Range = 6 years", "marks": 1 }
-    ],
-    "worked_solution": "Part (a):\\n$14 + 10 + 10 + 13 + 15 + 9 + 15 + 10 = 96$\\n$96 \\\\div 8 = 12$ years\\nPart (b):\\n$15 - 9 = 6$ years",
-    "diagram_type": null,
-    "diagram_params": null
-  }
+  "question_text": "Here are the ages, in years, of 8 children: 14 10 10 13 15 9 15 10",
+  "marks": 4,
+  "parts": [
+    { "part_label": "a", "part_text": "Work out the mean age.", "marks": 2 },
+    { "part_label": "b", "part_text": "Work out the range of the ages.", "marks": 2 }
+  ],
+  "mark_scheme": [
+    { "mark_type": "M", "part": "a", "criterion": "Correct method: sum of all ages divided by 8", "marks": 1 },
+    { "mark_type": "A", "part": "a", "criterion": "Mean = 12 years", "marks": 1 },
+    { "mark_type": "M", "part": "b", "criterion": "Correct method: highest minus lowest ($15 - 9$)", "marks": 1 },
+    { "mark_type": "A", "part": "b", "criterion": "Range = 6 years", "marks": 1 }
+  ],
+  "worked_solution": "Part (a):\\n$14 + 10 + 10 + 13 + 15 + 9 + 15 + 10 = 96$\\n$96 \\\\div 8 = 12$ years\\nPart (b):\\n$15 - 9 = 6$ years"
 }
 
 RULES:
-1. Return ONLY a JSON object with a single "question" key — no markdown, no preamble
-2. Use LaTeX notation as shown above — mandatory
-3. \\\\times must always use double escaped backslash
-4. For TYPE 2: question_text is the shared scenario stem ONLY — never include part sub-questions or mark allocations in question_text. Each part_text is the sub-question for that part only, with no (a)/(b) label prefix and no mark count.
-5. Mark schemes must be unambiguous
-6. Worked solution must have one step per line, separated by \\n
+1. Generate exactly {COUNT} questions in increasing difficulty
+2. Questions must read exactly like real Pearson Edexcel Foundation past paper questions
+3. Use LaTeX notation as shown above — mandatory
+4. \\\\times must always use double escaped backslash
+5. At least one question must be multi-part (TYPE 2)
+5a. For TYPE 2 questions: question_text is the shared scenario stem ONLY — never include part sub-questions or mark allocations in question_text. Each part_text is the sub-question for that part only, with no (a)/(b) label prefix and no mark count.
+6. Mark schemes must be unambiguous
+7. Worked solution must have one step per line, separated by \\n
+8. Return ONLY a JSON object: { "questions": [...] } — no markdown, no preamble
 `;
 
-const HIGHER_SINGLE_QUESTION_FORMAT = `
+const HIGHER_OUTPUT_FORMAT = `
 QUESTION FORMAT
-Generate exactly ONE question. It must be one of two types:
+Each question must be one of two types:
 
 TYPE 1 — Single part question:
 {
-  "question": {
-    "question_text": "Simplify $\\\\sqrt{72}$. Give your answer in the form $a\\\\sqrt{b}$ where $a$ and $b$ are integers.",
-    "marks": 2,
-    "parts": [],
-    "mark_scheme": [
-      { "mark_type": "M", "criterion": "Identifies $\\\\sqrt{36}$ as a factor of 72", "marks": 1 },
-      { "mark_type": "A", "criterion": "Correct answer $6\\\\sqrt{2}$", "marks": 1 }
-    ],
-    "worked_solution": "$\\\\sqrt{72} = \\\\sqrt{36 \\\\times 2}$\\n$= \\\\sqrt{36} \\\\times \\\\sqrt{2}$\\n$= 6\\\\sqrt{2}$",
-    "diagram_type": null,
-    "diagram_params": null
-  }
+  "question_text": "Simplify $\\\\sqrt{72}$. Give your answer in the form $a\\\\sqrt{b}$ where $a$ and $b$ are integers.",
+  "marks": 2,
+  "parts": [],
+  "mark_scheme": [
+    { "mark_type": "M", "criterion": "Identifies $\\\\sqrt{36}$ as a factor of 72", "marks": 1 },
+    { "mark_type": "A", "criterion": "Correct answer $6\\\\sqrt{2}$", "marks": 1 }
+  ],
+  "worked_solution": "$\\\\sqrt{72} = \\\\sqrt{36 \\\\times 2}$\\n$= \\\\sqrt{36} \\\\times \\\\sqrt{2}$\\n$= 6\\\\sqrt{2}$"
 }
 
 TYPE 2 — Multi-part question:
 {
-  "question": {
-    "question_text": "The cost of a first class stamp increased from 76p to 85p. The cost of a second class stamp increased from 65p to 66p. Filip says, \\"The percentage increase in the cost of a first class stamp is more than 7 times the percentage increase in the cost of a second class stamp.\\"",
-    "marks": 4,
-    "parts": [
-      { "part_label": "a", "part_text": "Work out the percentage increase in the cost of a first class stamp.", "marks": 2 },
-      { "part_label": "b", "part_text": "Is Filip correct? You must show all your working.", "marks": 2 }
-    ],
-    "mark_scheme": [
-      { "mark_type": "M", "part": "a", "criterion": "Correct method: $\\\\frac{9}{76} \\\\times 100$", "marks": 1 },
-      { "mark_type": "A", "part": "a", "criterion": "11.8% (accept 11.84...%)", "marks": 1 },
-      { "mark_type": "M", "part": "b", "criterion": "Correct method for second class: $\\\\frac{1}{65} \\\\times 100$", "marks": 1 },
-      { "mark_type": "C", "part": "b", "criterion": "Correct conclusion: Filip is correct, 11.84...% > 7 x 1.53...% = 10.76...%", "marks": 1 }
-    ],
-    "worked_solution": "Part (a):\\n$\\\\frac{85-76}{76} \\\\times 100 = 11.84...\\\\%$\\nPart (b):\\n$\\\\frac{1}{65} \\\\times 100 = 1.538...\\\\%$\\n$7 \\\\times 1.538... = 10.76...\\\\%$\\n$11.84\\\\% > 10.76\\\\%$ so Filip is correct",
-    "diagram_type": null,
-    "diagram_params": null
-  }
+  "question_text": "The cost of a first class stamp increased from 76p to 85p. The cost of a second class stamp increased from 65p to 66p. Filip says, \\"The percentage increase in the cost of a first class stamp is more than 7 times the percentage increase in the cost of a second class stamp.\\"",
+  "marks": 4,
+  "parts": [
+    { "part_label": "a", "part_text": "Work out the percentage increase in the cost of a first class stamp.", "marks": 2 },
+    { "part_label": "b", "part_text": "Is Filip correct? You must show all your working.", "marks": 2 }
+  ],
+  "mark_scheme": [
+    { "mark_type": "M", "part": "a", "criterion": "Correct method: $\\\\frac{9}{76} \\\\times 100$", "marks": 1 },
+    { "mark_type": "A", "part": "a", "criterion": "11.8% (accept 11.84...%)", "marks": 1 },
+    { "mark_type": "M", "part": "b", "criterion": "Correct method for second class: $\\\\frac{1}{65} \\\\times 100$", "marks": 1 },
+    { "mark_type": "C", "part": "b", "criterion": "Correct conclusion: Filip is correct, 11.84...% > 7 x 1.53...% = 10.76...%", "marks": 1 }
+  ],
+  "worked_solution": "Part (a):\\n$\\\\frac{85-76}{76} \\\\times 100 = 11.84...\\\\%$\\nPart (b):\\n$\\\\frac{1}{65} \\\\times 100 = 1.538...\\\\%$\\n$7 \\\\times 1.538... = 10.76...\\\\%$\\n$11.84\\\\% > 10.76\\\\%$ so Filip is correct"
 }
 
+MULTI-PART QUESTION RULES:
+- question_text is the shared scenario stem ONLY — never list sub-questions or mark allocations inside question_text
+- Each part_text is the sub-question for that part only — no (a)/(b) label prefix, no mark count
+- The app renders the part label and mark count automatically — do not duplicate them in the text
+
 RULES:
-1. Return ONLY a JSON object with a single "question" key — no markdown, no preamble
-2. Use LaTeX notation as shown above — mandatory
-3. \\\\times must always use double escaped backslash
-4. question_text is the shared scenario stem ONLY — never list sub-questions or mark allocations inside question_text
-5. Each part_text is the sub-question for that part only — no (a)/(b) label prefix, no mark count
+1. Generate exactly {COUNT} questions in increasing difficulty
+2. Questions must read exactly like real Pearson Edexcel Higher past paper questions
+3. Use LaTeX notation as shown above — mandatory
+4. \\\\times must always use double escaped backslash
+5. At least one question must be multi-part (TYPE 2)
 6. Mark schemes must be unambiguous — a second examiner must reach identical marks
 7. Worked solution must have one step per line, separated by \\n
+8. Return ONLY a JSON object: { "questions": [...] } — no markdown, no preamble
 `;
 
-const PHYSICS_SINGLE_QUESTION_FORMAT = `
+const PHYSICS_OUTPUT_FORMAT = `
 QUESTION FORMAT
-Generate exactly ONE question. It must be one of two types:
+Each question must be one of two types:
 
 TYPE 1 — Single part question:
 {
-  "question": {
-    "question_text": "A student measures a force of 12 N acting over an area of 0.40 $m^2$. Calculate the pressure. Give your answer in Pa.",
-    "marks": 2,
-    "parts": [],
-    "mark_scheme": [
-      { "mark_type": "step", "criterion": "Correct substitution: $P = \\\\frac{12}{0.40}$", "marks": 1 },
-      { "mark_type": "step", "criterion": "Correct answer with unit: 30 Pa", "marks": 1 }
-    ],
-    "worked_solution": "$P = \\\\frac{F}{A}$\\n$P = \\\\frac{12}{0.40}$\\n$P = 30$ Pa",
-    "diagram_type": null,
-    "diagram_params": null
-  }
+  "question_text": "A student measures a force of 12 N acting over an area of 0.40 $m^2$. Calculate the pressure. Give your answer in Pa.",
+  "marks": 2,
+  "parts": [],
+  "mark_scheme": [
+    { "mark_type": "step", "criterion": "Correct substitution: $P = \\\\frac{12}{0.40}$", "marks": 1 },
+    { "mark_type": "step", "criterion": "Correct answer with unit: 30 Pa", "marks": 1 }
+  ],
+  "worked_solution": "$P = \\\\frac{F}{A}$\\n$P = \\\\frac{12}{0.40}$\\n$P = 30$ Pa"
 }
 
 TYPE 2 — Multi-part question:
 {
-  "question": {
-    "question_text": "A student investigates how the resistance of a wire depends on the length of the wire.",
-    "marks": 5,
-    "parts": [
-      { "part_label": "a", "part_text": "Name the independent variable in this investigation.", "marks": 1 },
-      { "part_label": "b", "part_text": "Describe how the student should collect results for this investigation.", "marks": 4 }
-    ],
-    "mark_scheme": [
-      { "mark_type": "step", "part": "a", "criterion": "Length of the wire", "marks": 1 },
-      { "mark_type": "step", "part": "b", "criterion": "Measure the length of wire between the contacts", "marks": 1 },
-      { "mark_type": "step", "part": "b", "criterion": "Measure current and potential difference for each length", "marks": 1 },
-      { "mark_type": "step", "part": "b", "criterion": "Calculate resistance using $R = \\\\frac{V}{I}$", "marks": 1 },
-      { "mark_type": "step", "part": "b", "criterion": "Repeat for several lengths and plot a graph of resistance against length", "marks": 1 }
-    ],
-    "worked_solution": "Part (a):\\nThe independent variable is the length of the wire.\\nPart (b):\\nMeasure the length of wire between the contacts.\\nMeasure the current and potential difference.\\nCalculate resistance using $R = \\\\frac{V}{I}$.\\nRepeat for several lengths and plot a graph.",
-    "diagram_type": null,
-    "diagram_params": null
-  }
+  "question_text": "A student investigates how the resistance of a wire depends on the length of the wire. The student uses a cell, an ammeter, a voltmeter, a switch and a length of resistance wire.",
+  "marks": 5,
+  "parts": [
+    { "part_label": "a", "part_text": "Name the independent variable in this investigation.", "marks": 1 },
+    { "part_label": "b", "part_text": "Describe how the student should collect results for this investigation.", "marks": 4 }
+  ],
+  "mark_scheme": [
+    { "mark_type": "step", "part": "a", "criterion": "Length of the wire", "marks": 1 },
+    { "mark_type": "step", "part": "b", "criterion": "Measure the length of wire between the contacts", "marks": 1 },
+    { "mark_type": "step", "part": "b", "criterion": "Measure current and potential difference for each length", "marks": 1 },
+    { "mark_type": "step", "part": "b", "criterion": "Calculate resistance using $R = \\\\frac{V}{I}$", "marks": 1 },
+    { "mark_type": "step", "part": "b", "criterion": "Repeat for several lengths and plot a graph of resistance against length", "marks": 1 }
+  ],
+  "worked_solution": "Part (a):\\nThe independent variable is the length of the wire.\\nPart (b):\\nMeasure the length of wire between the contacts.\\nMeasure the current and potential difference.\\nCalculate resistance using $R = \\\\frac{V}{I}$.\\nRepeat for several lengths and plot a graph."
 }
 
+MULTI-PART QUESTION RULES:
+- question_text is the shared scenario stem ONLY
+- Do not list sub-questions inside question_text
+- Each part_text is the sub-question only
+- Do not include "(a)" or "(b)" in part_text
+- Do not include mark counts inside part_text
+- The app renders labels and mark counts automatically
+
 RULES:
-1. Return ONLY a JSON object with a single "question" key — no markdown, no preamble
-2. Use LaTeX notation — mandatory. \\\\times must always use double escaped backslash
-3. question_text is the shared scenario stem ONLY
-4. Each part_text is the sub-question only — no "(a)" or "(b)" prefix, no mark count
-5. Every mark_scheme item must use "mark_type": "step"
-6. Worked solution must have one step per line, separated by \\n
+1. Generate exactly {COUNT} questions in increasing difficulty
+2. Questions must read like real AQA GCSE Physics 8463 exam questions
+3. Use LaTeX notation — mandatory
+4. \\\\times must always use double escaped backslash
+5. At least one question must be multi-part
+6. Mark schemes must use AQA-style standalone marking points
+7. Do not use Edexcel M/A/B/C/P mark types for Physics
+8. Every mark_scheme item must use "mark_type": "step"
+9. Worked solution must have one step per line, separated by \\n
+10. Return ONLY a JSON object: { "questions": [...] } — no markdown, no preamble
 `;
 
 // ─────────────────────────────────────────────
 // FOUNDATION MATHS PAPER PROMPT BUILDERS
 // ─────────────────────────────────────────────
 
-const FOUNDATION_DIFFICULTY_GRADIENT = [
-  'Grade 1-2 (1-2 marks) — accessible entry question, single or two-step, real-world context',
-  'Grade 2-3 (3-4 marks) — multi-step problem, named character, real-world context',
-  'Grade 3-4 (4-5 marks) — multi-part question (parts a, b, c), applying knowledge to a scenario',
-  'Grade 4-5 (3-5 marks) — higher demand, may require "you must show all your working"',
-];
-
-const HIGHER_DIFFICULTY_GRADIENT = [
-  'Grade 4-5 (2-3 marks) — accessible entry, one or two steps, straightforward application of a technique',
-  'Grade 5-6 (3-4 marks) — multi-step, requires connecting two ideas or setting up before solving',
-  'Grade 6-7 (4-5 marks) — multi-part or extended working, reasoning or algebraic manipulation required',
-  'Grade 7-9 (4-6 marks) — higher demand: proof, "show that", non-routine problem, or combined topics',
-];
-
-function buildFoundationP1Prompt(subtopic: any, questionIndex: number): string {
+function buildFoundationP1Prompt(subtopic: any, count: number): string {
   const promptConfig = subtopic.prompt_config || {};
-  const difficulty =
-    FOUNDATION_DIFFICULTY_GRADIENT[questionIndex] ||
-    FOUNDATION_DIFFICULTY_GRADIENT[3];
-  return `You are an expert Pearson Edexcel GCSE Mathematics question writer for Foundation tier Paper 1 (Non-Calculator). Your task is to generate exactly ONE exam question that is authentic Pearson Edexcel 1MA1/1F style. This question will be marked by a separate AI examiner, so it must include a complete mark scheme.
+  return `You are an expert Pearson Edexcel GCSE Mathematics question writer for Foundation tier Paper 1 (Non-Calculator). Your task is to generate exactly ${count} exam questions that are authentic Pearson Edexcel 1MA1/1F style. These questions will be marked by a separate AI examiner, so every question must include a complete mark scheme.
 
-CRITICAL: Calculators are NOT permitted on this paper. Every calculation in this question must be workable by hand using mental arithmetic, written methods, or standard algorithms. Never include calculations requiring a calculator.
+CRITICAL: Calculators are NOT permitted on this paper. Every calculation in every question must be workable by hand using mental arithmetic, written methods, or standard algorithms. Never include calculations requiring a calculator.
 
 Subject: ${subtopic.subject}
 Tier: Foundation
@@ -252,8 +232,11 @@ Grade band: ${subtopic.grade_band}
 Topic: ${subtopic.topic}
 Subtopic: ${subtopic.subtopic_name}
 
-DIFFICULTY FOR THIS QUESTION (question ${questionIndex + 1}):
-${difficulty}
+QUESTION DIFFICULTY GRADIENT
+Question 1: Grade 1-2 (1-2 marks) — accessible entry question, single or two-step, real-world context
+Question 2: Grade 2-3 (3-4 marks) — multi-step problem, named character, real-world context
+Question 3: Grade 3-4 (4-5 marks) — multi-part question (parts a, b, c), applying knowledge to a scenario
+Question 4: Grade 4-5 (3-5 marks) — higher demand, may require "you must show all your working"
 
 COMMAND WORDS — USE THESE EXACTLY AS EDEXCEL USES THEM
 - "Work out" — for any calculation requiring shown working
@@ -300,7 +283,7 @@ NON-CALCULATOR NUMBER RULES
 - Avoid awkward long division or irrational intermediate values
 
 TOPICS IN SCOPE FOR THIS SUBTOPIC
-${promptConfig.system_prompt || `Topic: ${subtopic.subtopic_name}. Generate a question that directly tests this topic at Foundation tier grade band ${subtopic.grade_band}.`}
+${promptConfig.system_prompt || `Topic: ${subtopic.subtopic_name}. Generate questions that directly test this topic at Foundation tier grade band ${subtopic.grade_band}.`}
 
 REAL-WORLD CONTEXT OVERRIDE
 If the TOPICS IN SCOPE section above specifies that questions should be pure algebraic tasks with no real-world context, that instruction overrides the general real-world context rule above. Always follow the subtopic-specific instruction.
@@ -323,7 +306,7 @@ Question: "Solve $4(2x - 1) = 3x + 11$"
 Mark scheme: M1 for expanding bracket correctly ($8x - 4 = 3x + 11$), M1 for collecting like terms ($5x = 15$), A1 for $x = 3$
 Worked solution: "$4(2x - 1) = 3x + 11$\\n$8x - 4 = 3x + 11$\\n$8x - 3x = 11 + 4$\\n$5x = 15$\\n$x = 15 \\\\div 5$\\n$x = 3$"
 
-NOTE: These examples show style and structure only. Generate a completely new question with different values every time.
+NOTE: These examples show style and structure only. Generate completely new questions with different equations and values every time.
 
 FORBIDDEN QUESTION TYPES — ALWAYS SEEDED, NEVER AI-GENERATED
 Never generate questions requiring:
@@ -339,15 +322,12 @@ Never generate questions requiring:
 
 ${FOUNDATION_SHARED_LATEX_RULES}
 
-${FOUNDATION_SINGLE_QUESTION_FORMAT}`;
+${FOUNDATION_OUTPUT_FORMAT.replace('{COUNT}', String(count))}`;
 }
 
-function buildFoundationP2Prompt(subtopic: any, questionIndex: number): string {
+function buildFoundationP2Prompt(subtopic: any, count: number): string {
   const promptConfig = subtopic.prompt_config || {};
-  const difficulty =
-    FOUNDATION_DIFFICULTY_GRADIENT[questionIndex] ||
-    FOUNDATION_DIFFICULTY_GRADIENT[3];
-  return `You are an expert Pearson Edexcel GCSE Mathematics question writer for Foundation tier Paper 2 (Calculator). Your task is to generate exactly ONE exam question that is authentic Pearson Edexcel 1MA1/2F style. This question will be marked by a separate AI examiner, so it must include a complete mark scheme.
+  return `You are an expert Pearson Edexcel GCSE Mathematics question writer for Foundation tier Paper 2 (Calculator). Your task is to generate exactly ${count} exam questions that are authentic Pearson Edexcel 1MA1/2F style. These questions will be marked by a separate AI examiner, so every question must include a complete mark scheme.
 
 IMPORTANT: A calculator is permitted. Questions may include percentages of amounts, division of decimals, area and volume involving pi, density, compound interest. Working must still be clearly shown.
 
@@ -357,8 +337,11 @@ Grade band: ${subtopic.grade_band}
 Topic: ${subtopic.topic}
 Subtopic: ${subtopic.subtopic_name}
 
-DIFFICULTY FOR THIS QUESTION (question ${questionIndex + 1}):
-${difficulty}
+QUESTION DIFFICULTY GRADIENT
+Question 1: Grade 1-2 (1-2 marks) — accessible entry question, single or two-step, real-world context
+Question 2: Grade 2-3 (3-4 marks) — multi-step problem, named character, real-world context
+Question 3: Grade 3-4 (4-5 marks) — multi-part question (parts a, b, c), applying knowledge to a scenario
+Question 4: Grade 4-5 (4-6 marks) — higher demand, often a "you must show all your working" decision, comparison, or combined algebra-and-geometry problem
 
 COMMAND WORDS — USE THESE EXACTLY AS EDEXCEL USES THEM
 - "Work out" — for any calculation requiring shown working
@@ -381,8 +364,9 @@ Suitable contexts: car insurance and percentage change, ticket sales, wages and 
 Named characters: use common UK names such as Javid, Jo, Amy, Nina, Harry, Emma, Peter, Barnie, Robyn, Aisha, Dan, Milly, Ewan, Chloe, Gita, Olly, Karim, Rohan, Filip.
 Never use "a student" or "a person" — always a named individual.
 
-For value-for-money questions: always present two named options and require the student to state a conclusion.
-For "Is [name] correct?" questions: always include a named person making a mathematical claim.
+For value-for-money questions: always present two named options and require the student to state a conclusion. Use: "In which [location/option] is the [item] the better value for money? You must show how you get your answer."
+
+For "Is [name] correct?" questions: always include a named person making a mathematical claim. Use: "Is [name] correct? You must show all your working."
 
 MULTI-PART QUESTION RULES
 - Each part must be a genuinely independent sub-problem within the same scenario
@@ -390,7 +374,7 @@ MULTI-PART QUESTION RULES
 - Part (b) builds on the scenario at higher demand
 - Part (c) is a further extension
 - NEVER split a single method into parts
-- question_text must contain the shared scenario stem ONLY
+- question_text must contain the shared scenario stem ONLY — never list the sub-questions inside question_text
 - Each part_text must contain only that part's sub-question, with no (a)/(b)/(c) label prefix and no mark count
 
 MARK SCHEME RULES — PEARSON EDEXCEL FOUNDATION
@@ -404,7 +388,7 @@ Note ECF explicitly where it applies.
 For comparison/decision questions: always include a C1 mark for the correct conclusion explicitly stated in words.
 
 TOPICS IN SCOPE FOR THIS SUBTOPIC
-${promptConfig.system_prompt || `Topic: ${subtopic.subtopic_name}. Generate a question that directly tests this topic at Foundation tier grade band ${subtopic.grade_band}.`}
+${promptConfig.system_prompt || `Topic: ${subtopic.subtopic_name}. Generate questions that directly test this topic at Foundation tier grade band ${subtopic.grade_band}.`}
 
 REAL-WORLD CONTEXT OVERRIDE
 If the TOPICS IN SCOPE section above specifies that questions should be pure algebraic tasks with no real-world context, that instruction overrides the general real-world context rule above. Always follow the subtopic-specific instruction.
@@ -426,7 +410,7 @@ Question: "Solve $4(2x - 1) = 3x + 11$"
 Mark scheme: M1 for expanding bracket correctly ($8x - 4 = 3x + 11$), M1 for collecting like terms ($5x = 15$), A1 for $x = 3$
 Worked solution: "$4(2x - 1) = 3x + 11$\\n$8x - 4 = 3x + 11$\\n$8x - 3x = 11 + 4$\\n$5x = 15$\\n$x = 15 \\\\div 5$\\n$x = 3$"
 
-NOTE: These examples show style and structure only. Generate a completely new question with different values every time.
+NOTE: These examples show style and structure only. Generate completely new questions with different equations and values every time.
 
 FORBIDDEN QUESTION TYPES — ALWAYS SEEDED, NEVER AI-GENERATED
 Never generate questions requiring:
@@ -443,15 +427,12 @@ Never generate questions requiring:
 
 ${FOUNDATION_SHARED_LATEX_RULES}
 
-${FOUNDATION_SINGLE_QUESTION_FORMAT}`;
+${FOUNDATION_OUTPUT_FORMAT.replace('{COUNT}', String(count))}`;
 }
 
-function buildFoundationP3Prompt(subtopic: any, questionIndex: number): string {
+function buildFoundationP3Prompt(subtopic: any, count: number): string {
   const promptConfig = subtopic.prompt_config || {};
-  const difficulty =
-    FOUNDATION_DIFFICULTY_GRADIENT[questionIndex] ||
-    FOUNDATION_DIFFICULTY_GRADIENT[3];
-  return `You are an expert Pearson Edexcel GCSE Mathematics question writer for Foundation tier Paper 3 (Calculator). Your task is to generate exactly ONE exam question that is authentic Pearson Edexcel 1MA1/3F style. This question will be marked by a separate AI examiner, so it must include a complete mark scheme.
+  return `You are an expert Pearson Edexcel GCSE Mathematics question writer for Foundation tier Paper 3 (Calculator). Your task is to generate exactly ${count} exam questions that are authentic Pearson Edexcel 1MA1/3F style. These questions will be marked by a separate AI examiner, so every question must include a complete mark scheme.
 
 IMPORTANT: A calculator is permitted. Paper 3 has a higher proportion of multi-step applied problems involving fractions, percentages, ratio, statistics, and combined topics. Questions frequently require students to interpret and communicate results.
 
@@ -461,8 +442,11 @@ Grade band: ${subtopic.grade_band}
 Topic: ${subtopic.topic}
 Subtopic: ${subtopic.subtopic_name}
 
-DIFFICULTY FOR THIS QUESTION (question ${questionIndex + 1}):
-${difficulty}
+QUESTION DIFFICULTY GRADIENT
+Question 1: Grade 1-2 (1-2 marks) — accessible entry question, one or two steps, real-world context
+Question 2: Grade 2-3 (3-4 marks) — multi-step problem, named character, real-world context
+Question 3: Grade 3-4 (4-5 marks) — multi-part question (parts a, b), may include a statistical or ratio element
+Question 4: Grade 4-5 (4-5 marks) — higher demand, often a combined ratio-and-percentage problem, multi-group calculation, or percentage profit requiring a stated conclusion
 
 COMMAND WORDS — USE THESE EXACTLY AS EDEXCEL USES THEM
 - "Work out" — for any calculation requiring shown working
@@ -488,7 +472,7 @@ MULTI-PART QUESTION RULES
 - Part (a) is always the lower-demand entry point
 - Part (b) builds on the scenario at higher demand
 - NEVER split a single method into parts
-- question_text must contain the shared scenario stem ONLY
+- question_text must contain the shared scenario stem ONLY — never list the sub-questions inside question_text
 - Each part_text must contain only that part's sub-question, with no (a)/(b) label prefix and no mark count
 
 MARK SCHEME RULES — PEARSON EDEXCEL FOUNDATION
@@ -503,7 +487,7 @@ For "Is X correct?" questions: always include a C1 or B1 for the correct evaluat
 For "Compare the distribution" questions: award one mark for comparing an average, one for spread, one for a contextual conclusion.
 
 TOPICS IN SCOPE FOR THIS SUBTOPIC
-${promptConfig.system_prompt || `Topic: ${subtopic.subtopic_name}. Generate a question that directly tests this topic at Foundation tier grade band ${subtopic.grade_band}.`}
+${promptConfig.system_prompt || `Topic: ${subtopic.subtopic_name}. Generate questions that directly test this topic at Foundation tier grade band ${subtopic.grade_band}.`}
 
 REAL-WORLD CONTEXT OVERRIDE
 If the TOPICS IN SCOPE section above specifies that questions should be pure algebraic tasks with no real-world context, that instruction overrides the general real-world context rule above. Always follow the subtopic-specific instruction.
@@ -525,7 +509,7 @@ Question: "Solve $4(2x - 1) = 3x + 11$"
 Mark scheme: M1 for expanding bracket correctly ($8x - 4 = 3x + 11$), M1 for collecting like terms ($5x = 15$), A1 for $x = 3$
 Worked solution: "$4(2x - 1) = 3x + 11$\\n$8x - 4 = 3x + 11$\\n$8x - 3x = 11 + 4$\\n$5x = 15$\\n$x = 15 \\\\div 5$\\n$x = 3$"
 
-NOTE: These examples show style and structure only. Generate a completely new question with different values every time.
+NOTE: These examples show style and structure only. Generate completely new questions with different equations and values every time.
 
 FORBIDDEN QUESTION TYPES — ALWAYS SEEDED, NEVER AI-GENERATED
 Never generate questions requiring:
@@ -542,18 +526,16 @@ Never generate questions requiring:
 
 ${FOUNDATION_SHARED_LATEX_RULES}
 
-${FOUNDATION_SINGLE_QUESTION_FORMAT}`;
+${FOUNDATION_OUTPUT_FORMAT.replace('{COUNT}', String(count))}`;
 }
 
 // ─────────────────────────────────────────────
 // HIGHER MATHS PAPER PROMPT BUILDERS
 // ─────────────────────────────────────────────
 
-function buildHigherP1Prompt(subtopic: any, questionIndex: number): string {
+function buildHigherP1Prompt(subtopic: any, count: number): string {
   const promptConfig = subtopic.prompt_config || {};
-  const difficulty =
-    HIGHER_DIFFICULTY_GRADIENT[questionIndex] || HIGHER_DIFFICULTY_GRADIENT[3];
-  return `You are an expert Pearson Edexcel GCSE Mathematics question writer for Higher tier Paper 1 (Non-Calculator). Your task is to generate exactly ONE exam question that is authentic Pearson Edexcel 1MA1/1H style. This question will be marked by a separate AI examiner, so it must include a complete mark scheme.
+  return `You are an expert Pearson Edexcel GCSE Mathematics question writer for Higher tier Paper 1 (Non-Calculator). Your task is to generate exactly ${count} exam questions that are authentic Pearson Edexcel 1MA1/1H style. These questions will be marked by a separate AI examiner, so every question must include a complete mark scheme.
 
 CRITICAL: Calculators are NOT permitted on this paper. Every calculation must be workable by hand or with exact arithmetic. Use exact surds, fractions, or integer answers — never rounded decimals that would require a calculator.
 
@@ -563,8 +545,11 @@ Grade band: ${subtopic.grade_band}
 Topic: ${subtopic.topic}
 Subtopic: ${subtopic.subtopic_name}
 
-DIFFICULTY FOR THIS QUESTION (question ${questionIndex + 1}):
-${difficulty}
+QUESTION DIFFICULTY GRADIENT
+Question 1: Grade 4-5 (2-3 marks) — accessible entry, one or two steps, straightforward application of a technique
+Question 2: Grade 5-6 (3-4 marks) — multi-step, requires connecting two ideas or setting up before solving
+Question 3: Grade 6-7 (4-5 marks) — multi-part or extended working, reasoning or algebraic manipulation required
+Question 4: Grade 7-9 (4-6 marks) — higher demand: proof, "show that", non-routine problem, or combined topics
 
 COMMAND WORDS — USE THESE EXACTLY AS EDEXCEL USES THEM
 - "Work out" — calculation requiring shown working
@@ -606,11 +591,13 @@ HIGHER TIER TOPIC CONVENTIONS
 - State the claim as a direct quote in question_text
 - Student must calculate to verify or refute
 - Always include a C mark for the correct conclusion stated in words
+- Named characters: Javid, Jo, Amy, Nina, Harry, Emma, Peter, Barnie, Robyn, Aisha, Dan, Milly, Ewan, Chloe, Gita, Olly, Karim, Rohan, Filip, Kate, Sian, Nadia
 
 "SHOW THAT" FORMAT
 - The target answer is given in the question
 - Full working with every step is required
 - Must end with a concluding statement matching the given result
+- Never just state the result — every intermediate step must be shown
 
 MARK SCHEME RULES — PEARSON EDEXCEL HIGHER
 M mark — method mark. Awarded for correct method even if arithmetic is wrong.
@@ -624,12 +611,13 @@ Always include a TOTAL entry as the final mark scheme item.
 ECF: note explicitly where error carried forward applies.
 
 TOPICS IN SCOPE FOR THIS SUBTOPIC
-${promptConfig.system_prompt || `Topic: ${subtopic.subtopic_name}. Generate a question that directly tests this topic at Higher tier grade band ${subtopic.grade_band}.`}
+${promptConfig.system_prompt || `Topic: ${subtopic.subtopic_name}. Generate questions that directly test this topic at Higher tier grade band ${subtopic.grade_band}.`}
 
 REAL-WORLD CONTEXT OVERRIDE
 If the TOPICS IN SCOPE section above specifies that questions should be pure algebraic tasks with no real-world context, that instruction overrides the general real-world context rule above. Always follow the subtopic-specific instruction.
 
 FEW-SHOT EXAMPLES — CORRECT QUESTION STYLE FOR THIS SUBTOPIC
+Use these as a model for question structure, command words, mark scheme format, and worked solution format.
 
 EXAMPLE 1 — Easy (1 mark, single step):
 Question: "Solve $3x = 21$"
@@ -646,7 +634,7 @@ Question: "Solve $4(2x - 1) = 3x + 11$"
 Mark scheme: M1 for expanding bracket correctly ($8x - 4 = 3x + 11$), M1 for collecting like terms ($5x = 15$), A1 for $x = 3$
 Worked solution: "$4(2x - 1) = 3x + 11$\\n$8x - 4 = 3x + 11$\\n$8x - 3x = 11 + 4$\\n$5x = 15$\\n$x = 15 \\\\div 5$\\n$x = 3$"
 
-NOTE: These examples show style and structure only. Generate a completely new question with different values every time. If the subtopic requires a different style (real-world context, multi-part), follow the subtopic-specific instruction above.
+NOTE: These examples show style and structure only. Generate completely new questions with different equations and values every time. If the subtopic requires a different style (real-world context, multi-part), follow the subtopic-specific instruction above and use these examples only as a format reference.
 
 FORBIDDEN QUESTION TYPES — ALWAYS SEEDED, NEVER AI-GENERATED
 Never generate questions requiring:
@@ -665,14 +653,12 @@ Never generate questions requiring:
 
 ${HIGHER_SHARED_LATEX_RULES}
 
-${HIGHER_SINGLE_QUESTION_FORMAT}`;
+${HIGHER_OUTPUT_FORMAT.replace('{COUNT}', String(count))}`;
 }
 
-function buildHigherP2Prompt(subtopic: any, questionIndex: number): string {
+function buildHigherP2Prompt(subtopic: any, count: number): string {
   const promptConfig = subtopic.prompt_config || {};
-  const difficulty =
-    HIGHER_DIFFICULTY_GRADIENT[questionIndex] || HIGHER_DIFFICULTY_GRADIENT[3];
-  return `You are an expert Pearson Edexcel GCSE Mathematics question writer for Higher tier Paper 2 (Calculator). Your task is to generate exactly ONE exam question that is authentic Pearson Edexcel 1MA1/2H style. This question will be marked by a separate AI examiner, so it must include a complete mark scheme.
+  return `You are an expert Pearson Edexcel GCSE Mathematics question writer for Higher tier Paper 2 (Calculator). Your task is to generate exactly ${count} exam questions that are authentic Pearson Edexcel 1MA1/2H style. These questions will be marked by a separate AI examiner, so every question must include a complete mark scheme.
 
 IMPORTANT: A calculator is permitted. Questions should exploit this — include calculations with decimals, trigonometry, standard form arithmetic, density/pressure/volume, compound interest and depreciation, and answers requiring rounding to a specified degree of accuracy.
 
@@ -682,8 +668,11 @@ Grade band: ${subtopic.grade_band}
 Topic: ${subtopic.topic}
 Subtopic: ${subtopic.subtopic_name}
 
-DIFFICULTY FOR THIS QUESTION (question ${questionIndex + 1}):
-${difficulty}
+QUESTION DIFFICULTY GRADIENT
+Question 1: Grade 4-5 (2-3 marks) — accessible, single or two-step, straightforward calculator use
+Question 2: Grade 5-6 (3-4 marks) — multi-step, forming an equation or calculating with a formula
+Question 3: Grade 6-7 (4-5 marks) — combined topics, algebraic setup, or "is X correct?" with full working
+Question 4: Grade 7-9 (4-6 marks) — higher demand: forming and solving equations from geometry, bounds, compound percentage finding rate, or non-routine reasoning
 
 COMMAND WORDS — USE THESE EXACTLY AS EDEXCEL USES THEM
 - "Work out" — calculation requiring shown working
@@ -715,6 +704,7 @@ CALCULATOR PAPER QUESTION TYPES — PRIORITISE THESE
 - State the claim as a direct quote in question_text
 - Full calculation required to verify or refute
 - Always include a C1 mark for the correct conclusion stated in words
+- Named characters: Javid, Jo, Amy, Nina, Harry, Emma, Peter, Barnie, Robyn, Aisha, Dan, Milly, Ewan, Chloe, Gita, Olly, Karim, Rohan, Filip, Kate, Sian, Nadia
 
 VALUE-FOR-MONEY FORMAT
 - Always present two named options (two shops, two sizes, two cities)
@@ -735,7 +725,7 @@ ECF: note explicitly where error carried forward applies.
 For comparison/decision questions: always include a C1 mark for the correct conclusion explicitly stated in words.
 
 TOPICS IN SCOPE FOR THIS SUBTOPIC
-${promptConfig.system_prompt || `Topic: ${subtopic.subtopic_name}. Generate a question that directly tests this topic at Higher tier grade band ${subtopic.grade_band}.`}
+${promptConfig.system_prompt || `Topic: ${subtopic.subtopic_name}. Generate questions that directly test this topic at Higher tier grade band ${subtopic.grade_band}.`}
 
 REAL-WORLD CONTEXT OVERRIDE
 If the TOPICS IN SCOPE section above specifies that questions should be pure algebraic tasks with no real-world context, that instruction overrides the general real-world context rule above. Always follow the subtopic-specific instruction.
@@ -757,7 +747,7 @@ Question: "Solve $4(2x - 1) = 3x + 11$"
 Mark scheme: M1 for expanding bracket correctly ($8x - 4 = 3x + 11$), M1 for collecting like terms ($5x = 15$), A1 for $x = 3$
 Worked solution: "$4(2x - 1) = 3x + 11$\\n$8x - 4 = 3x + 11$\\n$8x - 3x = 11 + 4$\\n$5x = 15$\\n$x = 15 \\\\div 5$\\n$x = 3$"
 
-NOTE: These examples show style and structure only. Generate a completely new question with different values every time.
+NOTE: These examples show style and structure only. Generate completely new questions with different equations and values every time. If the subtopic requires a different style (real-world context, multi-part), follow the subtopic-specific instruction above and use these examples only as a format reference.
 
 FORBIDDEN QUESTION TYPES — ALWAYS SEEDED, NEVER AI-GENERATED
 Never generate questions requiring:
@@ -775,14 +765,12 @@ Never generate questions requiring:
 
 ${HIGHER_SHARED_LATEX_RULES}
 
-${HIGHER_SINGLE_QUESTION_FORMAT}`;
+${HIGHER_OUTPUT_FORMAT.replace('{COUNT}', String(count))}`;
 }
 
-function buildHigherP3Prompt(subtopic: any, questionIndex: number): string {
+function buildHigherP3Prompt(subtopic: any, count: number): string {
   const promptConfig = subtopic.prompt_config || {};
-  const difficulty =
-    HIGHER_DIFFICULTY_GRADIENT[questionIndex] || HIGHER_DIFFICULTY_GRADIENT[3];
-  return `You are an expert Pearson Edexcel GCSE Mathematics question writer for Higher tier Paper 3 (Calculator). Your task is to generate exactly ONE exam question that is authentic Pearson Edexcel 1MA1/3H style. This question will be marked by a separate AI examiner, so it must include a complete mark scheme.
+  return `You are an expert Pearson Edexcel GCSE Mathematics question writer for Higher tier Paper 3 (Calculator). Your task is to generate exactly ${count} exam questions that are authentic Pearson Edexcel 1MA1/3H style. These questions will be marked by a separate AI examiner, so every question must include a complete mark scheme.
 
 IMPORTANT: A calculator is permitted. Paper 3 Higher has a high proportion of applied and multi-topic questions. It frequently combines algebra with geometry, or requires non-routine reasoning. Questions often need a stated conclusion or justification, and commonly test: trigonometry, proportion, rearranging complex formulae, compound percentage, algebraic proof, and non-linear simultaneous equations.
 
@@ -792,8 +780,11 @@ Grade band: ${subtopic.grade_band}
 Topic: ${subtopic.topic}
 Subtopic: ${subtopic.subtopic_name}
 
-DIFFICULTY FOR THIS QUESTION (question ${questionIndex + 1}):
-${difficulty}
+QUESTION DIFFICULTY GRADIENT
+Question 1: Grade 4-5 (2-3 marks) — accessible entry, one or two steps, applying a technique directly
+Question 2: Grade 5-6 (3-4 marks) — multi-step calculation, ratio or percentage setup, reverse calculation
+Question 3: Grade 6-7 (4-5 marks) — multi-part or combined topic, algebraic rearrangement, or proportion
+Question 4: Grade 7-9 (4-6 marks) — higher demand: non-linear simultaneous equations, rearranging complex formulae with the subject appearing twice, completing the square with a parameter, arc/sector with algebraic expressions, proof with recurring decimals, or estimation/sampling
 
 COMMAND WORDS — USE THESE EXACTLY AS EDEXCEL USES THEM
 - "Work out" — calculation requiring shown working
@@ -813,14 +804,17 @@ COMMAND WORDS — USE THESE EXACTLY AS EDEXCEL USES THEM
 PAPER 3H QUESTION TYPES — AUTHENTICALLY HIGHER 3H
 - Reverse percentage: find original price before a percentage reduction or increase
 - Compound interest: multi-year with different rates; or find rate x% given start and end values
-- Rearranging complex formulae where the subject appears twice
+- Rearranging complex formulae where the subject appears twice — e.g. make $p$ the subject of $t = \\\\frac{2(2p-3)}{5-2p}$
 - Proving a recurring decimal equals a given fraction — algebraic proof with multiplier strategy
 - Arc length and sector area — find angle or radius given perimeter or area of sector
 - Similar triangles: find the area of a trapezium formed between two similar triangles
-- Non-linear simultaneous equations (one linear, one quadratic): solve algebraically
+- Non-linear simultaneous equations (one linear, one quadratic): solve algebraically, give answers to 3 s.f.
 - Direct/inverse proportion: establish k, calculate a new value, sketch the graph shape
 - Capture-recapture or sampling estimation with a stated assumption
 - Index laws: simplify expressions with negative and fractional indices
+- Cosine rule/sine rule applied to a triangle with all three sides given — find angle, then find area
+- Error intervals: given a truncated or rounded value, state the correct interval
+- Completing the square with a parameter: find coordinates of turning point in terms of the parameter
 
 "IS [NAME] CORRECT?" FORMAT (statistics variant)
 - A named person makes a statistical claim (e.g. confuses modal class with highest frequency)
@@ -847,7 +841,7 @@ For recurring decimal proofs: M1 for correct multiplier strategy, A1 for correct
 For non-linear simultaneous equations: M1 correct substitution, M1 forming quadratic, A1 A1 for each solution pair.
 
 TOPICS IN SCOPE FOR THIS SUBTOPIC
-${promptConfig.system_prompt || `Topic: ${subtopic.subtopic_name}. Generate a question that directly tests this topic at Higher tier grade band ${subtopic.grade_band}.`}
+${promptConfig.system_prompt || `Topic: ${subtopic.subtopic_name}. Generate questions that directly test this topic at Higher tier grade band ${subtopic.grade_band}.`}
 
 REAL-WORLD CONTEXT OVERRIDE
 If the TOPICS IN SCOPE section above specifies that questions should be pure algebraic tasks with no real-world context, that instruction overrides the general real-world context rule above. Always follow the subtopic-specific instruction.
@@ -869,7 +863,7 @@ Question: "Solve $4(2x - 1) = 3x + 11$"
 Mark scheme: M1 for expanding bracket correctly ($8x - 4 = 3x + 11$), M1 for collecting like terms ($5x = 15$), A1 for $x = 3$
 Worked solution: "$4(2x - 1) = 3x + 11$\\n$8x - 4 = 3x + 11$\\n$8x - 3x = 11 + 4$\\n$5x = 15$\\n$x = 15 \\\\div 5$\\n$x = 3$"
 
-NOTE: These examples show style and structure only. Generate a completely new question with different values every time. If the subtopic requires a different style (real-world context, multi-part), follow the subtopic-specific instruction above.
+NOTE: These examples show style and structure only. Generate completely new questions with different equations and values every time. If the subtopic requires a different style (real-world context, multi-part), follow the subtopic-specific instruction above and use these examples only as a format reference.
 
 FORBIDDEN QUESTION TYPES — ALWAYS SEEDED, NEVER AI-GENERATED
 Never generate questions requiring:
@@ -887,7 +881,7 @@ Never generate questions requiring:
 
 ${HIGHER_SHARED_LATEX_RULES}
 
-${HIGHER_SINGLE_QUESTION_FORMAT}`;
+${HIGHER_OUTPUT_FORMAT.replace('{COUNT}', String(count))}`;
 }
 
 // ─────────────────────────────────────────────
@@ -912,7 +906,8 @@ NEVER use:
 - Plain text fractions such as "12/0.4" — use $\\\\frac{12}{0.4}$ where appropriate
 
 WORKED SOLUTION FORMAT:
-Write each step on a separate line using \\n between steps. One calculation step per line.
+Write each step on a separate line using \\n between steps.
+One calculation step per line.
 `;
 
 function inferPhysicsPaper(subtopic: any): 'paper1' | 'paper2' {
@@ -981,7 +976,7 @@ function normalisePhysicsTier(
 
 function buildPhysicsPromptVariant(
   subtopic: any,
-  questionIndex: number,
+  count: number,
   physicsTier: 'foundation' | 'higher',
   physicsPaper: 'paper1' | 'paper2'
 ): string {
@@ -1052,12 +1047,15 @@ Foundation demand profile:
 - Equations should often be given directly
 - Use familiar contexts and concrete wording
 - Keep explanation questions tightly bounded
+- Avoid abstract textbook phrasing
+- Avoid making students choose between several equations unless the question explicitly says to use the Physics Equations Sheet
 
 Foundation calculation rules:
 - Give the equation directly for many 2-mark calculations
 - Use manageable numbers
 - Include units in the answer line
 - Reward substitution, calculation and unit as separate AQA-style points where appropriate
+- Do not make calculations harder than the Physics being tested
 `
       : `
 HIGHER TIER STYLE — AQA 8463:
@@ -1083,30 +1081,15 @@ Higher demand profile:
 - Unit conversions are expected, especially cm to m, ms to s, kPa to Pa, MW to W, kJ to J, g to kg, cm³ to m³
 - Graph and table interpretation should be used
 - Explanation questions should test mechanisms, not vague recall
+- Practical questions should test variables, control variables, resolution, uncertainty, repeatability, line of best fit and proportionality
 
 Higher calculation rules:
 - Use realistic AQA numerical values
 - Include unit conversion where appropriate
 - Award marks for conversion, substitution, rearrangement, calculation and unit
+- Include "Determine" questions where students must read from a graph or combine graph information with an equation
+- Do not simply make Foundation questions with harder numbers
 `;
-
-  const physicsFoundationDifficulty = [
-    '1-2 marks — accessible, tick-box or fill-in-the-blank style',
-    '2-3 marks — short calculation with equation given',
-    '3-4 marks — multi-part, explanation or comparison',
-    '4-6 marks — multi-part, may include a required practical method',
-  ];
-  const physicsHigherDifficulty = [
-    '2-3 marks — accessible, equation selection and substitution',
-    '3-4 marks — multi-step calculation, may include unit conversion',
-    '4-5 marks — multi-part, explanation plus calculation',
-    '5-6 marks — higher demand: multi-step, rearrangement, or graph interpretation',
-  ];
-  const difficultyMap =
-    physicsTier === 'foundation'
-      ? physicsFoundationDifficulty
-      : physicsHigherDifficulty;
-  const difficulty = difficultyMap[questionIndex] || difficultyMap[3];
 
   const practicalRules = `
 AQA PRACTICAL SKILLS RULES:
@@ -1160,6 +1143,12 @@ For calculations:
 - If 2 marks: usually substitution/process + answer/unit
 - If 3 marks: equation/rearrangement or conversion + substitution + answer/unit
 - If 4+ marks: break the process into clear standalone points
+- Apply error carried forward where appropriate and state it in the criterion
+
+For explanations:
+- Each mark should correspond to one clear physics idea
+- Avoid vague criteria like "good explanation"
+- Do not require exact wording unless the scientific term is essential
 
 Always include a final TOTAL item:
 { "mark_type": "step", "criterion": "TOTAL", "marks": total_marks }
@@ -1167,7 +1156,7 @@ Always include a final TOTAL item:
 
   return `You are a senior AQA GCSE Physics examiner writing questions for AQA 8463 ${tierLabel} Tier ${paperLabel}.
 
-Your task is to generate exactly ONE exam-style question for The Hub Jam. The question will be marked by a separate AI examiner, so it must include a complete, unambiguous AQA-style mark scheme.
+Your task is to generate exactly ${count} exam-style question groups for The Hub Jam. The questions will be marked by a separate AI examiner, so every question must include a complete, unambiguous AQA-style mark scheme.
 
 Subject: ${subtopic.subject}
 Exam board: AQA
@@ -1178,13 +1167,10 @@ Topic: ${subtopic.topic}
 Subtopic: ${subtopic.subtopic_name}
 ${subtopic.description ? `Description: ${subtopic.description}` : ''}
 
-DIFFICULTY FOR THIS QUESTION (question ${questionIndex + 1}):
-${difficulty}
-
 ${contentProfile}
 
 TOPICS IN SCOPE FOR THIS SUBTOPIC:
-${promptConfig.system_prompt || `Generate a question that directly tests ${subtopic.subtopic_name} within ${subtopic.topic}. Stay tightly within this subtopic.`}
+${promptConfig.system_prompt || `Generate questions that directly test ${subtopic.subtopic_name} within ${subtopic.topic}. Stay tightly within this subtopic.`}
 
 ${promptConfig.marking_guidance ? `\nSUBTOPIC-SPECIFIC MARKING GUIDANCE — highest priority:\n${promptConfig.marking_guidance}` : ''}
 
@@ -1197,6 +1183,12 @@ ${tierStyle}
 ${practicalRules}
 
 ${markingRules}
+
+QUESTION STRUCTURE:
+Generate ${count} questions in increasing difficulty.
+Each generated question may be single-part or multi-part.
+At least one question must be multi-part.
+Each question should feel like a short AQA exam-paper question group, not a generic textbook exercise.
 
 AQA WORDING STYLE:
 Use simple, direct AQA-style language.
@@ -1213,19 +1205,23 @@ You may include small data tables in question_text using plain text.
 
 ${PHYSICS_SHARED_LATEX_RULES}
 
-${PHYSICS_SINGLE_QUESTION_FORMAT}`;
+${PHYSICS_OUTPUT_FORMAT.replace('{COUNT}', String(count))}`;
 }
 
 // ─────────────────────────────────────────────
-// CALL CLAUDE FOR A SINGLE QUESTION
+// STREAMING QUESTION PARSER
+// Reads Anthropic SSE stream, accumulates the full text, then
+// emits each complete question object as NDJSON as soon as it
+// is parsed from the growing response.
 // ─────────────────────────────────────────────
 
-async function generateSingleQuestion(
+async function streamQuestionsFromClaude(
   systemPrompt: string,
   userPrompt: string,
-  questionIndex: number,
-  apiKey: string
-): Promise<any> {
+  apiKey: string,
+  writer: WritableStreamDefaultWriter<Uint8Array>,
+  encoder: TextEncoder
+): Promise<void> {
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -1235,45 +1231,184 @@ async function generateSingleQuestion(
     },
     body: JSON.stringify({
       model: 'claude-sonnet-4-20250514',
-      max_tokens: 1500,
+      max_tokens: 4000,
+      stream: true,
       system: systemPrompt,
       messages: [{ role: 'user', content: userPrompt }],
     }),
   });
 
   if (!response.ok) {
-    throw new Error(
-      `Anthropic API returned ${response.status} for question ${questionIndex + 1}`
-    );
+    throw new Error(`Anthropic API returned ${response.status}`);
   }
 
-  const result = await response.json();
-  const rawText = result.content?.[0]?.text;
-  if (!rawText)
-    throw new Error(`Empty response for question ${questionIndex + 1}`);
+  if (!response.body) throw new Error('No response body from Anthropic');
 
-  const cleaned = rawText
-    .replace(/^```(?:json)?\s*/m, '')
-    .replace(/\s*```\s*$/m, '')
-    .trim();
-  const parsed = JSON.parse(cleaned);
-  const q = parsed.question || parsed.questions?.[0];
-  if (!q)
-    throw new Error(
-      `No question object in response for question ${questionIndex + 1}`
-    );
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let sseBuffer = '';
+  let accumulatedText = '';
+  let emittedCount = 0;
 
-  return {
-    id: crypto.randomUUID(),
-    question_text: q.question_text,
-    marks: q.marks,
-    parts: q.parts || [],
-    mark_scheme: q.mark_scheme,
-    worked_solution: q.worked_solution,
-    diagram_type: q.diagram_type || null,
-    diagram_params: q.diagram_params || null,
-    question_order: questionIndex + 1,
-  };
+  // Track brace depth to detect complete JSON question objects
+  // We scan for complete objects inside the "questions": [...] array
+  let inQuestionsArray = false;
+  let braceDepth = 0;
+  let objectStart = -1;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    sseBuffer += decoder.decode(value, { stream: true });
+    const lines = sseBuffer.split('\n');
+    sseBuffer = lines.pop() ?? '';
+
+    for (const line of lines) {
+      if (!line.startsWith('data: ')) continue;
+      const data = line.slice(6).trim();
+      if (data === '[DONE]') break;
+
+      try {
+        const event = JSON.parse(data);
+        if (
+          event.type === 'content_block_delta' &&
+          event.delta?.type === 'text_delta'
+        ) {
+          accumulatedText += event.delta.text;
+
+          // Scan newly added characters for complete question objects
+          const text = accumulatedText;
+
+          // Find the start of the questions array if not found yet
+          if (!inQuestionsArray) {
+            const arrayStart = text.indexOf('"questions"');
+            if (arrayStart !== -1) {
+              const bracketPos = text.indexOf('[', arrayStart);
+              if (bracketPos !== -1) {
+                inQuestionsArray = true;
+                // Start scanning from the first { after the [
+                const firstBrace = text.indexOf('{', bracketPos);
+                if (firstBrace !== -1) {
+                  objectStart = firstBrace;
+                  braceDepth = 1;
+                }
+              }
+            }
+          } else {
+            // We're inside the questions array — scan for complete objects
+            // Start from where we left off (end of last parsed segment)
+            const scanFrom =
+              objectStart === -1 ? text.lastIndexOf('{') : objectStart;
+
+            let i =
+              objectStart === -1
+                ? scanFrom
+                : emittedCount === 0
+                  ? objectStart
+                  : objectStart;
+
+            // Re-scan from the character after the last emitted object
+            // by tracking position via a simpler approach:
+            // re-parse accumulated text each time a new chunk arrives
+            const remaining = text;
+            let pos = 0;
+
+            // Find all complete question objects in accumulated text
+            // by counting braces
+            let depth = 0;
+            let start = -1;
+            let questionIndex = 0;
+
+            for (let c = 0; c < remaining.length; c++) {
+              const ch = remaining[c];
+              // Skip string contents to avoid false brace counts
+              if (ch === '"') {
+                c++;
+                while (c < remaining.length && remaining[c] !== '"') {
+                  if (remaining[c] === '\\') c++; // skip escaped char
+                  c++;
+                }
+                continue;
+              }
+              if (ch === '{') {
+                if (depth === 0 && inQuestionsArray) {
+                  // Check we're past the outer { of the questions array wrapper
+                  // by ensuring we've seen "questions":[ already
+                  start = c;
+                }
+                depth++;
+              } else if (ch === '}') {
+                depth--;
+                if (depth === 0 && start !== -1) {
+                  // Complete object found
+                  if (questionIndex >= emittedCount) {
+                    const objStr = remaining.slice(start, c + 1);
+                    try {
+                      const q = JSON.parse(objStr);
+                      // Validate it looks like a question
+                      if (q.question_text && q.marks !== undefined) {
+                        const question = {
+                          id: crypto.randomUUID(),
+                          question_text: q.question_text,
+                          marks: q.marks,
+                          parts: q.parts || [],
+                          mark_scheme: q.mark_scheme,
+                          worked_solution: q.worked_solution,
+                          diagram_type: q.diagram_type || null,
+                          diagram_params: q.diagram_params || null,
+                          question_order: emittedCount + 1,
+                        };
+                        await writer.write(
+                          encoder.encode(JSON.stringify(question) + '\n')
+                        );
+                        emittedCount++;
+                      }
+                    } catch {
+                      // Not valid JSON yet — partial object, skip
+                    }
+                  }
+                  questionIndex++;
+                  start = -1;
+                }
+              }
+            }
+          }
+        }
+      } catch {
+        // Malformed SSE line — skip
+      }
+    }
+  }
+
+  // Final parse of complete response in case any questions weren't emitted mid-stream
+  try {
+    const cleaned = accumulatedText
+      .replace(/^```(?:json)?\s*/m, '')
+      .replace(/\s*```\s*$/m, '')
+      .trim();
+    const parsed = JSON.parse(cleaned);
+    if (Array.isArray(parsed.questions)) {
+      for (let i = emittedCount; i < parsed.questions.length; i++) {
+        const q = parsed.questions[i];
+        if (!q.question_text) continue;
+        const question = {
+          id: crypto.randomUUID(),
+          question_text: q.question_text,
+          marks: q.marks,
+          parts: q.parts || [],
+          mark_scheme: q.mark_scheme,
+          worked_solution: q.worked_solution,
+          diagram_type: q.diagram_type || null,
+          diagram_params: q.diagram_params || null,
+          question_order: i + 1,
+        };
+        await writer.write(encoder.encode(JSON.stringify(question) + '\n'));
+      }
+    }
+  } catch {
+    // If final parse fails, whatever was streamed mid-response is all we have
+  }
 }
 
 // ─────────────────────────────────────────────
@@ -1292,22 +1427,21 @@ serve(async (req) => {
       studentTier,
       physicsTier,
     } = await req.json();
+
     if (!subtopicId) throw new Error('subtopicId is required');
 
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
+
     const { data: subtopic, error: stError } = await supabase
       .from('subtopics')
       .select('*')
       .eq('id', subtopicId)
       .single();
-    if (stError || !subtopic) throw new Error('Subtopic not found');
 
-    const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
-    if (!ANTHROPIC_API_KEY)
-      throw new Error('ANTHROPIC_API_KEY is not configured');
+    if (stError || !subtopic) throw new Error('Subtopic not found');
 
     const isFoundation = subtopic.tier?.toLowerCase() === 'foundation';
     const isHigher = subtopic.tier?.toLowerCase() === 'higher';
@@ -1316,99 +1450,102 @@ serve(async (req) => {
       subtopic.subject?.toLowerCase().includes('math');
     const isPhysics = subtopic.subject?.toLowerCase().includes('physics');
 
+    let systemPrompt: string;
+
+    if (isMaths && isFoundation) {
+      if (calculatorAllowed) {
+        systemPrompt =
+          Math.random() < 0.5
+            ? buildFoundationP2Prompt(subtopic, count)
+            : buildFoundationP3Prompt(subtopic, count);
+      } else {
+        systemPrompt = buildFoundationP1Prompt(subtopic, count);
+      }
+    } else if (isMaths && isHigher) {
+      if (calculatorAllowed) {
+        systemPrompt =
+          Math.random() < 0.5
+            ? buildHigherP2Prompt(subtopic, count)
+            : buildHigherP3Prompt(subtopic, count);
+      } else {
+        systemPrompt = buildHigherP1Prompt(subtopic, count);
+      }
+    } else if (isPhysics) {
+      const resolvedPhysicsTier = normalisePhysicsTier(
+        subtopic,
+        physicsTier || studentTier
+      );
+      const resolvedPhysicsPaper = inferPhysicsPaper(subtopic);
+      systemPrompt = buildPhysicsPromptVariant(
+        subtopic,
+        count,
+        resolvedPhysicsTier,
+        resolvedPhysicsPaper
+      );
+    } else {
+      systemPrompt = buildPhysicsPromptVariant(
+        subtopic,
+        count,
+        'foundation',
+        'paper1'
+      );
+    }
+
     const examBoardLabel = isPhysics ? 'AQA' : 'Pearson Edexcel';
     const tierLabelForPrompt = isPhysics
       ? normalisePhysicsTier(subtopic, physicsTier || studentTier)
       : subtopic.tier;
     const markTypeExample = isPhysics ? 'step' : 'M';
 
-    // Determine which paper builder to use — fixed per session so all 4 questions
-    // come from the same paper type (avoids mixing calculator and non-calculator)
-    const useCalculatorPaper = calculatorAllowed && isMaths;
-    const paperVariant = useCalculatorPaper
-      ? Math.random() < 0.5
-        ? 'p2'
-        : 'p3'
-      : 'p1';
-
-    // Build per-question prompts and fire them all in parallel
-    const questionConfigs = Array.from({ length: count }, (_, i) => {
-      let systemPrompt: string;
-
-      if (isMaths && isFoundation) {
-        if (paperVariant === 'p2')
-          systemPrompt = buildFoundationP2Prompt(subtopic, i);
-        else if (paperVariant === 'p3')
-          systemPrompt = buildFoundationP3Prompt(subtopic, i);
-        else systemPrompt = buildFoundationP1Prompt(subtopic, i);
-      } else if (isMaths && isHigher) {
-        if (paperVariant === 'p2')
-          systemPrompt = buildHigherP2Prompt(subtopic, i);
-        else if (paperVariant === 'p3')
-          systemPrompt = buildHigherP3Prompt(subtopic, i);
-        else systemPrompt = buildHigherP1Prompt(subtopic, i);
-      } else if (isPhysics) {
-        const resolvedTier = normalisePhysicsTier(
-          subtopic,
-          physicsTier || studentTier
-        );
-        const resolvedPaper = inferPhysicsPaper(subtopic);
-        systemPrompt = buildPhysicsPromptVariant(
-          subtopic,
-          i,
-          resolvedTier,
-          resolvedPaper
-        );
-      } else {
-        systemPrompt = buildPhysicsPromptVariant(
-          subtopic,
-          i,
-          'foundation',
-          'paper1'
-        );
-      }
-
-      const userPrompt = `Generate question ${i + 1} of ${count} for: "${subtopic.subtopic_name}" (${subtopic.topic}, ${examBoardLabel} ${tierLabelForPrompt} tier, grade ${subtopic.grade_band}).
+    const userPrompt = `Generate ${count} GCSE exam questions for: "${subtopic.subtopic_name}" (${subtopic.topic}, ${examBoardLabel} ${tierLabelForPrompt} tier, grade ${subtopic.grade_band}).
 
 REMINDER: All mathematical expressions MUST use LaTeX with double-escaped backslashes in JSON.
-- Multiplication: "$3x^4 \\\\times 2x^3$"
-- Square root: "$\\\\sqrt{50}$"
-- Fraction: "$\\\\frac{3}{4}$"
+
+Critical examples:
+- Multiplication: "$3x^4 \\\\times 2x^3$" — NOT "$3x^4 \\times 2x^3$"
+- Square root: "$\\\\sqrt{50}$" — NOT "$\\sqrt{50}$"
+- Fraction: "$\\\\frac{3}{4}$" — NOT "$\\frac{3}{4}$"
+- Times symbol: "$\\\\times$" — NOT "$\\times$"
 
 REMINDER FOR MULTI-PART QUESTIONS:
 - question_text = shared scenario stem ONLY (no sub-questions listed)
 - part_text = sub-question text only, no (a)/(b) prefix, no mark count
 
-Return ONLY the JSON object with a single "question" key. No markdown, no preamble.`;
+Return ONLY this JSON structure:
+{
+  "questions": [
+    {
+      "question_text": "string with $LaTeX$",
+      "marks": 2,
+      "parts": [],
+      "mark_scheme": [{ "mark_type": "${markTypeExample}", "criterion": "string with $LaTeX$", "marks": 1 }],
+      "worked_solution": "one step per line using \\n",
+      "diagram_type": null,
+      "diagram_params": null
+    }
+  ]
+}`;
 
-      return { systemPrompt, userPrompt, index: i };
-    });
+    const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
+    if (!ANTHROPIC_API_KEY)
+      throw new Error('ANTHROPIC_API_KEY is not configured');
 
-    // Stream each question to the client as NDJSON as soon as it resolves
     const { readable, writable } = new TransformStream();
     const writer = writable.getWriter();
     const encoder = new TextEncoder();
 
+    // Fire the streaming Claude call in the background
     (async () => {
       try {
-        await Promise.all(
-          questionConfigs.map(({ systemPrompt, userPrompt, index }) =>
-            generateSingleQuestion(
-              systemPrompt,
-              userPrompt,
-              index,
-              ANTHROPIC_API_KEY
-            )
-              .then(async (question) => {
-                await writer.write(
-                  encoder.encode(JSON.stringify(question) + '\n')
-                );
-              })
-              .catch((e) => {
-                console.error(`Question ${index + 1} failed:`, e);
-              })
-          )
+        await streamQuestionsFromClaude(
+          systemPrompt,
+          userPrompt,
+          ANTHROPIC_API_KEY,
+          writer,
+          encoder
         );
+      } catch (e) {
+        console.error('Streaming error:', e);
       } finally {
         await writer.close();
       }
