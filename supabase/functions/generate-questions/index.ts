@@ -101,10 +101,12 @@ Multi-part:  { "mark_type": "A", "part": "a", "criterion": "...", "marks": 1 }
 RULES:
 1. Output exactly {COUNT} lines — one JSON object per line, no blank lines between them
 2. Questions must be in increasing difficulty (Q1 easiest, Q4 hardest)
-3. At least one question must be multi-part
-4. Use LaTeX notation — mandatory. \\\\times must always use double escaped backslash
-5. Worked solution: one step per line using \\n
-6. No markdown, no preamble, no explanation — raw NDJSON only
+3. Q1 and Q2 MUST be single-part (parts: [])
+4. Q3 MUST be multi-part with at least parts (a) and (b)
+5. Q4 MUST be multi-part with at least parts (a) and (b)
+6. Use LaTeX notation — mandatory. \\\\times must always use double escaped backslash
+7. Worked solution: one step per line using \\n
+8. No markdown, no preamble, no explanation — raw NDJSON only
 `;
 
 const HIGHER_OUTPUT_FORMAT = `
@@ -140,10 +142,12 @@ Multi-part:  { "mark_type": "A", "part": "a", "criterion": "...", "marks": 1 }
 RULES:
 1. Output exactly {COUNT} lines — one JSON object per line, no blank lines between them
 2. Questions must be in increasing difficulty (Q1 easiest, Q4 hardest)
-3. At least one question must be multi-part
-4. Use LaTeX notation — mandatory. \\\\times must always use double escaped backslash
-5. Worked solution: one step per line using \\n
-6. No markdown, no preamble, no explanation — raw NDJSON only
+3. Q1 and Q2 MUST be single-part (parts: [])
+4. Q3 MUST be multi-part with at least parts (a) and (b)
+5. Q4 MUST be multi-part with at least parts (a) and (b)
+6. Use LaTeX notation — mandatory. \\\\times must always use double escaped backslash
+7. Worked solution: one step per line using \\n
+8. No markdown, no preamble, no explanation — raw NDJSON only
 `;
 
 const PHYSICS_OUTPUT_FORMAT = `
@@ -168,11 +172,13 @@ Each question object must contain:
 RULES:
 1. Output exactly {COUNT} lines — one JSON object per line, no blank lines between them
 2. Questions must be in increasing difficulty (Q1 easiest, Q4 hardest)
-3. At least one question must be multi-part
-4. Use LaTeX notation — mandatory. \\\\times must always use double escaped backslash
-5. Every mark_scheme item must use "mark_type": "step"
-6. Worked solution: one step per line using \\n
-7. No markdown, no preamble, no explanation — raw NDJSON only
+3. Q1 and Q2 MUST be single-part (parts: [])
+4. Q3 MUST be multi-part with at least parts (a) and (b)
+5. Q4 MUST be multi-part with at least parts (a) and (b)
+6. Use LaTeX notation — mandatory. \\\\times must always use double escaped backslash
+7. Every mark_scheme item must use "mark_type": "step"
+8. Worked solution: one step per line using \\n
+9. No markdown, no preamble, no explanation — raw NDJSON only
 `;
 
 // ─────────────────────────────────────────────
