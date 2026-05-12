@@ -1267,6 +1267,11 @@ REMINDER FOR MULTI-PART QUESTIONS:
 - question_text = shared scenario stem ONLY (no sub-questions listed)
 - part_text = sub-question text only, no (a)/(b) prefix, no mark count
 
+MANDATORY COUNT REQUIREMENT:
+You MUST output EXACTLY ${count} JSON objects — one per line.
+Count them before finishing. If you have fewer than ${count} lines, you have not finished.
+Do not stop until all ${count} questions are written.
+
 Output ${count} JSON objects, one per line, no wrapping array. No markdown, no preamble.
 Mark type to use: "${markTypeExample}"`;
 
@@ -1289,7 +1294,7 @@ Mark type to use: "${markTypeExample}"`;
         },
         body: JSON.stringify({
           model: 'claude-sonnet-4-20250514',
-          max_tokens: 4000,
+          max_tokens: 4500,
           stream: true,
           system: systemPrompt,
           messages: [{ role: 'user', content: userPrompt }],
