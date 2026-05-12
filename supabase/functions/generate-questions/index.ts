@@ -63,157 +63,116 @@ Write each step on a separate line using \\n between steps. One calculation step
 `;
 
 // ─────────────────────────────────────────────
-// OUTPUT FORMATS
+// OUTPUT FORMATS — NDJSON (one JSON object per line)
+// Claude outputs each question as a standalone JSON object on its own line.
+// The stream parser splits on newlines and emits each question immediately.
 // ─────────────────────────────────────────────
 
 const FOUNDATION_OUTPUT_FORMAT = `
-QUESTION FORMAT
-Each question must be one of two types:
+CRITICAL OUTPUT FORMAT — READ CAREFULLY:
+Do NOT wrap questions in an array. Do NOT output { "questions": [...] }.
+Output each question as a SEPARATE, COMPLETE JSON object on its OWN LINE.
+One question per line. No commas between objects. No wrapping array or object.
 
-TYPE 1 — Single part question:
-{
-  "question_text": "Javid hires a car for 10 days. He pays £45 for each day. He also pays £30 for insurance. Javid pays with ten £50 notes. Work out how much change he should get. (3 marks)",
-  "marks": 3,
-  "parts": [],
-  "mark_scheme": [
-    { "mark_type": "M", "criterion": "Correct method to find total cost ($45 \\\\times 10 + 30$)", "marks": 1 },
-    { "mark_type": "A", "criterion": "Total cost = £480", "marks": 1 },
-    { "mark_type": "A", "criterion": "Change = £20", "marks": 1 }
-  ],
-  "worked_solution": "$45 \\\\times 10 = 450$\\n$450 + 30 = 480$\\n$10 \\\\times 50 = 500$\\n$500 - 480 = £20$"
-}
+Example of correct output for 2 questions:
+{"question_text":"Javid hires a car...","marks":3,"parts":[],"mark_scheme":[...],"worked_solution":"...","diagram_type":null,"diagram_params":null}
+{"question_text":"Amy buys tiles...","marks":4,"parts":[{"part_label":"a",...}],"mark_scheme":[...],"worked_solution":"...","diagram_type":null,"diagram_params":null}
 
-TYPE 2 — Multi-part question:
-{
-  "question_text": "Here are the ages, in years, of 8 children: 14 10 10 13 15 9 15 10",
-  "marks": 4,
-  "parts": [
-    { "part_label": "a", "part_text": "Work out the mean age.", "marks": 2 },
-    { "part_label": "b", "part_text": "Work out the range of the ages.", "marks": 2 }
-  ],
-  "mark_scheme": [
-    { "mark_type": "M", "part": "a", "criterion": "Correct method: sum of all ages divided by 8", "marks": 1 },
-    { "mark_type": "A", "part": "a", "criterion": "Mean = 12 years", "marks": 1 },
-    { "mark_type": "M", "part": "b", "criterion": "Correct method: highest minus lowest ($15 - 9$)", "marks": 1 },
-    { "mark_type": "A", "part": "b", "criterion": "Range = 6 years", "marks": 1 }
-  ],
-  "worked_solution": "Part (a):\\n$14 + 10 + 10 + 13 + 15 + 9 + 15 + 10 = 96$\\n$96 \\\\div 8 = 12$ years\\nPart (b):\\n$15 - 9 = 6$ years"
-}
+Each question object must contain:
+- question_text (string)
+- marks (number)
+- parts (array — empty [] for single-part, populated for multi-part)
+- mark_scheme (array of mark objects)
+- worked_solution (string)
+- diagram_type (null)
+- diagram_params (null)
+
+QUESTION TYPES:
+
+Single part: parts is []
+Multi-part: parts contains objects with part_label, part_text, marks
+For multi-part: question_text is the shared scenario stem ONLY — no sub-questions inside question_text.
+Each part_text is the sub-question only — no (a)/(b) prefix, no mark count.
+
+Mark scheme objects:
+Single part: { "mark_type": "M", "criterion": "...", "marks": 1 }
+Multi-part:  { "mark_type": "A", "part": "a", "criterion": "...", "marks": 1 }
 
 RULES:
-1. Generate exactly {COUNT} questions in increasing difficulty
-2. Questions must read exactly like real Pearson Edexcel Foundation past paper questions
-3. Use LaTeX notation as shown above — mandatory
-4. \\\\times must always use double escaped backslash
-5. At least one question must be multi-part (TYPE 2)
-5a. For TYPE 2 questions: question_text is the shared scenario stem ONLY — never include part sub-questions or mark allocations in question_text. Each part_text is the sub-question for that part only, with no (a)/(b) label prefix and no mark count.
-6. Mark schemes must be unambiguous
-7. Worked solution must have one step per line, separated by \\n
-8. Return ONLY a JSON object: { "questions": [...] } — no markdown, no preamble
+1. Output exactly {COUNT} lines — one JSON object per line, no blank lines between them
+2. Questions must be in increasing difficulty (Q1 easiest, Q4 hardest)
+3. At least one question must be multi-part
+4. Use LaTeX notation — mandatory. \\\\times must always use double escaped backslash
+5. Worked solution: one step per line using \\n
+6. No markdown, no preamble, no explanation — raw NDJSON only
 `;
 
 const HIGHER_OUTPUT_FORMAT = `
-QUESTION FORMAT
-Each question must be one of two types:
+CRITICAL OUTPUT FORMAT — READ CAREFULLY:
+Do NOT wrap questions in an array. Do NOT output { "questions": [...] }.
+Output each question as a SEPARATE, COMPLETE JSON object on its OWN LINE.
+One question per line. No commas between objects. No wrapping array or object.
 
-TYPE 1 — Single part question:
-{
-  "question_text": "Simplify $\\\\sqrt{72}$. Give your answer in the form $a\\\\sqrt{b}$ where $a$ and $b$ are integers.",
-  "marks": 2,
-  "parts": [],
-  "mark_scheme": [
-    { "mark_type": "M", "criterion": "Identifies $\\\\sqrt{36}$ as a factor of 72", "marks": 1 },
-    { "mark_type": "A", "criterion": "Correct answer $6\\\\sqrt{2}$", "marks": 1 }
-  ],
-  "worked_solution": "$\\\\sqrt{72} = \\\\sqrt{36 \\\\times 2}$\\n$= \\\\sqrt{36} \\\\times \\\\sqrt{2}$\\n$= 6\\\\sqrt{2}$"
-}
+Example of correct output for 2 questions:
+{"question_text":"Simplify $\\\\sqrt{72}$...","marks":2,"parts":[],"mark_scheme":[...],"worked_solution":"...","diagram_type":null,"diagram_params":null}
+{"question_text":"The cost of a stamp...","marks":4,"parts":[{"part_label":"a",...}],"mark_scheme":[...],"worked_solution":"...","diagram_type":null,"diagram_params":null}
 
-TYPE 2 — Multi-part question:
-{
-  "question_text": "The cost of a first class stamp increased from 76p to 85p. The cost of a second class stamp increased from 65p to 66p. Filip says, \\"The percentage increase in the cost of a first class stamp is more than 7 times the percentage increase in the cost of a second class stamp.\\"",
-  "marks": 4,
-  "parts": [
-    { "part_label": "a", "part_text": "Work out the percentage increase in the cost of a first class stamp.", "marks": 2 },
-    { "part_label": "b", "part_text": "Is Filip correct? You must show all your working.", "marks": 2 }
-  ],
-  "mark_scheme": [
-    { "mark_type": "M", "part": "a", "criterion": "Correct method: $\\\\frac{9}{76} \\\\times 100$", "marks": 1 },
-    { "mark_type": "A", "part": "a", "criterion": "11.8% (accept 11.84...%)", "marks": 1 },
-    { "mark_type": "M", "part": "b", "criterion": "Correct method for second class: $\\\\frac{1}{65} \\\\times 100$", "marks": 1 },
-    { "mark_type": "C", "part": "b", "criterion": "Correct conclusion: Filip is correct, 11.84...% > 7 x 1.53...% = 10.76...%", "marks": 1 }
-  ],
-  "worked_solution": "Part (a):\\n$\\\\frac{85-76}{76} \\\\times 100 = 11.84...\\\\%$\\nPart (b):\\n$\\\\frac{1}{65} \\\\times 100 = 1.538...\\\\%$\\n$7 \\\\times 1.538... = 10.76...\\\\%$\\n$11.84\\\\% > 10.76\\\\%$ so Filip is correct"
-}
+Each question object must contain:
+- question_text (string)
+- marks (number)
+- parts (array — empty [] for single-part, populated for multi-part)
+- mark_scheme (array of mark objects)
+- worked_solution (string)
+- diagram_type (null)
+- diagram_params (null)
 
-MULTI-PART QUESTION RULES:
-- question_text is the shared scenario stem ONLY — never list sub-questions or mark allocations inside question_text
-- Each part_text is the sub-question for that part only — no (a)/(b) label prefix, no mark count
-- The app renders the part label and mark count automatically — do not duplicate them in the text
+QUESTION TYPES:
+
+Single part: parts is []
+Multi-part: parts contains objects with part_label, part_text, marks
+For multi-part: question_text is the shared scenario stem ONLY.
+Each part_text is the sub-question only — no (a)/(b) prefix, no mark count.
+
+Mark scheme objects:
+Single part: { "mark_type": "M", "criterion": "...", "marks": 1 }
+Multi-part:  { "mark_type": "A", "part": "a", "criterion": "...", "marks": 1 }
 
 RULES:
-1. Generate exactly {COUNT} questions in increasing difficulty
-2. Questions must read exactly like real Pearson Edexcel Higher past paper questions
-3. Use LaTeX notation as shown above — mandatory
-4. \\\\times must always use double escaped backslash
-5. At least one question must be multi-part (TYPE 2)
-6. Mark schemes must be unambiguous — a second examiner must reach identical marks
-7. Worked solution must have one step per line, separated by \\n
-8. Return ONLY a JSON object: { "questions": [...] } — no markdown, no preamble
+1. Output exactly {COUNT} lines — one JSON object per line, no blank lines between them
+2. Questions must be in increasing difficulty (Q1 easiest, Q4 hardest)
+3. At least one question must be multi-part
+4. Use LaTeX notation — mandatory. \\\\times must always use double escaped backslash
+5. Worked solution: one step per line using \\n
+6. No markdown, no preamble, no explanation — raw NDJSON only
 `;
 
 const PHYSICS_OUTPUT_FORMAT = `
-QUESTION FORMAT
-Each question must be one of two types:
+CRITICAL OUTPUT FORMAT — READ CAREFULLY:
+Do NOT wrap questions in an array. Do NOT output { "questions": [...] }.
+Output each question as a SEPARATE, COMPLETE JSON object on its OWN LINE.
+One question per line. No commas between objects. No wrapping array or object.
 
-TYPE 1 — Single part question:
-{
-  "question_text": "A student measures a force of 12 N acting over an area of 0.40 $m^2$. Calculate the pressure. Give your answer in Pa.",
-  "marks": 2,
-  "parts": [],
-  "mark_scheme": [
-    { "mark_type": "step", "criterion": "Correct substitution: $P = \\\\frac{12}{0.40}$", "marks": 1 },
-    { "mark_type": "step", "criterion": "Correct answer with unit: 30 Pa", "marks": 1 }
-  ],
-  "worked_solution": "$P = \\\\frac{F}{A}$\\n$P = \\\\frac{12}{0.40}$\\n$P = 30$ Pa"
-}
+Example of correct output for 2 questions:
+{"question_text":"A student measures a force...","marks":2,"parts":[],"mark_scheme":[...],"worked_solution":"...","diagram_type":null,"diagram_params":null}
+{"question_text":"A student investigates...","marks":5,"parts":[{"part_label":"a",...}],"mark_scheme":[...],"worked_solution":"...","diagram_type":null,"diagram_params":null}
 
-TYPE 2 — Multi-part question:
-{
-  "question_text": "A student investigates how the resistance of a wire depends on the length of the wire. The student uses a cell, an ammeter, a voltmeter, a switch and a length of resistance wire.",
-  "marks": 5,
-  "parts": [
-    { "part_label": "a", "part_text": "Name the independent variable in this investigation.", "marks": 1 },
-    { "part_label": "b", "part_text": "Describe how the student should collect results for this investigation.", "marks": 4 }
-  ],
-  "mark_scheme": [
-    { "mark_type": "step", "part": "a", "criterion": "Length of the wire", "marks": 1 },
-    { "mark_type": "step", "part": "b", "criterion": "Measure the length of wire between the contacts", "marks": 1 },
-    { "mark_type": "step", "part": "b", "criterion": "Measure current and potential difference for each length", "marks": 1 },
-    { "mark_type": "step", "part": "b", "criterion": "Calculate resistance using $R = \\\\frac{V}{I}$", "marks": 1 },
-    { "mark_type": "step", "part": "b", "criterion": "Repeat for several lengths and plot a graph of resistance against length", "marks": 1 }
-  ],
-  "worked_solution": "Part (a):\\nThe independent variable is the length of the wire.\\nPart (b):\\nMeasure the length of wire between the contacts.\\nMeasure the current and potential difference.\\nCalculate resistance using $R = \\\\frac{V}{I}$.\\nRepeat for several lengths and plot a graph."
-}
-
-MULTI-PART QUESTION RULES:
-- question_text is the shared scenario stem ONLY
-- Do not list sub-questions inside question_text
-- Each part_text is the sub-question only
-- Do not include "(a)" or "(b)" in part_text
-- Do not include mark counts inside part_text
-- The app renders labels and mark counts automatically
+Each question object must contain:
+- question_text (string)
+- marks (number)
+- parts (array — empty [] for single-part, populated for multi-part)
+- mark_scheme (array of mark objects using "mark_type": "step")
+- worked_solution (string)
+- diagram_type (null)
+- diagram_params (null)
 
 RULES:
-1. Generate exactly {COUNT} questions in increasing difficulty
-2. Questions must read like real AQA GCSE Physics 8463 exam questions
-3. Use LaTeX notation — mandatory
-4. \\\\times must always use double escaped backslash
-5. At least one question must be multi-part
-6. Mark schemes must use AQA-style standalone marking points
-7. Do not use Edexcel M/A/B/C/P mark types for Physics
-8. Every mark_scheme item must use "mark_type": "step"
-9. Worked solution must have one step per line, separated by \\n
-10. Return ONLY a JSON object: { "questions": [...] } — no markdown, no preamble
+1. Output exactly {COUNT} lines — one JSON object per line, no blank lines between them
+2. Questions must be in increasing difficulty (Q1 easiest, Q4 hardest)
+3. At least one question must be multi-part
+4. Use LaTeX notation — mandatory. \\\\times must always use double escaped backslash
+5. Every mark_scheme item must use "mark_type": "step"
+6. Worked solution: one step per line using \\n
+7. No markdown, no preamble, no explanation — raw NDJSON only
 `;
 
 // ─────────────────────────────────────────────
@@ -1143,7 +1102,7 @@ For calculations:
 - If 2 marks: usually substitution/process + answer/unit
 - If 3 marks: equation/rearrangement or conversion + substitution + answer/unit
 - If 4+ marks: break the process into clear standalone points
-- Apply error carried forward where appropriate and state it in the criterion
+- Apply error carried forward where appropriate and state it in the criterion, e.g. "Correct calculation using the candidate's value from part (a)"
 
 For explanations:
 - Each mark should correspond to one clear physics idea
@@ -1206,209 +1165,6 @@ You may include small data tables in question_text using plain text.
 ${PHYSICS_SHARED_LATEX_RULES}
 
 ${PHYSICS_OUTPUT_FORMAT.replace('{COUNT}', String(count))}`;
-}
-
-// ─────────────────────────────────────────────
-// STREAMING QUESTION PARSER
-// Reads Anthropic SSE stream, accumulates the full text, then
-// emits each complete question object as NDJSON as soon as it
-// is parsed from the growing response.
-// ─────────────────────────────────────────────
-
-async function streamQuestionsFromClaude(
-  systemPrompt: string,
-  userPrompt: string,
-  apiKey: string,
-  writer: WritableStreamDefaultWriter<Uint8Array>,
-  encoder: TextEncoder
-): Promise<void> {
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 4000,
-      stream: true,
-      system: systemPrompt,
-      messages: [{ role: 'user', content: userPrompt }],
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Anthropic API returned ${response.status}`);
-  }
-
-  if (!response.body) throw new Error('No response body from Anthropic');
-
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let sseBuffer = '';
-  let accumulatedText = '';
-  let emittedCount = 0;
-
-  // Track brace depth to detect complete JSON question objects
-  // We scan for complete objects inside the "questions": [...] array
-  let inQuestionsArray = false;
-  let braceDepth = 0;
-  let objectStart = -1;
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-
-    sseBuffer += decoder.decode(value, { stream: true });
-    const lines = sseBuffer.split('\n');
-    sseBuffer = lines.pop() ?? '';
-
-    for (const line of lines) {
-      if (!line.startsWith('data: ')) continue;
-      const data = line.slice(6).trim();
-      if (data === '[DONE]') break;
-
-      try {
-        const event = JSON.parse(data);
-        if (
-          event.type === 'content_block_delta' &&
-          event.delta?.type === 'text_delta'
-        ) {
-          accumulatedText += event.delta.text;
-
-          // Scan newly added characters for complete question objects
-          const text = accumulatedText;
-
-          // Find the start of the questions array if not found yet
-          if (!inQuestionsArray) {
-            const arrayStart = text.indexOf('"questions"');
-            if (arrayStart !== -1) {
-              const bracketPos = text.indexOf('[', arrayStart);
-              if (bracketPos !== -1) {
-                inQuestionsArray = true;
-                // Start scanning from the first { after the [
-                const firstBrace = text.indexOf('{', bracketPos);
-                if (firstBrace !== -1) {
-                  objectStart = firstBrace;
-                  braceDepth = 1;
-                }
-              }
-            }
-          } else {
-            // We're inside the questions array — scan for complete objects
-            // Start from where we left off (end of last parsed segment)
-            const scanFrom =
-              objectStart === -1 ? text.lastIndexOf('{') : objectStart;
-
-            let i =
-              objectStart === -1
-                ? scanFrom
-                : emittedCount === 0
-                  ? objectStart
-                  : objectStart;
-
-            // Re-scan from the character after the last emitted object
-            // by tracking position via a simpler approach:
-            // re-parse accumulated text each time a new chunk arrives
-            const remaining = text;
-            let pos = 0;
-
-            // Find all complete question objects in accumulated text
-            // by counting braces
-            let depth = 0;
-            let start = -1;
-            let questionIndex = 0;
-
-            for (let c = 0; c < remaining.length; c++) {
-              const ch = remaining[c];
-              // Skip string contents to avoid false brace counts
-              if (ch === '"') {
-                c++;
-                while (c < remaining.length && remaining[c] !== '"') {
-                  if (remaining[c] === '\\') c++; // skip escaped char
-                  c++;
-                }
-                continue;
-              }
-              if (ch === '{') {
-                if (depth === 0 && inQuestionsArray) {
-                  // Check we're past the outer { of the questions array wrapper
-                  // by ensuring we've seen "questions":[ already
-                  start = c;
-                }
-                depth++;
-              } else if (ch === '}') {
-                depth--;
-                if (depth === 0 && start !== -1) {
-                  // Complete object found
-                  if (questionIndex >= emittedCount) {
-                    const objStr = remaining.slice(start, c + 1);
-                    try {
-                      const q = JSON.parse(objStr);
-                      // Validate it looks like a question
-                      if (q.question_text && q.marks !== undefined) {
-                        const question = {
-                          id: crypto.randomUUID(),
-                          question_text: q.question_text,
-                          marks: q.marks,
-                          parts: q.parts || [],
-                          mark_scheme: q.mark_scheme,
-                          worked_solution: q.worked_solution,
-                          diagram_type: q.diagram_type || null,
-                          diagram_params: q.diagram_params || null,
-                          question_order: emittedCount + 1,
-                        };
-                        await writer.write(
-                          encoder.encode(JSON.stringify(question) + '\n')
-                        );
-                        emittedCount++;
-                      }
-                    } catch {
-                      // Not valid JSON yet — partial object, skip
-                    }
-                  }
-                  questionIndex++;
-                  start = -1;
-                }
-              }
-            }
-          }
-        }
-      } catch {
-        // Malformed SSE line — skip
-      }
-    }
-  }
-
-  // Final parse of complete response in case any questions weren't emitted mid-stream
-  try {
-    const cleaned = accumulatedText
-      .replace(/^```(?:json)?\s*/m, '')
-      .replace(/\s*```\s*$/m, '')
-      .trim();
-    const parsed = JSON.parse(cleaned);
-    if (Array.isArray(parsed.questions)) {
-      for (let i = emittedCount; i < parsed.questions.length; i++) {
-        const q = parsed.questions[i];
-        if (!q.question_text) continue;
-        const question = {
-          id: crypto.randomUUID(),
-          question_text: q.question_text,
-          marks: q.marks,
-          parts: q.parts || [],
-          mark_scheme: q.mark_scheme,
-          worked_solution: q.worked_solution,
-          diagram_type: q.diagram_type || null,
-          diagram_params: q.diagram_params || null,
-          question_order: i + 1,
-        };
-        await writer.write(encoder.encode(JSON.stringify(question) + '\n'));
-      }
-    }
-  } catch {
-    // If final parse fails, whatever was streamed mid-response is all we have
-  }
 }
 
 // ─────────────────────────────────────────────
@@ -1511,39 +1267,143 @@ REMINDER FOR MULTI-PART QUESTIONS:
 - question_text = shared scenario stem ONLY (no sub-questions listed)
 - part_text = sub-question text only, no (a)/(b) prefix, no mark count
 
-Return ONLY this JSON structure:
-{
-  "questions": [
-    {
-      "question_text": "string with $LaTeX$",
-      "marks": 2,
-      "parts": [],
-      "mark_scheme": [{ "mark_type": "${markTypeExample}", "criterion": "string with $LaTeX$", "marks": 1 }],
-      "worked_solution": "one step per line using \\n",
-      "diagram_type": null,
-      "diagram_params": null
-    }
-  ]
-}`;
+Output ${count} JSON objects, one per line, no wrapping array. No markdown, no preamble.
+Mark type to use: "${markTypeExample}"`;
 
     const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
     if (!ANTHROPIC_API_KEY)
       throw new Error('ANTHROPIC_API_KEY is not configured');
 
+    // Single Claude call with streaming enabled.
+    // Claude outputs one JSON object per line (NDJSON).
+    // We read the SSE stream, accumulate text, and emit each complete
+    // line to the client as soon as we detect a newline.
+    const anthropicResponse = await fetch(
+      'https://api.anthropic.com/v1/messages',
+      {
+        method: 'POST',
+        headers: {
+          'x-api-key': ANTHROPIC_API_KEY,
+          'anthropic-version': '2023-06-01',
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 4000,
+          stream: true,
+          system: systemPrompt,
+          messages: [{ role: 'user', content: userPrompt }],
+        }),
+      }
+    );
+
+    if (!anthropicResponse.ok) {
+      const text = await anthropicResponse.text();
+      throw new Error(
+        `Anthropic API returned ${anthropicResponse.status}: ${text}`
+      );
+    }
+
+    if (!anthropicResponse.body)
+      throw new Error('No response body from Anthropic');
+
     const { readable, writable } = new TransformStream();
     const writer = writable.getWriter();
     const encoder = new TextEncoder();
 
-    // Fire the streaming Claude call in the background
     (async () => {
       try {
-        await streamQuestionsFromClaude(
-          systemPrompt,
-          userPrompt,
-          ANTHROPIC_API_KEY,
-          writer,
-          encoder
-        );
+        const reader = anthropicResponse.body!.getReader();
+        const decoder = new TextDecoder();
+        let sseBuffer = '';
+        let lineBuffer = ''; // accumulates Claude's text output line by line
+        let emittedCount = 0;
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          sseBuffer += decoder.decode(value, { stream: true });
+          const sseLines = sseBuffer.split('\n');
+          sseBuffer = sseLines.pop() ?? '';
+
+          for (const sseLine of sseLines) {
+            if (!sseLine.startsWith('data: ')) continue;
+            const data = sseLine.slice(6).trim();
+            if (data === '[DONE]') break;
+
+            try {
+              const event = JSON.parse(data);
+              if (
+                event.type === 'content_block_delta' &&
+                event.delta?.type === 'text_delta'
+              ) {
+                const chunk = event.delta.text as string;
+                lineBuffer += chunk;
+
+                // Emit each complete line as soon as we see a newline
+                const parts = lineBuffer.split('\n');
+                // Last element is the incomplete line — keep it in buffer
+                lineBuffer = parts.pop() ?? '';
+
+                for (const part of parts) {
+                  const trimmed = part.trim();
+                  if (!trimmed) continue;
+                  try {
+                    const q = JSON.parse(trimmed);
+                    if (q.question_text && q.marks !== undefined) {
+                      const question = {
+                        id: crypto.randomUUID(),
+                        question_text: q.question_text,
+                        marks: q.marks,
+                        parts: q.parts || [],
+                        mark_scheme: q.mark_scheme,
+                        worked_solution: q.worked_solution,
+                        diagram_type: q.diagram_type || null,
+                        diagram_params: q.diagram_params || null,
+                        question_order: emittedCount + 1,
+                      };
+                      await writer.write(
+                        encoder.encode(JSON.stringify(question) + '\n')
+                      );
+                      emittedCount++;
+                    }
+                  } catch {
+                    // Not valid JSON — skip
+                  }
+                }
+              }
+            } catch {
+              // Malformed SSE line — skip
+            }
+          }
+        }
+
+        // Handle any remaining content in lineBuffer after stream ends
+        const trimmed = lineBuffer.trim();
+        if (trimmed) {
+          try {
+            const q = JSON.parse(trimmed);
+            if (q.question_text && q.marks !== undefined) {
+              const question = {
+                id: crypto.randomUUID(),
+                question_text: q.question_text,
+                marks: q.marks,
+                parts: q.parts || [],
+                mark_scheme: q.mark_scheme,
+                worked_solution: q.worked_solution,
+                diagram_type: q.diagram_type || null,
+                diagram_params: q.diagram_params || null,
+                question_order: emittedCount + 1,
+              };
+              await writer.write(
+                encoder.encode(JSON.stringify(question) + '\n')
+              );
+            }
+          } catch {
+            // ignore
+          }
+        }
       } catch (e) {
         console.error('Streaming error:', e);
       } finally {
