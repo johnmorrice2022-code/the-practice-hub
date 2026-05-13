@@ -356,13 +356,14 @@ export default function AdminReviewQueue() {
     }
 
     // Insert into live questions table
+    // Insert into live questions table
     const liveRows = approved.map((q) => ({
       subtopic_id: q.subtopic_id,
       question_text: q.question_text,
       marks: q.marks,
-      mark_scheme: q.mark_scheme,
-      worked_solution: q.worked_solution,
-      parts: q.parts,
+      mark_scheme: q.mark_scheme ?? [],
+      worked_solution: q.worked_solution ?? '',
+      parts: q.parts ?? [],
       calculator_allowed: q.calculator_allowed,
       source: 'reviewed',
     }));
