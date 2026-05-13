@@ -18,6 +18,7 @@ import {
   X,
   LayoutDashboard,
   Clock,
+  Check,
 } from 'lucide-react';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
