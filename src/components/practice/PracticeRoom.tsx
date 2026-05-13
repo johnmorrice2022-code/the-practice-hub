@@ -162,11 +162,30 @@ export function PracticeRoom({
     loadQuestions();
   }, [config.subtopicId]);
 
+  // ── Reset session state ───────────────────────────────────────────────────
+
+  function resetSession() {
+    setCurrentIndex(0);
+    setAnswers({});
+    setPartAnswers({});
+    setTreeAnswers({});
+    setFeedbacks({});
+    setPhase('answering');
+    sessionStartTime.current = Date.now();
+  }
+
+  // ── Load questions — three-tier priority ─────────────────────────────────
+  //
+  // Priority 1: seeded_questions (hand-authored, diagram topics)
+  // Priority 2: questions table (teacher-reviewed AI questions)
+  // Priority 3: live AI generation (fallback)
+
   const loadQuestions = async () => {
     setGeneratingQuestions(true);
     setLoading(false);
+
     try {
-      const [seededRes, subtopicRes] = await Promise.all([
+      const [seededRes, reviewedRes, subtopicRes] = await Promise.all([
         supabase
           .from('seeded_questions')
           .select(
@@ -175,16 +194,24 @@ export function PracticeRoom({
           .eq('subtopic_id', config.subtopicId)
           .order('question_order'),
         supabase
+          .from('questions')
+          .select(
+            'id, question_text, marks, mark_scheme, worked_solution, parts, calculator_allowed'
+          )
+          .eq('subtopic_id', config.subtopicId),
+        supabase
           .from('subtopics')
           .select('prompt_config')
           .eq('id', config.subtopicId)
           .single(),
       ]);
+
       const guidance =
         (subtopicRes.data?.prompt_config as any)?.marking_guidance || null;
       setMarkingGuidance(guidance);
+
+      // ── Priority 1: seeded questions ──────────────────────────────────────
       if (seededRes.data && seededRes.data.length > 0) {
-        // Shuffle seeded questions so New set produces a different order
         const shuffled = [...seededRes.data].sort(() => Math.random() - 0.5);
         setQuestions(
           shuffled.map((q) => ({
@@ -196,33 +223,51 @@ export function PracticeRoom({
             diagram_component: (q as any).diagram_component || null,
           }))
         );
-        setCurrentIndex(0);
-        setAnswers({});
-        setPartAnswers({});
-        setTreeAnswers({});
-        setFeedbacks({});
-        setPhase('answering');
+        resetSession();
         setGeneratingQuestions(false);
-        sessionStartTime.current = Date.now();
-      } else {
-        await generateAIQuestions();
+        return;
       }
+
+      // ── Priority 2: reviewed question bank ────────────────────────────────
+      if (reviewedRes.data && reviewedRes.data.length >= 4) {
+        // Prefer questions matching the current calculator mode
+        const filtered = reviewedRes.data.filter(
+          (q) =>
+            q.calculator_allowed === null ||
+            q.calculator_allowed === calculatorAllowed
+        );
+        const pool = filtered.length >= 4 ? filtered : reviewedRes.data;
+        const shuffled = [...pool].sort(() => Math.random() - 0.5).slice(0, 4);
+        setQuestions(
+          shuffled.map((q, i) => ({
+            ...q,
+            question_order: i + 1,
+            parts: q.parts || [],
+            diagram_type: null,
+            diagram_params: null,
+            diagram_url: null,
+            diagram_component: null,
+          }))
+        );
+        resetSession();
+        setGeneratingQuestions(false);
+        return;
+      }
+
+      // ── Priority 3: live AI generation ────────────────────────────────────
+      await generateAIQuestions();
     } catch {
       await generateAIQuestions();
     }
   };
 
+  // ── Live AI generation ────────────────────────────────────────────────────
+
   const generateAIQuestions = async () => {
     setGeneratingQuestions(true);
     setLoading(false);
     setQuestions([]);
-    setCurrentIndex(0);
-    setAnswers({});
-    setPartAnswers({});
-    setTreeAnswers({});
-    setFeedbacks({});
-    setPhase('answering');
-    sessionStartTime.current = Date.now();
+    resetSession();
 
     try {
       const {
@@ -281,7 +326,6 @@ export function PracticeRoom({
             ]);
             if (firstQuestion) {
               firstQuestion = false;
-              // Hide the loading skeleton as soon as Q1 arrives
               setGeneratingQuestions(false);
             }
           } catch {
@@ -299,6 +343,8 @@ export function PracticeRoom({
       setGeneratingQuestions(false);
     }
   };
+
+  // ── Session helpers ───────────────────────────────────────────────────────
 
   const currentQuestion = questions[currentIndex];
   const totalMarks = questions.reduce((sum, q) => sum + q.marks, 0);
@@ -515,6 +561,8 @@ export function PracticeRoom({
     setJamHelpOpen(true);
   };
 
+  // ── Derived state ─────────────────────────────────────────────────────────
+
   const allAnswered =
     questions.length > 0 && questions.every((q) => hasAnswer(q));
   const currentFeedback = currentQuestion
@@ -533,6 +581,8 @@ export function PracticeRoom({
     phase === 'review'
       ? 100
       : ((currentIndex + 1) / Math.max(questions.length, 1)) * 100;
+
+  // ── Render ────────────────────────────────────────────────────────────────
 
   if (loading || generatingQuestions) {
     return (
