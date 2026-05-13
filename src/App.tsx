@@ -19,6 +19,7 @@ import AuthCallback from './pages/AuthCallback';
 import AdminDiagrams from './pages/admin/AdminDiagrams';
 import AdminProbabilityQuestions from './pages/admin/AdminProbabilityQuestions';
 import AdminHub from './pages/admin/AdminHub';
+import AdminReviewQueue from './pages/admin/AdminReviewQueue';
 
 const queryClient = new QueryClient();
 
@@ -48,6 +49,7 @@ const App = () => (
             <Route path="/hub" element={<Hub />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="*" element={<NotFound />} />
+            <Route path="/admin/review-queue" element={<AdminReviewQueue />} />
           </Routes>
         </BrowserRouter>
       </TooltipProvider>

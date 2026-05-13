@@ -178,12 +178,18 @@ export default function AdminHub() {
             statsLoaded={statsLoaded}
             onClick={() => navigate('/admin/probability-questions')}
           />
+          {/* Review Queue */}
+          <ToolCard
+            icon={<Check size={18} color="white" />}
+            iconBg="#22c55e"
+            title="Review Queue"
+            description="Generate, review and publish AI questions for Maths subtopics."
+            stat={null}
+            statLabel="questions pending"
+            statsLoaded={true}
+            onClick={() => navigate('/admin/review-queue')}
+          />
         </div>
-
-        {/* Section label */}
-        <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 mb-4">
-          Coming soon
-        </p>
 
         {/* ── Coming soon ── */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
