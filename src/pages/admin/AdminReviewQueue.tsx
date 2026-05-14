@@ -5,10 +5,11 @@
 //
 // Three views:
 //   1. Queue view  — subtopic list with pending counts + Generate button
+//                    + collapsible "Add Seeded Question" panel per subtopic
 //   2. Review mode — one question at a time, keyboard shortcuts A/E/R/←/→
 //   3. Publish view — approve → publish to live questions table
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { QuestionCard } from '@/components/practice/QuestionCard';
@@ -23,6 +24,18 @@ import {
   LayoutDashboard,
   ChevronRight,
   RefreshCw,
+  BookOpen,
+  Plus,
+  Trash2,
+  Eye,
+  EyeOff,
+  ImageIcon,
+  Sparkles,
+  Save,
+  CheckCircle2,
+  AlertTriangle,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -41,6 +54,7 @@ interface Subtopic {
   tier: string;
   subject: string;
   grade_band: string;
+  slug: string;
 }
 
 interface SubtopicWithCounts extends Subtopic {
@@ -62,7 +76,620 @@ interface PendingQuestion {
   batch_id: string;
 }
 
-type View = 'queue' | 'review' | 'publish';
+interface SeededQuestion {
+  id: string;
+  subtopic_id: string;
+  question_order: number;
+  question_text: string;
+  marks: number;
+  mark_scheme: unknown;
+  worked_solution: string | null;
+  diagram_url: string | null;
+  diagram_component: string | null;
+  diagram_params: unknown;
+  created_at: string;
+}
+
+type View = 'queue' | 'review';
+
+// ─── Seeded question form state ───────────────────────────────────────────────
+
+interface SeededFormState {
+  questionText: string;
+  marks: string;
+  markScheme: string;
+  workedSolution: string;
+  diagramFile: File | null;
+  diagramPreviewUrl: string | null;
+}
+
+function emptySeededForm(): SeededFormState {
+  return {
+    questionText: '',
+    marks: '3',
+    markScheme: '',
+    workedSolution: '',
+    diagramFile: null,
+    diagramPreviewUrl: null,
+  };
+}
+
+// ─── Seeded Question List Card ────────────────────────────────────────────────
+
+function SeededQuestionListCard({
+  q,
+  onDelete,
+}: {
+  q: SeededQuestion;
+  onDelete: (id: string) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  async function handleDelete() {
+    if (!confirm('Delete this seeded question? This cannot be undone.')) return;
+    setDeleting(true);
+    const { error } = await supabase
+      .from('seeded_questions')
+      .delete()
+      .eq('id', q.id);
+    if (error) {
+      alert('Delete failed: ' + error.message);
+      setDeleting(false);
+    } else {
+      onDelete(q.id);
+    }
+  }
+
+  return (
+    <div className="border border-gray-100 rounded-lg bg-white overflow-hidden">
+      <div className="flex items-start gap-3 p-3">
+        {/* Order badge */}
+        <span
+          className="flex-shrink-0 mt-0.5 w-5 h-5 rounded-full text-[10px] flex items-center justify-center font-bold"
+          style={{ background: '#fef3c7', color: '#92400e' }}
+        >
+          {q.question_order}
+        </span>
+
+        <div className="flex-1 min-w-0">
+          <p className="text-xs text-gray-700 line-clamp-2 leading-snug">
+            {q.question_text}
+          </p>
+          <div className="flex items-center gap-2 mt-1 flex-wrap">
+            <span className="text-[10px] text-gray-400">
+              {q.marks} mark{q.marks !== 1 ? 's' : ''}
+            </span>
+            {q.diagram_url && (
+              <span className="text-[10px] bg-blue-50 text-blue-500 px-1.5 py-0.5 rounded font-medium">
+                image
+              </span>
+            )}
+            {q.diagram_component && (
+              <span className="text-[10px] bg-purple-50 text-purple-500 px-1.5 py-0.5 rounded font-medium">
+                {q.diagram_component}
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-1 flex-shrink-0">
+          <button
+            onClick={() => setExpanded((e) => !e)}
+            className="p-1.5 text-gray-300 hover:text-gray-500 rounded transition-colors"
+            title={expanded ? 'Collapse' : 'Expand'}
+          >
+            {expanded ? <EyeOff size={12} /> : <Eye size={12} />}
+          </button>
+          <button
+            onClick={handleDelete}
+            disabled={deleting}
+            className="p-1.5 text-gray-300 hover:text-red-400 rounded transition-colors"
+            title="Delete"
+          >
+            {deleting ? (
+              <Loader2 size={12} className="animate-spin" />
+            ) : (
+              <Trash2 size={12} />
+            )}
+          </button>
+        </div>
+      </div>
+
+      {expanded && (
+        <div className="border-t border-gray-50 px-3 pb-3 pt-2 bg-gray-50/60 space-y-2">
+          {q.diagram_url && (
+            <img
+              src={q.diagram_url}
+              alt="Question diagram"
+              className="max-h-32 rounded border border-gray-100 object-contain"
+            />
+          )}
+          {q.mark_scheme && (
+            <div>
+              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">
+                Mark scheme
+              </p>
+              <pre className="text-[11px] text-gray-600 whitespace-pre-wrap bg-white border border-gray-100 rounded p-2 max-h-28 overflow-y-auto font-mono">
+                {typeof q.mark_scheme === 'string'
+                  ? q.mark_scheme
+                  : JSON.stringify(q.mark_scheme, null, 2)}
+              </pre>
+            </div>
+          )}
+          {q.worked_solution && (
+            <div>
+              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">
+                Worked solution
+              </p>
+              <p className="text-[11px] text-gray-600 whitespace-pre-wrap">
+                {q.worked_solution}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Add Seeded Question Panel ────────────────────────────────────────────────
+
+function SeededQuestionPanel({ subtopic }: { subtopic: SubtopicWithCounts }) {
+  const [seededQuestions, setSeededQuestions] = useState<SeededQuestion[]>([]);
+  const [loadingSeeded, setLoadingSeeded] = useState(true);
+  const [form, setForm] = useState<SeededFormState>(emptySeededForm());
+  const [saveStatus, setSaveStatus] = useState<
+    'idle' | 'saving' | 'success' | 'error'
+  >('idle');
+  const [saveError, setSaveError] = useState('');
+  const [generatingMarkScheme, setGeneratingMarkScheme] = useState(false);
+  const [markSchemeError, setMarkSchemeError] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Load existing seeded questions for this subtopic
+  useEffect(() => {
+    async function load() {
+      setLoadingSeeded(true);
+      const { data, error } = await supabase
+        .from('seeded_questions')
+        .select('*')
+        .eq('subtopic_id', subtopic.id)
+        .order('question_order', { ascending: true });
+      if (!error && data) setSeededQuestions(data as SeededQuestion[]);
+      setLoadingSeeded(false);
+    }
+    load();
+  }, [subtopic.id]);
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0] ?? null;
+    if (!file) return;
+    // Revoke any previous preview URL to avoid memory leaks
+    if (form.diagramPreviewUrl) URL.revokeObjectURL(form.diagramPreviewUrl);
+    setForm((f) => ({
+      ...f,
+      diagramFile: file,
+      diagramPreviewUrl: URL.createObjectURL(file),
+    }));
+  }
+
+  function clearDiagram() {
+    if (form.diagramPreviewUrl) URL.revokeObjectURL(form.diagramPreviewUrl);
+    setForm((f) => ({ ...f, diagramFile: null, diagramPreviewUrl: null }));
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  }
+
+  async function uploadDiagram(): Promise<string | null> {
+    if (!form.diagramFile) return null;
+    const subject = subtopic.subject.toLowerCase().replace(/\s+/g, '-');
+    const topic = subtopic.topic.toLowerCase().replace(/\s+/g, '-');
+    const slug = subtopic.slug;
+    const ext = form.diagramFile.name.split('.').pop() ?? 'png';
+    const path = `diagrams/${subject}/${topic}/${slug}/seeded-${Date.now()}.${ext}`;
+
+    const { error } = await supabase.storage
+      .from('diagrams')
+      .upload(path, form.diagramFile, { upsert: false });
+
+    if (error) {
+      alert('Diagram upload failed: ' + error.message);
+      return null;
+    }
+
+    const { data: urlData } = supabase.storage
+      .from('diagrams')
+      .getPublicUrl(path);
+    return urlData.publicUrl;
+  }
+
+  async function handleGenerateMarkScheme() {
+    if (!form.questionText.trim()) {
+      setMarkSchemeError('Add question text first.');
+      return;
+    }
+    if (!form.workedSolution.trim()) {
+      setMarkSchemeError(
+        'Add a worked solution first — Claude needs it to write accurate criteria.'
+      );
+      return;
+    }
+
+    setGeneratingMarkScheme(true);
+    setMarkSchemeError('');
+
+    try {
+      const { data, error } = await supabase.functions.invoke(
+        'generate-mark-scheme',
+        {
+          body: {
+            questionText: form.questionText.trim(),
+            marksAvailable: parseInt(form.marks, 10) || 3,
+            workedSolution: form.workedSolution.trim(),
+            diagramComponent: null,
+            diagramParams: null,
+            examBoard: subtopic.subject.toLowerCase().includes('maths')
+              ? 'Edexcel'
+              : 'AQA',
+            subject: subtopic.subject,
+            tier: subtopic.tier,
+          },
+        }
+      );
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      setForm((f) => ({
+        ...f,
+        markScheme: JSON.stringify(data.markScheme, null, 2),
+      }));
+    } catch (e: any) {
+      setMarkSchemeError(e.message || 'Generation failed — try again.');
+    } finally {
+      setGeneratingMarkScheme(false);
+    }
+  }
+
+  async function handleSave() {
+    if (!form.questionText.trim()) {
+      alert('Question text is required.');
+      return;
+    }
+    if (!form.markScheme.trim()) {
+      alert('Mark scheme is required.');
+      return;
+    }
+
+    setSaveStatus('saving');
+    setSaveError('');
+
+    // Upload diagram if present
+    const diagramUrl = await uploadDiagram();
+    if (form.diagramFile && !diagramUrl) {
+      setSaveStatus('error');
+      setSaveError('Diagram upload failed.');
+      return;
+    }
+
+    // Determine next question_order
+    const maxOrder = seededQuestions.reduce(
+      (m, q) => Math.max(m, q.question_order),
+      0
+    );
+
+    // Parse mark scheme — try JSON first, fall back to plain-text wrapping
+    let markSchemeValue: unknown;
+    try {
+      markSchemeValue = JSON.parse(form.markScheme);
+    } catch {
+      markSchemeValue = form.markScheme
+        .split('\n')
+        .filter(Boolean)
+        .map((line) => ({ criterion: line.trim() }));
+    }
+
+    const row = {
+      subtopic_id: subtopic.id,
+      question_order: maxOrder + 1,
+      question_text: form.questionText.trim(),
+      marks: parseInt(form.marks, 10) || 3,
+      mark_scheme: markSchemeValue,
+      worked_solution: form.workedSolution.trim() || null,
+      diagram_url: diagramUrl ?? null,
+      diagram_component: null,
+      diagram_params: null,
+    };
+
+    const { data: inserted, error } = await supabase
+      .from('seeded_questions')
+      .insert(row)
+      .select()
+      .single();
+
+    if (error) {
+      setSaveStatus('error');
+      setSaveError(error.message);
+      return;
+    }
+
+    // Update local list optimistically and reset
+    setSeededQuestions((prev) => [...prev, inserted as SeededQuestion]);
+    setSaveStatus('success');
+
+    setTimeout(() => {
+      if (form.diagramPreviewUrl) URL.revokeObjectURL(form.diagramPreviewUrl);
+      setForm(emptySeededForm());
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      setSaveStatus('idle');
+      setSaveError('');
+      setMarkSchemeError('');
+    }, 1500);
+  }
+
+  function handleDeleteSeeded(id: string) {
+    setSeededQuestions((prev) => prev.filter((q) => q.id !== id));
+  }
+
+  const parametricCount = seededQuestions.filter(
+    (q) => q.diagram_component !== null
+  ).length;
+
+  return (
+    <div
+      className="mt-2 rounded-xl overflow-hidden border"
+      style={{ borderColor: 'rgba(245,166,35,0.3)', background: '#fffcf5' }}
+    >
+      {/* Panel header */}
+      <div
+        className="flex items-center gap-2 px-4 py-2.5 border-b"
+        style={{
+          borderColor: 'rgba(245,166,35,0.2)',
+          background: 'rgba(245,166,35,0.06)',
+        }}
+      >
+        <BookOpen size={13} style={{ color: '#F5A623' }} />
+        <span className="text-xs font-semibold" style={{ color: '#b07d36' }}>
+          Seeded Questions
+        </span>
+        <span className="ml-auto text-[11px]" style={{ color: '#b07d36' }}>
+          {seededQuestions.length} total
+          {parametricCount > 0 &&
+            ` · ${parametricCount} parametric · ${seededQuestions.length - parametricCount} image`}
+        </span>
+      </div>
+
+      {/* Two-column layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-amber-100">
+        {/* ── LEFT: existing questions ─────────────────────────────── */}
+        <div className="p-4">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 mb-3">
+            Current Questions
+          </p>
+
+          {loadingSeeded ? (
+            <div className="flex items-center gap-2 text-xs text-gray-400 py-4">
+              <Loader2 size={12} className="animate-spin" /> Loading…
+            </div>
+          ) : seededQuestions.length === 0 ? (
+            <p className="text-xs text-gray-400 italic py-4">
+              No seeded questions yet for this subtopic.
+            </p>
+          ) : (
+            <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+              {seededQuestions.map((q) => (
+                <SeededQuestionListCard
+                  key={q.id}
+                  q={q}
+                  onDelete={handleDeleteSeeded}
+                />
+              ))}
+            </div>
+          )}
+
+          {parametricCount > 0 && (
+            <p className="text-[10px] text-gray-400 italic mt-3">
+              {parametricCount} parametric question
+              {parametricCount !== 1 ? 's' : ''} (e.g. probability trees) — edit
+              via their dedicated admin form.
+            </p>
+          )}
+        </div>
+
+        {/* ── RIGHT: add question form ─────────────────────────────── */}
+        <div className="p-4 space-y-4">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+            Add Question
+          </p>
+
+          {/* Question text */}
+          <div>
+            <label className="block text-[11px] text-gray-500 mb-1">
+              Question text <span className="text-red-400">*</span>
+            </label>
+            <textarea
+              value={form.questionText}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, questionText: e.target.value }))
+              }
+              rows={4}
+              placeholder="e.g. A circle has centre O. AB is a chord. Angle OAB = 35°. Work out angle AOB. Give reasons for your answer."
+              className="w-full text-sm border border-gray-200 rounded-lg p-2.5 resize-none focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/30 bg-white transition-all"
+            />
+          </div>
+
+          {/* Marks */}
+          <div>
+            <label className="block text-[11px] text-gray-500 mb-1">
+              Marks
+            </label>
+            <input
+              type="number"
+              min={1}
+              max={12}
+              value={form.marks}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, marks: e.target.value }))
+              }
+              className="w-20 text-sm border border-gray-200 rounded-lg p-2 text-center focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/30 bg-white transition-all"
+            />
+          </div>
+
+          {/* Diagram upload */}
+          <div>
+            <label className="block text-[11px] text-gray-500 mb-1">
+              Diagram (optional)
+            </label>
+
+            {form.diagramPreviewUrl ? (
+              <div className="space-y-2">
+                <img
+                  src={form.diagramPreviewUrl}
+                  alt="Diagram preview"
+                  className="max-h-32 rounded-lg border border-gray-200 object-contain"
+                />
+                <button
+                  onClick={clearDiagram}
+                  className="flex items-center gap-1 text-[11px] text-red-400 hover:text-red-600 transition-colors"
+                >
+                  <X size={11} /> Remove diagram
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="flex items-center gap-2 w-full border-2 border-dashed border-gray-200 rounded-lg p-3 text-[11px] text-gray-400 hover:border-amber-300 hover:text-amber-500 transition-all"
+              >
+                <ImageIcon size={13} /> Upload SVG / PNG / JPG
+              </button>
+            )}
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".svg,.png,.jpg,.jpeg"
+              onChange={handleFileChange}
+              className="hidden"
+            />
+            <p className="text-[10px] text-gray-400 mt-1">
+              Stored at: diagrams/
+              {subtopic.subject.toLowerCase().replace(/\s+/g, '-')}/
+              {subtopic.topic.toLowerCase().replace(/\s+/g, '-')}/
+              {subtopic.slug}/seeded-[timestamp].[ext]
+            </p>
+          </div>
+
+          {/* Worked solution */}
+          <div>
+            <label className="block text-[11px] text-gray-500 mb-1">
+              Worked solution
+            </label>
+            <textarea
+              value={form.workedSolution}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, workedSolution: e.target.value }))
+              }
+              rows={3}
+              placeholder="Step-by-step solution shown to students after attempting…"
+              className="w-full text-sm border border-gray-200 rounded-lg p-2.5 resize-none focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/30 bg-white transition-all"
+            />
+          </div>
+
+          {/* Mark scheme */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-[11px] text-gray-500">
+                Mark scheme (JSON or plain text){' '}
+                <span className="text-red-400">*</span>
+              </label>
+              <button
+                onClick={handleGenerateMarkScheme}
+                disabled={
+                  generatingMarkScheme ||
+                  !form.questionText.trim() ||
+                  !form.workedSolution.trim()
+                }
+                className="flex items-center gap-1 text-[11px] font-medium px-2.5 py-1 rounded-lg transition-all disabled:opacity-40"
+                style={{
+                  background: '#FEF9F0',
+                  color: '#F5A623',
+                  border: '1px solid rgba(245,166,35,0.4)',
+                }}
+              >
+                {generatingMarkScheme ? (
+                  <>
+                    <Loader2 size={10} className="animate-spin" /> Generating…
+                  </>
+                ) : (
+                  <>
+                    <Sparkles size={10} /> Generate
+                  </>
+                )}
+              </button>
+            </div>
+
+            {markSchemeError && (
+              <p className="text-[11px] text-red-500 mb-1.5">
+                {markSchemeError}
+              </p>
+            )}
+
+            <textarea
+              value={form.markScheme}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, markScheme: e.target.value }))
+              }
+              rows={6}
+              placeholder={`[\n  {"mark_type": "B1", "criterion": "Angle at centre = 2 × angle at circumference", "marks": 1},\n  {"mark_type": "B1", "criterion": "70°", "marks": 1}\n]`}
+              className="w-full text-xs font-mono border border-gray-200 rounded-lg p-2.5 resize-none focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/30 bg-white transition-all"
+            />
+            <p className="text-[10px] text-gray-400 mt-1">
+              Add question text + worked solution first, then click Generate.
+              Always review before saving.
+            </p>
+          </div>
+
+          {/* Save button */}
+          <button
+            onClick={handleSave}
+            disabled={saveStatus === 'saving' || !form.questionText.trim()}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-50"
+            style={{
+              background:
+                saveStatus === 'success'
+                  ? '#22c55e'
+                  : saveStatus === 'error'
+                    ? '#ef4444'
+                    : '#E23D28',
+            }}
+          >
+            {saveStatus === 'saving' ? (
+              <>
+                <Loader2 size={13} className="animate-spin" /> Saving…
+              </>
+            ) : saveStatus === 'success' ? (
+              <>
+                <CheckCircle2 size={13} /> Saved — live now
+              </>
+            ) : saveStatus === 'error' ? (
+              <>
+                <AlertTriangle size={13} /> Error — try again
+              </>
+            ) : (
+              <>
+                <Save size={13} /> Save seeded question
+              </>
+            )}
+          </button>
+
+          {saveStatus === 'error' && saveError && (
+            <p className="text-xs text-red-500 -mt-2">{saveError}</p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
@@ -77,6 +704,11 @@ export default function AdminReviewQueue() {
   const [selectedSubtopic, setSelectedSubtopic] =
     useState<SubtopicWithCounts | null>(null);
   const [generatingFor, setGeneratingFor] = useState<string | null>(null);
+
+  // Which subtopic has the seeded panel open — only one at a time
+  const [seededPanelOpenFor, setSeededPanelOpenFor] = useState<string | null>(
+    null
+  );
 
   // Review mode state
   const [questions, setQuestions] = useState<PendingQuestion[]>([]);
@@ -107,17 +739,16 @@ export default function AdminReviewQueue() {
   const loadSubtopics = useCallback(async () => {
     setLoadingSubtopics(true);
     try {
-      // Get all Maths subtopics
+      // Added slug to the select — needed for Supabase Storage path generation
       const { data: subs } = await supabase
         .from('subtopics')
-        .select('id, subtopic_name, topic, tier, subject, grade_band')
+        .select('id, subtopic_name, topic, tier, subject, grade_band, slug')
         .ilike('subject', '%math%')
         .order('topic')
         .order('subtopic_name');
 
       if (!subs) return;
 
-      // Get pending_questions counts per subtopic
       const { data: counts } = await supabase
         .from('pending_questions')
         .select('subtopic_id, status');
@@ -179,6 +810,14 @@ export default function AdminReviewQueue() {
     }
   }
 
+  // ── Toggle seeded panel ───────────────────────────────────────────────────
+
+  function toggleSeededPanel(subtopicId: string) {
+    setSeededPanelOpenFor((current) =>
+      current === subtopicId ? null : subtopicId
+    );
+  }
+
   // ── Enter review mode ─────────────────────────────────────────────────────
 
   async function enterReview(subtopic: SubtopicWithCounts) {
@@ -187,6 +826,7 @@ export default function AdminReviewQueue() {
     setView('review');
     setCurrentIndex(0);
     setEditMode(false);
+    setSeededPanelOpenFor(null); // close any open seeded panel
 
     const { data } = await supabase
       .from('pending_questions')
@@ -235,7 +875,6 @@ export default function AdminReviewQueue() {
     if (!currentQuestion || savingAction) return;
     setSavingAction(true);
 
-    // Write audit trail for changed fields
     const editRows: any[] = [];
     for (const [field, newVal] of Object.entries(editFields)) {
       const oldVal = (currentQuestion as any)[field];
@@ -260,7 +899,6 @@ export default function AdminReviewQueue() {
       await supabase.from('pending_question_edits').insert(editRows);
     }
 
-    // Apply edits + approve
     await supabase
       .from('pending_questions')
       .update({
@@ -277,9 +915,6 @@ export default function AdminReviewQueue() {
   }
 
   function advanceOrFinish() {
-    const remaining = questions.filter(
-      (q) => q.id !== currentQuestion?.id && q.status === 'pending'
-    );
     const updatedList = questions.map((q) =>
       q.id === currentQuestion?.id ? { ...q, status: 'done' } : q
     );
@@ -291,7 +926,6 @@ export default function AdminReviewQueue() {
     if (nextPendingIndex !== -1) {
       setCurrentIndex(nextPendingIndex);
     } else {
-      // No more pending — go back to queue
       loadSubtopics();
       setView('queue');
     }
@@ -355,8 +989,6 @@ export default function AdminReviewQueue() {
       return;
     }
 
-    // Insert into live questions table
-    // Insert into live questions table
     const liveRows = approved.map((q) => ({
       subtopic_id: q.subtopic_id,
       question_text: q.question_text,
@@ -374,7 +1006,6 @@ export default function AdminReviewQueue() {
       return;
     }
 
-    // Mark as published
     await supabase
       .from('pending_questions')
       .update({ status: 'published' })
@@ -457,69 +1088,100 @@ export default function AdminReviewQueue() {
           ) : (
             <div className="space-y-2">
               {subtopics.map((s) => (
-                <div
-                  key={s.id}
-                  className="bg-white rounded-xl border border-black/5 shadow-sm px-5 py-4 flex items-center gap-4"
-                >
-                  {/* Subtopic info */}
-                  <div className="flex-1 min-w-0">
-                    <button
-                      onClick={() => s.pending > 0 && enterReview(s)}
-                      className={`text-sm font-semibold text-left ${s.pending > 0 ? 'text-gray-800 hover:text-amber-600 cursor-pointer' : 'text-gray-400 cursor-default'}`}
-                    >
-                      {s.subtopic_name}
-                    </button>
-                    <p className="text-xs text-gray-400 mt-0.5">
-                      {s.topic} · {s.tier}
-                    </p>
-                  </div>
-
-                  {/* Counts */}
-                  <div className="flex items-center gap-4 text-xs shrink-0">
-                    <span className="text-amber-500 font-semibold tabular-nums">
-                      {s.pending} pending
-                    </span>
-                    <span className="text-green-600 font-semibold tabular-nums">
-                      {s.approved} approved
-                    </span>
-                    <span className="text-gray-400 tabular-nums">
-                      {s.published} published
-                    </span>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex items-center gap-2 shrink-0">
-                    {s.approved > 0 && (
+                <div key={s.id}>
+                  {/* ── Subtopic row ── */}
+                  <div className="bg-white rounded-xl border border-black/5 shadow-sm px-5 py-4 flex items-center gap-4">
+                    {/* Subtopic info */}
+                    <div className="flex-1 min-w-0">
                       <button
-                        onClick={() => handlePublish(s)}
-                        className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg text-white transition-colors"
-                        style={{ background: '#22c55e' }}
+                        onClick={() => s.pending > 0 && enterReview(s)}
+                        className={`text-sm font-semibold text-left ${s.pending > 0 ? 'text-gray-800 hover:text-amber-600 cursor-pointer' : 'text-gray-400 cursor-default'}`}
                       >
-                        <Upload size={11} /> Publish {s.approved}
+                        {s.subtopic_name}
                       </button>
-                    )}
-                    {s.pending > 0 && (
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        {s.topic} · {s.tier}
+                      </p>
+                    </div>
+
+                    {/* Counts */}
+                    <div className="flex items-center gap-4 text-xs shrink-0">
+                      <span className="text-amber-500 font-semibold tabular-nums">
+                        {s.pending} pending
+                      </span>
+                      <span className="text-green-600 font-semibold tabular-nums">
+                        {s.approved} approved
+                      </span>
+                      <span className="text-gray-400 tabular-nums">
+                        {s.published} published
+                      </span>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-2 shrink-0">
+                      {/* Seeded panel toggle */}
                       <button
-                        onClick={() => enterReview(s)}
-                        className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg text-white transition-colors"
-                        style={{ background: '#F5A623' }}
+                        onClick={() => toggleSeededPanel(s.id)}
+                        className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors"
+                        style={
+                          seededPanelOpenFor === s.id
+                            ? {
+                                background: 'rgba(245,166,35,0.1)',
+                                borderColor: 'rgba(245,166,35,0.5)',
+                                color: '#b07d36',
+                              }
+                            : {
+                                borderColor: 'rgba(0,0,0,0.1)',
+                                color: '#6b7280',
+                              }
+                        }
                       >
-                        Review <ChevronRight size={11} />
+                        <BookOpen size={11} />
+                        Seeded
+                        {seededPanelOpenFor === s.id ? (
+                          <ChevronUp size={10} />
+                        ) : (
+                          <ChevronDown size={10} />
+                        )}
                       </button>
-                    )}
-                    <button
-                      onClick={() => handleGenerate(s)}
-                      disabled={generatingFor === s.id}
-                      className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-black/10 text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50"
-                    >
-                      {generatingFor === s.id ? (
-                        <Loader2 size={11} className="animate-spin" />
-                      ) : (
-                        <RefreshCw size={11} />
+
+                      {s.approved > 0 && (
+                        <button
+                          onClick={() => handlePublish(s)}
+                          className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg text-white transition-colors"
+                          style={{ background: '#22c55e' }}
+                        >
+                          <Upload size={11} /> Publish {s.approved}
+                        </button>
                       )}
-                      Generate 20
-                    </button>
+                      {s.pending > 0 && (
+                        <button
+                          onClick={() => enterReview(s)}
+                          className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg text-white transition-colors"
+                          style={{ background: '#F5A623' }}
+                        >
+                          Review <ChevronRight size={11} />
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleGenerate(s)}
+                        disabled={generatingFor === s.id}
+                        className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-black/10 text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50"
+                      >
+                        {generatingFor === s.id ? (
+                          <Loader2 size={11} className="animate-spin" />
+                        ) : (
+                          <RefreshCw size={11} />
+                        )}
+                        Generate 20
+                      </button>
+                    </div>
                   </div>
+
+                  {/* ── Seeded question panel (expands below the row) ── */}
+                  {seededPanelOpenFor === s.id && (
+                    <SeededQuestionPanel subtopic={s} />
+                  )}
                 </div>
               ))}
             </div>
@@ -559,7 +1221,6 @@ export default function AdminReviewQueue() {
               {selectedSubtopic?.tier}
             </span>
           </div>
-          {/* Progress */}
           <span className="text-xs text-gray-400 tabular-nums">
             {reviewedCount} / {questions.length} reviewed
           </span>
@@ -607,7 +1268,6 @@ export default function AdminReviewQueue() {
               />
             </div>
           ) : (
-            /* Edit mode */
             <div className="bg-white rounded-2xl border border-amber-200 shadow-sm p-6 space-y-4">
               <p className="text-xs font-semibold text-amber-600 uppercase tracking-wide">
                 Editing question
@@ -748,7 +1408,6 @@ export default function AdminReviewQueue() {
 
           {/* Action bar */}
           <div className="flex items-center gap-3 pt-2">
-            {/* Navigation */}
             <button
               onClick={handlePrev}
               disabled={currentIndex === 0}
