@@ -5,7 +5,7 @@
 //
 // Three views:
 //   1. Queue view  — subtopic list with pending counts + Generate button
-//                    + collapsible "Add Seeded Question" panel per subtopic
+//                    + collapsible "Add/Edit Seeded Question" panel per subtopic
 //   2. Review mode — one question at a time, keyboard shortcuts A/E/R/←/→
 //   3. Publish view — approve → publish to live questions table
 
@@ -25,7 +25,6 @@ import {
   ChevronRight,
   RefreshCw,
   BookOpen,
-  Plus,
   Trash2,
   Eye,
   EyeOff,
@@ -118,9 +117,13 @@ function emptySeededForm(): SeededFormState {
 
 function SeededQuestionListCard({
   q,
+  isEditing,
+  onEdit,
   onDelete,
 }: {
   q: SeededQuestion;
+  isEditing: boolean;
+  onEdit: (q: SeededQuestion) => void;
   onDelete: (id: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -142,7 +145,13 @@ function SeededQuestionListCard({
   }
 
   return (
-    <div className="border border-gray-100 rounded-lg bg-white overflow-hidden">
+    <div
+      className="border rounded-lg bg-white overflow-hidden transition-all"
+      style={{
+        borderColor: isEditing ? '#F5A623' : 'rgba(0,0,0,0.06)',
+        boxShadow: isEditing ? '0 0 0 2px rgba(245,166,35,0.15)' : undefined,
+      }}
+    >
       <div className="flex items-start gap-3 p-3">
         {/* Order badge */}
         <span
@@ -160,6 +169,14 @@ function SeededQuestionListCard({
             <span className="text-[10px] text-gray-400">
               {q.marks} mark{q.marks !== 1 ? 's' : ''}
             </span>
+            {isEditing && (
+              <span
+                className="text-[10px] font-semibold px-1.5 py-0.5 rounded uppercase tracking-wide"
+                style={{ background: '#FEF9F0', color: '#F5A623' }}
+              >
+                Editing
+              </span>
+            )}
             {q.diagram_url && (
               <span className="text-[10px] bg-blue-50 text-blue-500 px-1.5 py-0.5 rounded font-medium">
                 image
@@ -180,6 +197,13 @@ function SeededQuestionListCard({
             title={expanded ? 'Collapse' : 'Expand'}
           >
             {expanded ? <EyeOff size={12} /> : <Eye size={12} />}
+          </button>
+          <button
+            onClick={() => onEdit(q)}
+            className="p-1.5 text-gray-300 hover:text-amber-500 rounded transition-colors"
+            title="Edit"
+          >
+            <Pencil size={12} />
           </button>
           <button
             onClick={handleDelete}
@@ -233,12 +257,13 @@ function SeededQuestionListCard({
   );
 }
 
-// ─── Add Seeded Question Panel ────────────────────────────────────────────────
+// ─── Seeded Question Panel ────────────────────────────────────────────────────
 
 function SeededQuestionPanel({ subtopic }: { subtopic: SubtopicWithCounts }) {
   const [seededQuestions, setSeededQuestions] = useState<SeededQuestion[]>([]);
   const [loadingSeeded, setLoadingSeeded] = useState(true);
   const [form, setForm] = useState<SeededFormState>(emptySeededForm());
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<
     'idle' | 'saving' | 'success' | 'error'
   >('idle');
@@ -262,11 +287,42 @@ function SeededQuestionPanel({ subtopic }: { subtopic: SubtopicWithCounts }) {
     load();
   }, [subtopic.id]);
 
+  // ── Form helpers ──────────────────────────────────────────────────────────
+
+  function handleEditSeeded(q: SeededQuestion) {
+    setEditingId(q.id);
+    setForm({
+      questionText: q.question_text,
+      marks: String(q.marks),
+      markScheme:
+        typeof q.mark_scheme === 'string'
+          ? q.mark_scheme
+          : JSON.stringify(q.mark_scheme ?? [], null, 2),
+      workedSolution: q.worked_solution ?? '',
+      diagramFile: null,
+      // Show existing diagram as preview (URL, not a File object)
+      diagramPreviewUrl: q.diagram_url ?? null,
+    });
+    setMarkSchemeError('');
+    setSaveStatus('idle');
+    setSaveError('');
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setForm(emptySeededForm());
+    setSaveStatus('idle');
+    setSaveError('');
+    setMarkSchemeError('');
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  }
+
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0] ?? null;
     if (!file) return;
-    // Revoke any previous preview URL to avoid memory leaks
-    if (form.diagramPreviewUrl) URL.revokeObjectURL(form.diagramPreviewUrl);
+    if (form.diagramPreviewUrl && form.diagramFile) {
+      URL.revokeObjectURL(form.diagramPreviewUrl);
+    }
     setForm((f) => ({
       ...f,
       diagramFile: file,
@@ -275,7 +331,9 @@ function SeededQuestionPanel({ subtopic }: { subtopic: SubtopicWithCounts }) {
   }
 
   function clearDiagram() {
-    if (form.diagramPreviewUrl) URL.revokeObjectURL(form.diagramPreviewUrl);
+    if (form.diagramPreviewUrl && form.diagramFile) {
+      URL.revokeObjectURL(form.diagramPreviewUrl);
+    }
     setForm((f) => ({ ...f, diagramFile: null, diagramPreviewUrl: null }));
     if (fileInputRef.current) fileInputRef.current.value = '';
   }
@@ -351,6 +409,8 @@ function SeededQuestionPanel({ subtopic }: { subtopic: SubtopicWithCounts }) {
     }
   }
 
+  // ── Save (insert or update) ───────────────────────────────────────────────
+
   async function handleSave() {
     if (!form.questionText.trim()) {
       alert('Question text is required.');
@@ -364,21 +424,15 @@ function SeededQuestionPanel({ subtopic }: { subtopic: SubtopicWithCounts }) {
     setSaveStatus('saving');
     setSaveError('');
 
-    // Upload diagram if present
-    const diagramUrl = await uploadDiagram();
-    if (form.diagramFile && !diagramUrl) {
+    // Upload new diagram if a file was selected
+    const newDiagramUrl = await uploadDiagram();
+    if (form.diagramFile && !newDiagramUrl) {
       setSaveStatus('error');
       setSaveError('Diagram upload failed.');
       return;
     }
 
-    // Determine next question_order
-    const maxOrder = seededQuestions.reduce(
-      (m, q) => Math.max(m, q.question_order),
-      0
-    );
-
-    // Parse mark scheme — try JSON first, fall back to plain-text wrapping
+    // Parse mark scheme
     let markSchemeValue: unknown;
     try {
       markSchemeValue = JSON.parse(form.markScheme);
@@ -389,46 +443,86 @@ function SeededQuestionPanel({ subtopic }: { subtopic: SubtopicWithCounts }) {
         .map((line) => ({ criterion: line.trim() }));
     }
 
-    const row = {
-      subtopic_id: subtopic.id,
-      question_order: maxOrder + 1,
+    const fields = {
       question_text: form.questionText.trim(),
       marks: parseInt(form.marks, 10) || 3,
       mark_scheme: markSchemeValue,
       worked_solution: form.workedSolution.trim() || null,
-      diagram_url: diagramUrl ?? null,
-      diagram_component: null,
-      diagram_params: null,
+      // Only update diagram_url if a new file was uploaded
+      ...(newDiagramUrl ? { diagram_url: newDiagramUrl } : {}),
     };
 
-    const { data: inserted, error } = await supabase
-      .from('seeded_questions')
-      .insert(row)
-      .select()
-      .single();
+    if (editingId) {
+      // ── Update existing ──
+      const { error } = await supabase
+        .from('seeded_questions')
+        .update(fields)
+        .eq('id', editingId);
 
-    if (error) {
-      setSaveStatus('error');
-      setSaveError(error.message);
-      return;
+      if (error) {
+        setSaveStatus('error');
+        setSaveError(error.message);
+        return;
+      }
+
+      setSeededQuestions((prev) =>
+        prev.map((q) =>
+          q.id === editingId
+            ? {
+                ...q,
+                ...fields,
+                diagram_url: newDiagramUrl ?? q.diagram_url,
+              }
+            : q
+        )
+      );
+    } else {
+      // ── Insert new ──
+      const maxOrder = seededQuestions.reduce(
+        (m, q) => Math.max(m, q.question_order),
+        0
+      );
+
+      const { data: inserted, error } = await supabase
+        .from('seeded_questions')
+        .insert({
+          subtopic_id: subtopic.id,
+          question_order: maxOrder + 1,
+          diagram_url: newDiagramUrl ?? null,
+          diagram_component: null,
+          diagram_params: null,
+          ...fields,
+        })
+        .select()
+        .single();
+
+      if (error) {
+        setSaveStatus('error');
+        setSaveError(error.message);
+        return;
+      }
+
+      setSeededQuestions((prev) => [...prev, inserted as SeededQuestion]);
     }
 
-    // Update local list optimistically and reset
-    setSeededQuestions((prev) => [...prev, inserted as SeededQuestion]);
     setSaveStatus('success');
 
     setTimeout(() => {
-      if (form.diagramPreviewUrl) URL.revokeObjectURL(form.diagramPreviewUrl);
+      if (form.diagramFile && form.diagramPreviewUrl) {
+        URL.revokeObjectURL(form.diagramPreviewUrl);
+      }
       setForm(emptySeededForm());
       if (fileInputRef.current) fileInputRef.current.value = '';
       setSaveStatus('idle');
       setSaveError('');
       setMarkSchemeError('');
+      setEditingId(null);
     }, 1500);
   }
 
   function handleDeleteSeeded(id: string) {
     setSeededQuestions((prev) => prev.filter((q) => q.id !== id));
+    if (editingId === id) cancelEdit();
   }
 
   const parametricCount = seededQuestions.filter(
@@ -455,7 +549,7 @@ function SeededQuestionPanel({ subtopic }: { subtopic: SubtopicWithCounts }) {
         <span className="ml-auto text-[11px]" style={{ color: '#b07d36' }}>
           {seededQuestions.length} total
           {parametricCount > 0 &&
-            ` · ${parametricCount} parametric · ${seededQuestions.length - parametricCount} image`}
+            ` · ${parametricCount} parametric · ${seededQuestions.length - parametricCount} image/text`}
         </span>
       </div>
 
@@ -481,6 +575,8 @@ function SeededQuestionPanel({ subtopic }: { subtopic: SubtopicWithCounts }) {
                 <SeededQuestionListCard
                   key={q.id}
                   q={q}
+                  isEditing={editingId === q.id}
+                  onEdit={handleEditSeeded}
                   onDelete={handleDeleteSeeded}
                 />
               ))}
@@ -496,11 +592,22 @@ function SeededQuestionPanel({ subtopic }: { subtopic: SubtopicWithCounts }) {
           )}
         </div>
 
-        {/* ── RIGHT: add question form ─────────────────────────────── */}
+        {/* ── RIGHT: form ──────────────────────────────────────────── */}
         <div className="p-4 space-y-4">
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
-            Add Question
-          </p>
+          {/* Form header */}
+          <div className="flex items-center justify-between">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+              {editingId ? 'Editing Question' : 'Add Question'}
+            </p>
+            {editingId && (
+              <button
+                onClick={cancelEdit}
+                className="text-[11px] text-gray-400 hover:text-gray-600 transition-colors flex items-center gap-1"
+              >
+                <X size={10} /> Cancel edit
+              </button>
+            )}
+          </div>
 
           {/* Question text */}
           <div>
@@ -513,7 +620,7 @@ function SeededQuestionPanel({ subtopic }: { subtopic: SubtopicWithCounts }) {
                 setForm((f) => ({ ...f, questionText: e.target.value }))
               }
               rows={4}
-              placeholder="e.g. A circle has centre O. AB is a chord. Angle OAB = 35°. Work out angle AOB. Give reasons for your answer."
+              placeholder="e.g. Expand and simplify 3(x + 4) + 2(x − 1)"
               className="w-full text-sm border border-gray-200 rounded-lg p-2.5 resize-none focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/30 bg-white transition-all"
             />
           </div>
@@ -640,7 +747,7 @@ function SeededQuestionPanel({ subtopic }: { subtopic: SubtopicWithCounts }) {
                 setForm((f) => ({ ...f, markScheme: e.target.value }))
               }
               rows={6}
-              placeholder={`[\n  {"mark_type": "B1", "criterion": "Angle at centre = 2 × angle at circumference", "marks": 1},\n  {"mark_type": "B1", "criterion": "70°", "marks": 1}\n]`}
+              placeholder={`[\n  {"mark_type": "M1", "criterion": "Correct expansion of both brackets", "marks": 1},\n  {"mark_type": "A1", "criterion": "5x + 10", "marks": 1}\n]`}
               className="w-full text-xs font-mono border border-gray-200 rounded-lg p-2.5 resize-none focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/30 bg-white transition-all"
             />
             <p className="text-[10px] text-gray-400 mt-1">
@@ -669,7 +776,8 @@ function SeededQuestionPanel({ subtopic }: { subtopic: SubtopicWithCounts }) {
               </>
             ) : saveStatus === 'success' ? (
               <>
-                <CheckCircle2 size={13} /> Saved — live now
+                <CheckCircle2 size={13} />{' '}
+                {editingId ? 'Updated' : 'Saved — live now'}
               </>
             ) : saveStatus === 'error' ? (
               <>
@@ -677,7 +785,8 @@ function SeededQuestionPanel({ subtopic }: { subtopic: SubtopicWithCounts }) {
               </>
             ) : (
               <>
-                <Save size={13} /> Save seeded question
+                <Save size={13} />{' '}
+                {editingId ? 'Update question' : 'Save seeded question'}
               </>
             )}
           </button>
@@ -739,7 +848,6 @@ export default function AdminReviewQueue() {
   const loadSubtopics = useCallback(async () => {
     setLoadingSubtopics(true);
     try {
-      // Added slug to the select — needed for Supabase Storage path generation
       const { data: subs } = await supabase
         .from('subtopics')
         .select('id, subtopic_name, topic, tier, subject, grade_band, slug')
@@ -826,7 +934,7 @@ export default function AdminReviewQueue() {
     setView('review');
     setCurrentIndex(0);
     setEditMode(false);
-    setSeededPanelOpenFor(null); // close any open seeded panel
+    setSeededPanelOpenFor(null);
 
     const { data } = await supabase
       .from('pending_questions')
@@ -1091,7 +1199,6 @@ export default function AdminReviewQueue() {
                 <div key={s.id}>
                   {/* ── Subtopic row ── */}
                   <div className="bg-white rounded-xl border border-black/5 shadow-sm px-5 py-4 flex items-center gap-4">
-                    {/* Subtopic info */}
                     <div className="flex-1 min-w-0">
                       <button
                         onClick={() => s.pending > 0 && enterReview(s)}
@@ -1104,7 +1211,6 @@ export default function AdminReviewQueue() {
                       </p>
                     </div>
 
-                    {/* Counts */}
                     <div className="flex items-center gap-4 text-xs shrink-0">
                       <span className="text-amber-500 font-semibold tabular-nums">
                         {s.pending} pending
@@ -1117,9 +1223,7 @@ export default function AdminReviewQueue() {
                       </span>
                     </div>
 
-                    {/* Actions */}
                     <div className="flex items-center gap-2 shrink-0">
-                      {/* Seeded panel toggle */}
                       <button
                         onClick={() => toggleSeededPanel(s.id)}
                         className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors"
@@ -1178,7 +1282,7 @@ export default function AdminReviewQueue() {
                     </div>
                   </div>
 
-                  {/* ── Seeded question panel (expands below the row) ── */}
+                  {/* ── Seeded panel ── */}
                   {seededPanelOpenFor === s.id && (
                     <SeededQuestionPanel subtopic={s} />
                   )}
@@ -1198,7 +1302,6 @@ export default function AdminReviewQueue() {
 
   return (
     <div className="min-h-screen" style={{ background: '#f9f3eb' }}>
-      {/* Header */}
       <div
         className="sticky top-0 z-20 border-b"
         style={{ background: '#f9f3eb', borderColor: 'rgba(0,0,0,0.08)' }}
@@ -1237,7 +1340,6 @@ export default function AdminReviewQueue() {
         </div>
       ) : currentQuestion ? (
         <div className="max-w-3xl mx-auto px-6 py-8 space-y-8">
-          {/* Calculator badge */}
           {currentQuestion.calculator_allowed !== null && (
             <div className="flex items-center gap-2">
               <span
@@ -1253,7 +1355,6 @@ export default function AdminReviewQueue() {
             </div>
           )}
 
-          {/* Question rendered exactly as student sees it */}
           {!editMode ? (
             <div className="bg-white rounded-2xl border border-black/5 shadow-sm p-6">
               <QuestionCard
@@ -1334,7 +1435,6 @@ export default function AdminReviewQueue() {
             </div>
           )}
 
-          {/* Mark scheme (read mode) */}
           {!editMode && currentQuestion.mark_scheme && (
             <div className="bg-white/70 rounded-xl border border-black/5 p-5 space-y-2">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 mb-3">
@@ -1354,7 +1454,6 @@ export default function AdminReviewQueue() {
             </div>
           )}
 
-          {/* Worked solution (read mode) */}
           {!editMode && currentQuestion.worked_solution && (
             <div className="bg-white/70 rounded-xl border border-black/5 p-5">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 mb-3">
@@ -1366,7 +1465,6 @@ export default function AdminReviewQueue() {
             </div>
           )}
 
-          {/* Reject reason input */}
           {showRejectInput && (
             <div className="bg-red-50 rounded-xl border border-red-100 p-4 space-y-3">
               <p className="text-xs text-red-600 font-medium">
@@ -1406,7 +1504,6 @@ export default function AdminReviewQueue() {
             </div>
           )}
 
-          {/* Action bar */}
           <div className="flex items-center gap-3 pt-2">
             <button
               onClick={handlePrev}
