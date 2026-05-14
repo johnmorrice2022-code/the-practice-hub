@@ -174,11 +174,11 @@ export function PracticeRoom({
     sessionStartTime.current = Date.now();
   }
 
-  // ── Load questions — three-tier priority ─────────────────────────────────
+  // ── Load questions — merged pool ──────────────────────────────────────────
   //
-  // Priority 1: seeded_questions (hand-authored, diagram topics)
-  // Priority 2: questions table (teacher-reviewed AI questions)
-  // Priority 3: live AI generation (fallback)
+  // Fetches seeded_questions and reviewed questions table in parallel,
+  // merges into a single shuffled pool, picks up to 4.
+  // Falls back to live AI generation only when both tables are empty.
 
   const loadQuestions = async () => {
     setGeneratingQuestions(true);
@@ -210,58 +210,52 @@ export function PracticeRoom({
         (subtopicRes.data?.prompt_config as any)?.marking_guidance || null;
       setMarkingGuidance(guidance);
 
-      // ── Priority 1: seeded questions ──────────────────────────────────────
-      if (seededRes.data && seededRes.data.length > 0) {
-        const shuffled = [...seededRes.data].sort(() => Math.random() - 0.5);
-        setQuestions(
-          shuffled.map((q) => ({
-            ...q,
-            parts: [],
-            diagram_type: null,
-            diagram_params: (q as any).diagram_params || null,
-            diagram_url: (q as any).diagram_url || null,
-            diagram_component: (q as any).diagram_component || null,
-          }))
-        );
+      // Normalise seeded questions to the shared Question shape
+      const seededNormalised = (seededRes.data ?? []).map((q) => ({
+        ...q,
+        parts: [],
+        diagram_type: null,
+        diagram_params: (q as any).diagram_params || null,
+        diagram_url: (q as any).diagram_url || null,
+        diagram_component: (q as any).diagram_component || null,
+      }));
+
+      // Normalise reviewed AI questions, filtered by calculator mode
+      const reviewedPool = (reviewedRes.data ?? []).filter(
+        (q) =>
+          q.calculator_allowed === null ||
+          q.calculator_allowed === calculatorAllowed
+      );
+      const reviewedNormalised = reviewedPool.map((q, i) => ({
+        ...q,
+        question_order: i + 1,
+        parts: q.parts || [],
+        diagram_type: null,
+        diagram_params: null,
+        diagram_url: null,
+        diagram_component: null,
+      }));
+
+      // Merge both pools, shuffle, pick up to 4
+      const combined = [...seededNormalised, ...reviewedNormalised];
+
+      if (combined.length > 0) {
+        const shuffled = [...combined].sort(() => Math.random() - 0.5);
+        const picked = shuffled.slice(0, Math.min(4, shuffled.length));
+        setQuestions(picked as Question[]);
         resetSession();
         setGeneratingQuestions(false);
         return;
       }
 
-      // ── Priority 2: reviewed question bank ────────────────────────────────
-      if (reviewedRes.data && reviewedRes.data.length >= 4) {
-        // Prefer questions matching the current calculator mode
-        const filtered = reviewedRes.data.filter(
-          (q) =>
-            q.calculator_allowed === null ||
-            q.calculator_allowed === calculatorAllowed
-        );
-        const pool = filtered.length >= 4 ? filtered : reviewedRes.data;
-        const shuffled = [...pool].sort(() => Math.random() - 0.5).slice(0, 4);
-        setQuestions(
-          shuffled.map((q, i) => ({
-            ...q,
-            question_order: i + 1,
-            parts: q.parts || [],
-            diagram_type: null,
-            diagram_params: null,
-            diagram_url: null,
-            diagram_component: null,
-          }))
-        );
-        resetSession();
-        setGeneratingQuestions(false);
-        return;
-      }
-
-      // ── Priority 3: live AI generation ────────────────────────────────────
+      // Fallback: live AI generation when both tables are empty
       await generateAIQuestions();
     } catch {
       await generateAIQuestions();
     }
   };
 
-  // ── Live AI generation ────────────────────────────────────────────────────
+  // ── Live AI generation (fallback) ─────────────────────────────────────────
 
   const generateAIQuestions = async () => {
     setGeneratingQuestions(true);
