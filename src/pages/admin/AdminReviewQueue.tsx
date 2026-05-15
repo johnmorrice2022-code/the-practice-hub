@@ -13,6 +13,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { QuestionCard } from '@/components/practice/QuestionCard';
+import { renderMathInText } from '@/lib/renderMathInText';
 import {
   ArrowLeft,
   ArrowRight,
@@ -113,6 +114,23 @@ function emptySeededForm(): SeededFormState {
   };
 }
 
+// ─── KaTeX preview ────────────────────────────────────────────────────────────
+
+function MathPreview({ text, label }: { text: string; label: string }) {
+  if (!text.trim()) return null;
+  return (
+    <div className="rounded-lg border border-amber-100 bg-white p-3">
+      <p className="text-[10px] font-semibold uppercase tracking-wide text-amber-500 mb-2">
+        {label} preview
+      </p>
+      <div
+        className="text-sm text-gray-800 leading-relaxed question-text"
+        dangerouslySetInnerHTML={{ __html: renderMathInText(text) }}
+      />
+    </div>
+  );
+}
+
 // ─── Seeded Question List Card ────────────────────────────────────────────────
 
 function SeededQuestionListCard({
@@ -153,7 +171,6 @@ function SeededQuestionListCard({
       }}
     >
       <div className="flex items-start gap-3 p-3">
-        {/* Order badge */}
         <span
           className="flex-shrink-0 mt-0.5 w-5 h-5 rounded-full text-[10px] flex items-center justify-center font-bold"
           style={{ background: '#fef3c7', color: '#92400e' }}
@@ -272,7 +289,6 @@ function SeededQuestionPanel({ subtopic }: { subtopic: SubtopicWithCounts }) {
   const [markSchemeError, setMarkSchemeError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Load existing seeded questions for this subtopic
   useEffect(() => {
     async function load() {
       setLoadingSeeded(true);
@@ -287,8 +303,6 @@ function SeededQuestionPanel({ subtopic }: { subtopic: SubtopicWithCounts }) {
     load();
   }, [subtopic.id]);
 
-  // ── Form helpers ──────────────────────────────────────────────────────────
-
   function handleEditSeeded(q: SeededQuestion) {
     setEditingId(q.id);
     setForm({
@@ -300,7 +314,6 @@ function SeededQuestionPanel({ subtopic }: { subtopic: SubtopicWithCounts }) {
           : JSON.stringify(q.mark_scheme ?? [], null, 2),
       workedSolution: q.worked_solution ?? '',
       diagramFile: null,
-      // Show existing diagram as preview (URL, not a File object)
       diagramPreviewUrl: q.diagram_url ?? null,
     });
     setMarkSchemeError('');
@@ -372,10 +385,8 @@ function SeededQuestionPanel({ subtopic }: { subtopic: SubtopicWithCounts }) {
       );
       return;
     }
-
     setGeneratingMarkScheme(true);
     setMarkSchemeError('');
-
     try {
       const { data, error } = await supabase.functions.invoke(
         'generate-mark-scheme',
@@ -394,10 +405,8 @@ function SeededQuestionPanel({ subtopic }: { subtopic: SubtopicWithCounts }) {
           },
         }
       );
-
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-
       setForm((f) => ({
         ...f,
         markScheme: JSON.stringify(data.markScheme, null, 2),
@@ -408,8 +417,6 @@ function SeededQuestionPanel({ subtopic }: { subtopic: SubtopicWithCounts }) {
       setGeneratingMarkScheme(false);
     }
   }
-
-  // ── Save (insert or update) ───────────────────────────────────────────────
 
   async function handleSave() {
     if (!form.questionText.trim()) {
@@ -424,7 +431,6 @@ function SeededQuestionPanel({ subtopic }: { subtopic: SubtopicWithCounts }) {
     setSaveStatus('saving');
     setSaveError('');
 
-    // Upload new diagram if a file was selected
     const newDiagramUrl = await uploadDiagram();
     if (form.diagramFile && !newDiagramUrl) {
       setSaveStatus('error');
@@ -432,7 +438,6 @@ function SeededQuestionPanel({ subtopic }: { subtopic: SubtopicWithCounts }) {
       return;
     }
 
-    // Parse mark scheme
     let markSchemeValue: unknown;
     try {
       markSchemeValue = JSON.parse(form.markScheme);
@@ -448,12 +453,10 @@ function SeededQuestionPanel({ subtopic }: { subtopic: SubtopicWithCounts }) {
       marks: parseInt(form.marks, 10) || 3,
       mark_scheme: markSchemeValue,
       worked_solution: form.workedSolution.trim() || null,
-      // Only update diagram_url if a new file was uploaded
       ...(newDiagramUrl ? { diagram_url: newDiagramUrl } : {}),
     };
 
     if (editingId) {
-      // ── Update existing ──
       const { error } = await supabase
         .from('seeded_questions')
         .update(fields)
@@ -468,16 +471,11 @@ function SeededQuestionPanel({ subtopic }: { subtopic: SubtopicWithCounts }) {
       setSeededQuestions((prev) =>
         prev.map((q) =>
           q.id === editingId
-            ? {
-                ...q,
-                ...fields,
-                diagram_url: newDiagramUrl ?? q.diagram_url,
-              }
+            ? { ...q, ...fields, diagram_url: newDiagramUrl ?? q.diagram_url }
             : q
         )
       );
     } else {
-      // ── Insert new ──
       const maxOrder = seededQuestions.reduce(
         (m, q) => Math.max(m, q.question_order),
         0
@@ -553,7 +551,6 @@ function SeededQuestionPanel({ subtopic }: { subtopic: SubtopicWithCounts }) {
         </span>
       </div>
 
-      {/* Two-column layout */}
       <div className="grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-amber-100">
         {/* ── LEFT: existing questions ─────────────────────────────── */}
         <div className="p-4">
@@ -594,7 +591,6 @@ function SeededQuestionPanel({ subtopic }: { subtopic: SubtopicWithCounts }) {
 
         {/* ── RIGHT: form ──────────────────────────────────────────── */}
         <div className="p-4 space-y-4">
-          {/* Form header */}
           <div className="flex items-center justify-between">
             <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
               {editingId ? 'Editing Question' : 'Add Question'}
@@ -620,10 +616,19 @@ function SeededQuestionPanel({ subtopic }: { subtopic: SubtopicWithCounts }) {
                 setForm((f) => ({ ...f, questionText: e.target.value }))
               }
               rows={4}
-              placeholder="e.g. Expand and simplify 3(x + 4) + 2(x − 1)"
-              className="w-full text-sm border border-gray-200 rounded-lg p-2.5 resize-none focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/30 bg-white transition-all"
+              placeholder="e.g. Expand and simplify $3(x + 4) + 2(x - 1)$"
+              className="w-full text-sm border border-gray-200 rounded-lg p-2.5 resize-none focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/30 bg-white transition-all font-mono"
             />
+            <p className="text-[10px] text-gray-400 mt-1">
+              Use <code className="bg-gray-100 px-1 rounded">$...$</code> for
+              inline maths and{' '}
+              <code className="bg-gray-100 px-1 rounded">$$...$$</code> for
+              display maths.
+            </p>
           </div>
+
+          {/* Live question preview */}
+          <MathPreview text={form.questionText} label="Question" />
 
           {/* Marks */}
           <div>
@@ -647,7 +652,6 @@ function SeededQuestionPanel({ subtopic }: { subtopic: SubtopicWithCounts }) {
             <label className="block text-[11px] text-gray-500 mb-1">
               Diagram (optional)
             </label>
-
             {form.diagramPreviewUrl ? (
               <div className="space-y-2">
                 <img
@@ -670,7 +674,6 @@ function SeededQuestionPanel({ subtopic }: { subtopic: SubtopicWithCounts }) {
                 <ImageIcon size={13} /> Upload SVG / PNG / JPG
               </button>
             )}
-
             <input
               ref={fileInputRef}
               type="file"
@@ -678,12 +681,6 @@ function SeededQuestionPanel({ subtopic }: { subtopic: SubtopicWithCounts }) {
               onChange={handleFileChange}
               className="hidden"
             />
-            <p className="text-[10px] text-gray-400 mt-1">
-              Stored at: diagrams/
-              {subtopic.subject.toLowerCase().replace(/\s+/g, '-')}/
-              {subtopic.topic.toLowerCase().replace(/\s+/g, '-')}/
-              {subtopic.slug}/seeded-[timestamp].[ext]
-            </p>
           </div>
 
           {/* Worked solution */}
@@ -698,9 +695,12 @@ function SeededQuestionPanel({ subtopic }: { subtopic: SubtopicWithCounts }) {
               }
               rows={3}
               placeholder="Step-by-step solution shown to students after attempting…"
-              className="w-full text-sm border border-gray-200 rounded-lg p-2.5 resize-none focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/30 bg-white transition-all"
+              className="w-full text-sm border border-gray-200 rounded-lg p-2.5 resize-none focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/30 bg-white transition-all font-mono"
             />
           </div>
+
+          {/* Live worked solution preview */}
+          <MathPreview text={form.workedSolution} label="Worked solution" />
 
           {/* Mark scheme */}
           <div>
@@ -747,7 +747,7 @@ function SeededQuestionPanel({ subtopic }: { subtopic: SubtopicWithCounts }) {
                 setForm((f) => ({ ...f, markScheme: e.target.value }))
               }
               rows={6}
-              placeholder={`[\n  {"mark_type": "M1", "criterion": "Correct expansion of both brackets", "marks": 1},\n  {"mark_type": "A1", "criterion": "5x + 10", "marks": 1}\n]`}
+              placeholder={`[\n  {"mark_type": "M1", "criterion": "Correct expansion of both brackets", "marks": 1},\n  {"mark_type": "A1", "criterion": "$5x + 10$", "marks": 1}\n]`}
               className="w-full text-xs font-mono border border-gray-200 rounded-lg p-2.5 resize-none focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/30 bg-white transition-all"
             />
             <p className="text-[10px] text-gray-400 mt-1">
@@ -813,13 +813,10 @@ export default function AdminReviewQueue() {
   const [selectedSubtopic, setSelectedSubtopic] =
     useState<SubtopicWithCounts | null>(null);
   const [generatingFor, setGeneratingFor] = useState<string | null>(null);
-
-  // Which subtopic has the seeded panel open — only one at a time
   const [seededPanelOpenFor, setSeededPanelOpenFor] = useState<string | null>(
     null
   );
 
-  // Review mode state
   const [questions, setQuestions] = useState<PendingQuestion[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loadingQuestions, setLoadingQuestions] = useState(false);
@@ -828,8 +825,6 @@ export default function AdminReviewQueue() {
   const [editFields, setEditFields] = useState<Partial<PendingQuestion>>({});
   const [rejectReason, setRejectReason] = useState('');
   const [showRejectInput, setShowRejectInput] = useState(false);
-
-  // ── Auth ──────────────────────────────────────────────────────────────────
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -842,8 +837,6 @@ export default function AdminReviewQueue() {
       setAuthChecked(true);
     });
   }, [navigate]);
-
-  // ── Load subtopics with counts ────────────────────────────────────────────
 
   const loadSubtopics = useCallback(async () => {
     setLoadingSubtopics(true);
@@ -891,8 +884,6 @@ export default function AdminReviewQueue() {
     if (authed) loadSubtopics();
   }, [authed, loadSubtopics]);
 
-  // ── Generate batch ────────────────────────────────────────────────────────
-
   async function handleGenerate(subtopic: SubtopicWithCounts) {
     setGeneratingFor(subtopic.id);
     try {
@@ -918,15 +909,11 @@ export default function AdminReviewQueue() {
     }
   }
 
-  // ── Toggle seeded panel ───────────────────────────────────────────────────
-
   function toggleSeededPanel(subtopicId: string) {
     setSeededPanelOpenFor((current) =>
       current === subtopicId ? null : subtopicId
     );
   }
-
-  // ── Enter review mode ─────────────────────────────────────────────────────
 
   async function enterReview(subtopic: SubtopicWithCounts) {
     setSelectedSubtopic(subtopic);
@@ -946,8 +933,6 @@ export default function AdminReviewQueue() {
     setQuestions(data ?? []);
     setLoadingQuestions(false);
   }
-
-  // ── Review actions ────────────────────────────────────────────────────────
 
   const currentQuestion = questions[currentIndex] ?? null;
 
@@ -1027,7 +1012,6 @@ export default function AdminReviewQueue() {
       q.id === currentQuestion?.id ? { ...q, status: 'done' } : q
     );
     setQuestions(updatedList);
-
     const nextPendingIndex = updatedList.findIndex(
       (q, i) => i > currentIndex && q.status === 'pending'
     );
@@ -1047,11 +1031,8 @@ export default function AdminReviewQueue() {
     if (currentIndex < questions.length - 1) setCurrentIndex(currentIndex + 1);
   }
 
-  // ── Keyboard shortcuts ────────────────────────────────────────────────────
-
   useEffect(() => {
     if (view !== 'review' || editMode || showRejectInput) return;
-
     function onKey(e: KeyboardEvent) {
       if (
         e.target instanceof HTMLInputElement ||
@@ -1071,7 +1052,6 @@ export default function AdminReviewQueue() {
       if (e.key === 'ArrowRight') handleNext();
       if (e.key === 'ArrowLeft') handlePrev();
     }
-
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [
@@ -1082,8 +1062,6 @@ export default function AdminReviewQueue() {
     currentQuestion,
     questions,
   ]);
-
-  // ── Publish ───────────────────────────────────────────────────────────────
 
   async function handlePublish(subtopic: SubtopicWithCounts) {
     const { data: approved } = await supabase
@@ -1126,8 +1104,6 @@ export default function AdminReviewQueue() {
     );
   }
 
-  // ─── Render guards ────────────────────────────────────────────────────────
-
   if (!authChecked || !authed) return null;
 
   // ─── Queue view ───────────────────────────────────────────────────────────
@@ -1135,7 +1111,6 @@ export default function AdminReviewQueue() {
   if (view === 'queue') {
     return (
       <div className="min-h-screen" style={{ background: '#f9f3eb' }}>
-        {/* Header */}
         <div
           className="sticky top-0 z-20 border-b"
           style={{ background: '#f9f3eb', borderColor: 'rgba(0,0,0,0.08)' }}
@@ -1168,7 +1143,6 @@ export default function AdminReviewQueue() {
         </div>
 
         <div className="max-w-4xl mx-auto px-6 py-8">
-          {/* Keyboard hint */}
           <div className="mb-6 text-xs text-gray-400 bg-white/60 rounded-lg px-4 py-3 border border-black/5">
             In review mode:{' '}
             <kbd className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-600 font-mono">
@@ -1197,7 +1171,6 @@ export default function AdminReviewQueue() {
             <div className="space-y-2">
               {subtopics.map((s) => (
                 <div key={s.id}>
-                  {/* ── Subtopic row ── */}
                   <div className="bg-white rounded-xl border border-black/5 shadow-sm px-5 py-4 flex items-center gap-4">
                     <div className="flex-1 min-w-0">
                       <button
@@ -1282,7 +1255,6 @@ export default function AdminReviewQueue() {
                     </div>
                   </div>
 
-                  {/* ── Seeded panel ── */}
                   {seededPanelOpenFor === s.id && (
                     <SeededQuestionPanel subtopic={s} />
                   )}
