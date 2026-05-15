@@ -40,8 +40,6 @@ interface QuestionCardProps {
   treeDisabled?: boolean;
 }
 
-  return html;
-}
 
 function AutoTextarea({
   value,
