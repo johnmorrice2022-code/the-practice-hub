@@ -10,7 +10,7 @@ interface ProtectedRouteProps {
 
 const ProtectedRoute = ({
   children,
-  requireOnboarding = false,
+  requireOnboarding = true,
 }: ProtectedRouteProps) => {
   const { user, loading } = useAuth();
   const [onboardingComplete, setOnboardingComplete] = useState<boolean | null>(

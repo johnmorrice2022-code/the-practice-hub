@@ -10,6 +10,7 @@ const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [forgotLoading, setForgotLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -46,6 +47,26 @@ const Login = () => {
         variant: 'destructive',
       });
     }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!email) {
+      toast({
+        title: 'Enter your email above first',
+        variant: 'destructive',
+      });
+      return;
+    }
+    setForgotLoading(true);
+    await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin + '/reset-password',
+    });
+    setForgotLoading(false);
+    toast({
+      title: 'Reset email sent',
+      description:
+        "Check your inbox — and your junk folder if it doesn't arrive.",
+    });
   };
 
   return (
@@ -122,6 +143,16 @@ const Login = () => {
                   placeholder="••••••••"
                   required
                 />
+                <div className="flex justify-end mt-1.5">
+                  <button
+                    type="button"
+                    onClick={handleForgotPassword}
+                    disabled={forgotLoading}
+                    className="text-xs text-muted-foreground hover:text-primary transition-colors"
+                  >
+                    {forgotLoading ? 'Sending…' : 'Forgot your password?'}
+                  </button>
+                </div>
               </div>
               <Button
                 variant="hero"
