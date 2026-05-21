@@ -91,12 +91,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (session?.user) {
       fetchSubscriptionData(session.user.id);
-    } else {
+    } else if (!loading) {
       setSubscription(null);
       setSubscriptionLoading(false);
       setQuestionsUsed(0);
     }
-  }, [session]);
+  }, [session, loading]);
 
   const refreshSubscription = async () => {
     if (session?.user) {
