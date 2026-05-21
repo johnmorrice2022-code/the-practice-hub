@@ -20,6 +20,9 @@ import AdminDiagrams from './pages/admin/AdminDiagrams';
 import AdminProbabilityQuestions from './pages/admin/AdminProbabilityQuestions';
 import AdminHub from './pages/admin/AdminHub';
 import AdminReviewQueue from './pages/admin/AdminReviewQueue';
+import Members from './pages/Members';
+import AdminMembers from './pages/admin/AdminMembers';
+import ProtectedRoute from './components/ProtectedRoute';
 
 const queryClient = new QueryClient();
 
@@ -50,6 +53,15 @@ const App = () => (
             <Route path="/settings" element={<Settings />} />
             <Route path="*" element={<NotFound />} />
             <Route path="/admin/review-queue" element={<AdminReviewQueue />} />
+            <Route
+              path="/members"
+              element={
+                <ProtectedRoute>
+                  <Members />
+                </ProtectedRoute>
+              }
+            />
+            <Route path="/admin/members" element={<AdminMembers />} />
           </Routes>
         </BrowserRouter>
       </TooltipProvider>
