@@ -264,7 +264,7 @@ const OnboardingFlow = () => {
       description: "Your account is all set. Let's get started.",
     });
 
-    setTimeout(() => navigate('/dashboard'), 500);
+    navigate('/dashboard');
   };
 
   return (

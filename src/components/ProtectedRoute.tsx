@@ -25,6 +25,7 @@ const ProtectedRoute = ({
     }
 
     const checkOnboarding = async () => {
+      setCheckingProfile(true);
       const { data, error } = await supabase
         .from('profiles')
         .select('onboarding_complete')
