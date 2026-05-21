@@ -260,16 +260,16 @@ const OnboardingFlow = () => {
     }
 
     toast({
-  title: `Welcome to The Hub Jam, ${form.student_first_name}!`,
-  description: 'Your account is all set. Let\'s get started.',
-});
+      title: `Welcome to The Hub Jam, ${form.student_first_name}!`,
+      description: "Your account is all set. Let's get started.",
+    });
 
-setTimeout(() => navigate('/dashboard'), 500);
+    setTimeout(() => navigate('/dashboard'), 500);
+  };
 
   return (
     <div className="min-h-screen bg-[#f9f3eb] flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-lg">
-        {/* Logo / brand */}
         <div className="text-center mb-8">
           <div
             className="inline-block text-white text-sm font-bold px-4 py-1.5 rounded-full mb-4"
@@ -288,7 +288,6 @@ setTimeout(() => navigate('/dashboard'), 500);
         </div>
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 space-y-7">
-          {/* Student first name */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-1.5">
               Your first name
@@ -302,7 +301,6 @@ setTimeout(() => navigate('/dashboard'), 500);
             />
           </div>
 
-          {/* Exam status */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">
               When are you sitting your exams?
@@ -329,7 +327,6 @@ setTimeout(() => navigate('/dashboard'), 500);
             </div>
           </div>
 
-          {/* Maths tier */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">
               Which Maths tier are you studying?
@@ -355,7 +352,6 @@ setTimeout(() => navigate('/dashboard'), 500);
             </div>
           </div>
 
-          {/* Physics tier */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">
               Which Physics tier are you studying?
@@ -381,7 +377,6 @@ setTimeout(() => navigate('/dashboard'), 500);
             </div>
           </div>
 
-          {/* Country */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-1.5">
               Country
@@ -400,14 +395,12 @@ setTimeout(() => navigate('/dashboard'), 500);
             </select>
           </div>
 
-          {/* Divider */}
           <div className="border-t border-gray-100 pt-1">
             <p className="text-xs text-gray-400 mb-5">
               Parent or guardian details — we'll only contact them for account
               or safeguarding matters.
             </p>
 
-            {/* Parent name */}
             <div className="mb-4">
               <label className="block text-sm font-semibold text-gray-700 mb-1.5">
                 Parent / Guardian name
@@ -421,7 +414,6 @@ setTimeout(() => navigate('/dashboard'), 500);
               />
             </div>
 
-            {/* Parent email */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1.5">
                 Parent / Guardian email
@@ -436,7 +428,6 @@ setTimeout(() => navigate('/dashboard'), 500);
             </div>
           </div>
 
-          {/* Submit */}
           <button
             onClick={handleSubmit}
             disabled={!isValid || saving}
