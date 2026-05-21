@@ -190,6 +190,18 @@ export default function AdminHub() {
             statsLoaded={true}
             onClick={() => navigate('/admin/review-queue')}
           />
+
+          {/* Members Area */}
+          <ToolCard
+            icon={<Megaphone size={18} color="white" />}
+            iconBg="#E23D28"
+            title="Members Area"
+            description="Post announcements and manage livestream links for subscribers."
+            stat={null}
+            statLabel=""
+            statsLoaded={true}
+            onClick={() => navigate('/admin/members')}
+          />
         </div>
 
         {/* ── Coming soon ── */}
