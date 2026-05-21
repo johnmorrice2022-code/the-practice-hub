@@ -260,12 +260,11 @@ const OnboardingFlow = () => {
     }
 
     toast({
-      title: `Welcome to The Hub Jam, ${form.student_first_name}!`,
-      description: "Your account is all set. Let's get started.",
-    });
+  title: `Welcome to The Hub Jam, ${form.student_first_name}!`,
+  description: 'Your account is all set. Let\'s get started.',
+});
 
-    navigate('/dashboard');
-  };
+setTimeout(() => navigate('/dashboard'), 500);
 
   return (
     <div className="min-h-screen bg-[#f9f3eb] flex items-center justify-center px-4 py-12">
