@@ -19,8 +19,8 @@ import {
   LayoutDashboard,
   Clock,
   Check,
+  Megaphone,
 } from 'lucide-react';
-
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const ADMIN_EMAIL = 'johnmorrice2022@gmail.com';
