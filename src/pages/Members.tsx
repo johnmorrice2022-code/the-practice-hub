@@ -182,9 +182,16 @@ const Members = () => {
             className="mb-6 bg-card rounded-xl border border-border overflow-hidden"
             style={{ boxShadow: '0 2px 6px rgba(0,0,0,0.06)' }}
           >
-            <div className="px-6 py-4 flex items-center gap-3 border-b border-border">
-              <Megaphone size={16} className="text-[#E23D28]" />
-              <h2 className="font-semibold text-sm">Announcements</h2>
+            <div
+              className="px-6 py-4 flex items-center gap-3"
+              style={{
+                background: 'linear-gradient(135deg, #E23D28 0%, #F5A623 100%)',
+              }}
+            >
+              <Megaphone size={16} className="text-white" />
+              <h2 className="font-semibold text-sm text-white">
+                Announcements
+              </h2>
             </div>
             <div className="divide-y divide-border">
               {announcements.map((a) => (
