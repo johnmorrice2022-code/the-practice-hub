@@ -209,8 +209,11 @@ const OnboardingFlow = () => {
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
 
+  // Extract first name from signup metadata
+  const fullName = user?.user_metadata?.full_name ?? '';
+  const firstName = fullName.split(' ')[0] ?? '';
+
   const [form, setForm] = useState({
-    student_first_name: '',
     exam_status: '',
     maths_tier: '',
     physics_tier: '',
@@ -223,7 +226,6 @@ const OnboardingFlow = () => {
     setForm((prev) => ({ ...prev, [field]: value }));
 
   const isValid =
-    form.student_first_name.trim() &&
     form.exam_status &&
     form.maths_tier &&
     form.physics_tier &&
@@ -238,7 +240,7 @@ const OnboardingFlow = () => {
     const { error } = await supabase
       .from('profiles')
       .update({
-        student_first_name: form.student_first_name.trim(),
+        student_first_name: firstName,
         country: form.country,
         parent_email: form.parent_email.trim(),
         parent_name: form.parent_name.trim(),
@@ -260,7 +262,7 @@ const OnboardingFlow = () => {
     }
 
     toast({
-      title: `Welcome to The Hub Jam, ${form.student_first_name}!`,
+      title: `Welcome to The Hub Jam, ${firstName}!`,
       description: "Your account is all set. Let's get started.",
     });
 
@@ -280,7 +282,7 @@ const OnboardingFlow = () => {
             The Practice Hub
           </div>
           <h1 className="text-2xl font-bold text-gray-900">
-            Let's set up your account
+            {firstName ? `Hi ${firstName} — let's set up your account` : "Let's set up your account"}
           </h1>
           <p className="text-sm text-gray-500 mt-1">
             Takes about a minute — just a few details to get started.
@@ -288,18 +290,6 @@ const OnboardingFlow = () => {
         </div>
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 space-y-7">
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-              Your first name
-            </label>
-            <input
-              type="text"
-              value={form.student_first_name}
-              onChange={(e) => set('student_first_name', e.target.value)}
-              placeholder="e.g. Amira"
-              className="w-full h-11 px-4 rounded-lg border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#E23D28]/30 transition-shadow"
-            />
-          </div>
 
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -406,46 +396,4 @@ const OnboardingFlow = () => {
                 Parent / Guardian name
               </label>
               <input
-                type="text"
-                value={form.parent_name}
-                onChange={(e) => set('parent_name', e.target.value)}
-                placeholder="e.g. Sarah Ahmed"
-                className="w-full h-11 px-4 rounded-lg border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#E23D28]/30 transition-shadow"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                Parent / Guardian email
-              </label>
-              <input
-                type="email"
-                value={form.parent_email}
-                onChange={(e) => set('parent_email', e.target.value)}
-                placeholder="parent@email.com"
-                className="w-full h-11 px-4 rounded-lg border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#E23D28]/30 transition-shadow"
-              />
-            </div>
-          </div>
-
-          <button
-            onClick={handleSubmit}
-            disabled={!isValid || saving}
-            className="w-full h-12 rounded-lg text-white text-sm font-semibold transition-opacity disabled:opacity-40"
-            style={{
-              background: 'linear-gradient(135deg, #E23D28 0%, #F5A623 100%)',
-            }}
-          >
-            {saving ? 'Saving…' : "Let's go →"}
-          </button>
-        </div>
-
-        <p className="text-center text-xs text-gray-400 mt-6">
-          By continuing you agree to our Terms & Conditions and Privacy Policy.
-        </p>
-      </div>
-    </div>
-  );
-};
-
-export default OnboardingFlow;
+                type=
