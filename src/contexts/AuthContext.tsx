@@ -72,14 +72,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .select('tier, status, stripe_price_id, current_period_end')
         .eq('user_id', userId)
         .eq('status', 'active')
-        .single();
+        .maybeSingle();
       setSubscription(subData ?? null);
 
       const { data: profileData } = await supabase
         .from('profiles')
         .select('questions_used')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
       setQuestionsUsed(profileData?.questions_used ?? 0);
     } catch {
       setSubscription(null);
