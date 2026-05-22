@@ -43,6 +43,14 @@ const ProtectedRoute = ({
     checkOnboarding();
   }, [user]);
 
+  console.log('ProtectedRoute check:', {
+    requireOnboarding,
+    onboardingComplete,
+    user: user?.id,
+    loading,
+    checkingProfile,
+  });
+
   if (loading || checkingProfile) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#f9f3eb]">
