@@ -30,7 +30,7 @@ const ProtectedRoute = ({
         .from('profiles')
         .select('onboarding_complete')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
 
       if (error || !data) {
         setOnboardingComplete(false);
@@ -42,14 +42,6 @@ const ProtectedRoute = ({
 
     checkOnboarding();
   }, [user]);
-
-  console.log('ProtectedRoute check:', {
-    requireOnboarding,
-    onboardingComplete,
-    user: user?.id,
-    loading,
-    checkingProfile,
-  });
 
   if (loading || checkingProfile) {
     return (
@@ -63,6 +55,12 @@ const ProtectedRoute = ({
     return <Navigate to="/login" replace />;
   }
 
+  // On the onboarding route: if already complete, send to dashboard
+  if (!requireOnboarding && onboardingComplete) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  // On protected routes: if onboarding not done, send to onboarding
   if (requireOnboarding && !onboardingComplete) {
     return <Navigate to="/onboarding" replace />;
   }
