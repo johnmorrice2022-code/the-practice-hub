@@ -15,6 +15,7 @@ import {
   MessageCircle,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface QuestionPart {
   part_label: string;
@@ -41,6 +42,9 @@ interface PracticeRoomProps {
 }
 type SessionPhase = 'answering' | 'marking' | 'review';
 const CARD_SHADOW = '0 2px 6px rgba(0,0,0,0.06), 0 6px 20px rgba(0,0,0,0.08)';
+const FREE_QUESTION_LIMIT = 10;
+const FREE_JAM_HELP_TURNS = 2;
+const SUBSCRIBER_JAM_HELP_TURNS = 5;
 
 function SessionProgress({
   questions,
@@ -132,11 +136,12 @@ export function PracticeRoom({
   calculatorAllowed,
   onExit,
 }: PracticeRoomProps) {
+  const { isSubscribed, questionsUsed, refreshProfile } = useAuth();
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [partAnswers, setPartAnswers] = useState<
+  const [partAnswers, setPartAnswers] = useState
     Record<string, Record<string, string>>
   >({});
   const [treeAnswers, setTreeAnswers] = useState<Record<string, TreeAnswers>>(
@@ -174,11 +179,26 @@ export function PracticeRoom({
     sessionStartTime.current = Date.now();
   }
 
+  // ── Increment questions used (free tier only) ─────────────────────────────
+
+  const incrementQuestionsUsed = async () => {
+    if (isSubscribed) return;
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return;
+    const today = new Date().toISOString().split('T')[0];
+    await supabase
+      .from('profiles')
+      .update({
+        questions_used: questionsUsed + 1,
+        questions_used_date: today,
+      })
+      .eq('id', user.id);
+    await refreshProfile();
+  };
+
   // ── Load questions — merged pool ──────────────────────────────────────────
-  //
-  // Fetches seeded_questions and reviewed questions table in parallel,
-  // merges into a single shuffled pool, picks up to 4.
-  // Falls back to live AI generation only when both tables are empty.
 
   const loadQuestions = async () => {
     setGeneratingQuestions(true);
@@ -210,7 +230,6 @@ export function PracticeRoom({
         (subtopicRes.data?.prompt_config as any)?.marking_guidance || null;
       setMarkingGuidance(guidance);
 
-      // Normalise seeded questions to the shared Question shape
       const seededNormalised = (seededRes.data ?? []).map((q) => ({
         ...q,
         parts: [],
@@ -220,7 +239,6 @@ export function PracticeRoom({
         diagram_component: (q as any).diagram_component || null,
       }));
 
-      // Normalise reviewed AI questions, filtered by calculator mode
       const reviewedPool = (reviewedRes.data ?? []).filter(
         (q) =>
           q.calculator_allowed === null ||
@@ -236,7 +254,6 @@ export function PracticeRoom({
         diagram_component: null,
       }));
 
-      // Merge both pools, shuffle, pick up to 4
       const combined = [...seededNormalised, ...reviewedNormalised];
 
       if (combined.length > 0) {
@@ -245,10 +262,10 @@ export function PracticeRoom({
         setQuestions(picked as Question[]);
         resetSession();
         setGeneratingQuestions(false);
+        incrementQuestionsUsed();
         return;
       }
 
-      // Fallback: live AI generation when both tables are empty
       await generateAIQuestions();
     } catch {
       await generateAIQuestions();
@@ -321,6 +338,7 @@ export function PracticeRoom({
             if (firstQuestion) {
               firstQuestion = false;
               setGeneratingQuestions(false);
+              incrementQuestionsUsed();
             }
           } catch {
             console.error('Failed to parse question line:', trimmed);
@@ -577,6 +595,38 @@ export function PracticeRoom({
       : ((currentIndex + 1) / Math.max(questions.length, 1)) * 100;
 
   // ── Render ────────────────────────────────────────────────────────────────
+
+  if (!isSubscribed && questionsUsed >= FREE_QUESTION_LIMIT) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4 px-6">
+        <div
+          className="bg-card rounded-xl p-8 text-center max-w-sm w-full"
+          style={{ boxShadow: CARD_SHADOW }}
+        >
+          <div
+            className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4"
+            style={{ background: 'linear-gradient(135deg, #E23D28 0%, #F5A623 100%)' }}
+          >
+            <Sparkles size={20} style={{ color: '#fff' }} />
+          </div>
+          <h2 className="text-base font-bold text-foreground mb-2">
+            You've reached today's limit
+          </h2>
+          <p className="text-sm text-muted-foreground mb-6">
+            Free accounts get {FREE_QUESTION_LIMIT} questions per day. Come
+            back tomorrow, or unlock unlimited practice with a subscription.
+          </p>
+          <button
+            onClick={onExit}
+            className="w-full h-11 rounded-lg text-sm font-semibold text-white transition-opacity"
+            style={{ background: 'linear-gradient(135deg, #E23D28 0%, #F5A623 100%)' }}
+          >
+            Back to hub
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (loading || generatingQuestions) {
     return (
@@ -895,6 +945,7 @@ export function PracticeRoom({
           subject={config.subject}
           tier={config.tier}
           examBoard={config.examBoard}
+          maxTurns={isSubscribed ? SUBSCRIBER_JAM_HELP_TURNS : FREE_JAM_HELP_TURNS}
         />
       )}
     </>

@@ -85,13 +85,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           .maybeSingle(),
         supabase
           .from('profiles')
-          .select('questions_used, onboarding_complete')
+          .select('questions_used, questions_used_date, onboarding_complete')
           .eq('id', userId)
           .maybeSingle(),
       ]);
 
       setSubscription(subResult.data ?? null);
-      setQuestionsUsed(profileResult.data?.questions_used ?? 0);
+      // Daily reset: if questions_used_date is not today, treat count as 0
+      const today = new Date().toISOString().split('T')[0];
+      const usedDate = profileResult.data?.questions_used_date ?? null;
+      const questionsUsedToday =
+        usedDate === today ? (profileResult.data?.questions_used ?? 0) : 0;
+      setQuestionsUsed(questionsUsedToday);
       setOnboardingComplete(profileResult.data?.onboarding_complete ?? false);
     } catch {
       setSubscription(null);

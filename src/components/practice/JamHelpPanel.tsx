@@ -18,6 +18,7 @@ interface JamHelpPanelProps {
   subject: string;
   tier: string;
   examBoard: string;
+  maxTurns?: number;
 }
 
 const MAX_TURNS = 5;
@@ -56,7 +57,6 @@ function renderMath(text: string): string {
     html = html.replace(`%%DISPLAY_MATH_${idx}%%`, rendered);
   });
 
-  // Convert newlines to <br> for chat display
   html = html.replace(/\n/g, '<br/>');
 
   return html;
@@ -71,6 +71,7 @@ export function JamHelpPanel({
   subject,
   tier,
   examBoard,
+  maxTurns,
 }: JamHelpPanelProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -78,6 +79,8 @@ export function JamHelpPanel({
   const [turnCount, setTurnCount] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  const effectiveMaxTurns = maxTurns ?? MAX_TURNS;
 
   useEffect(() => {
     if (isOpen) {
@@ -94,7 +97,7 @@ export function JamHelpPanel({
 
   const sendMessage = async () => {
     const trimmed = input.trim();
-    if (!trimmed || loading || turnCount >= MAX_TURNS) return;
+    if (!trimmed || loading || turnCount >= effectiveMaxTurns) return;
 
     const newUserMessage: Message = { role: 'user', content: trimmed };
     const updatedMessages = [...messages, newUserMessage];
@@ -153,8 +156,8 @@ export function JamHelpPanel({
     }
   };
 
-  const turnsRemaining = MAX_TURNS - turnCount;
-  const isExhausted = turnCount >= MAX_TURNS;
+  const turnsRemaining = effectiveMaxTurns - turnCount;
+  const isExhausted = turnCount >= effectiveMaxTurns;
   const hasBeenMarked = !!feedback;
 
   return (
@@ -234,7 +237,7 @@ export function JamHelpPanel({
                 </p>
               </div>
               <p className="text-[11px] text-muted-foreground px-1">
-                You have {MAX_TURNS} exchanges - make them count!
+                You have {effectiveMaxTurns} exchanges - make them count!
               </p>
             </div>
           )}
