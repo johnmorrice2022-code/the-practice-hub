@@ -25,6 +25,7 @@ const Members = () => {
     hasMathsStreams,
     hasPhysicsStreams,
     subscriptionLoading,
+    loading,
   } = useAuth();
   const navigate = useNavigate();
 
@@ -34,9 +35,9 @@ const Members = () => {
   const [dataLoading, setDataLoading] = useState(true);
 
   useEffect(() => {
-    if (subscriptionLoading) return;
+    if (loading || subscriptionLoading) return;
     if (!isSubscribed) navigate('/dashboard');
-  }, [isSubscribed, subscriptionLoading]);
+  }, [isSubscribed, subscriptionLoading, loading]);
 
   useEffect(() => {
     const fetchData = async () => {
