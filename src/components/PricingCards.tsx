@@ -12,7 +12,7 @@ const freePlan = {
     '10 practice questions per day',
     'GCSE Maths and Physics',
     'Pearson Edexcel and AQA',
-    'Access to Free Lesson Monday's',
+    `Access to Free Lesson Monday's`,
     'Intelligent marking and feedback',
     '2 JAM Help exchanges per question',
     'Progress tracking',
