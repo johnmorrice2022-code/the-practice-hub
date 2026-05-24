@@ -1,52 +1,58 @@
-import { Button } from "@/components/ui/button";
-import { Link } from "react-router-dom";
-import { motion } from "framer-motion";
-import { Check } from "lucide-react";
+import { Button } from '@/components/ui/button';
+import { Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { Check } from 'lucide-react';
 
 const plans = [
   {
-    name: "Free",
-    price: "£0",
-    period: "forever",
-    description: "Get started with the basics",
+    name: 'Free',
+    price: '£0',
+    period: 'forever',
+    description: 'Try the platform at your own pace',
     features: [
-      "10 questions per day",
-      "GCSE Maths only",
-      "AQA exam board",
-      "Basic progress tracking",
+      '10 practice questions per day',
+      'GCSE Maths and Physics',
+      'Pearson Edexcel and AQA',
+      'AI marking and feedback',
+      '2 JAM Help exchanges per question',
+      'Progress tracking',
     ],
-    cta: "Start free",
+    cta: 'Start free',
+    href: '/signup',
     featured: false,
   },
   {
-    name: "Student",
-    price: "£9",
-    period: "per month",
-    description: "Everything you need to succeed",
+    name: 'The Practice Hub',
+    price: '£10.99',
+    period: 'per month',
+    description: 'Unlimited practice with full AI support',
     features: [
-      "Unlimited questions",
-      "Maths and Physics",
-      "All exam boards",
-      "Full JAM Feedback",
-      "Timed practice mode",
-      "Complete progress tracking",
+      'Unlimited practice questions',
+      'GCSE Maths and Physics',
+      'Pearson Edexcel and AQA',
+      'AI marking and feedback',
+      '5 JAM Help exchanges per question',
+      'Full progress tracking',
     ],
-    cta: "Get started",
+    cta: 'Get started',
+    href: 'https://buy.stripe.com/test_7sY9AM1Ua34U89q0DMf7i04',
     featured: true,
   },
   {
-    name: "School",
-    price: "Custom",
-    period: "per school",
-    description: "For departments and whole schools",
+    name: 'Practice Hub + Livestreams',
+    price: 'From £18.99',
+    period: 'per month',
+    description: 'Everything in The Practice Hub, plus weekly live teaching',
     features: [
-      "Managed student accounts",
-      "Parent dashboard access",
-      "Department analytics",
-      "Custom billing",
-      "Priority support",
+      'Everything in The Practice Hub',
+      'Weekly Maths livestreams (£18.99/mo)',
+      'Weekly Physics livestreams (£18.99/mo)',
+      'Maths and Physics livestreams (£24.99/mo)',
+      'Foundation and Higher covered',
+      'Members-only recordings',
     ],
-    cta: "Contact us",
+    cta: 'See options',
+    href: '/signup',
     featured: false,
   },
 ];
@@ -74,8 +80,8 @@ export function PricingCards() {
               transition={{ delay: i * 0.12, duration: 0.5 }}
               className={`rounded-xl p-8 border card-shadow ${
                 plan.featured
-                  ? "bg-card border-primary ring-2 ring-primary/20"
-                  : "bg-card border-border"
+                  ? 'bg-card border-primary ring-2 ring-primary/20'
+                  : 'bg-card border-border'
               }`}
             >
               {plan.featured && (
@@ -86,9 +92,13 @@ export function PricingCards() {
               <h3 className="text-xl font-bold">{plan.name}</h3>
               <div className="mt-3 mb-1">
                 <span className="text-3xl font-bold">{plan.price}</span>
-                <span className="text-sm text-muted-foreground ml-1">/{plan.period}</span>
+                <span className="text-sm text-muted-foreground ml-1">
+                  /{plan.period}
+                </span>
               </div>
-              <p className="text-sm text-muted-foreground mb-6">{plan.description}</p>
+              <p className="text-sm text-muted-foreground mb-6">
+                {plan.description}
+              </p>
               <ul className="space-y-3 mb-8">
                 {plan.features.map((f) => (
                   <li key={f} className="flex items-start gap-2 text-sm">
@@ -97,17 +107,38 @@ export function PricingCards() {
                   </li>
                 ))}
               </ul>
-              <Link to="/signup">
-                <Button
-                  variant={plan.featured ? "hero" : "outline"}
-                  className="w-full"
+              {plan.href.startsWith('http') ? (
+                <a
+                  href={plan.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full block"
                 >
-                  {plan.cta}
-                </Button>
-              </Link>
+                  <Button
+                    variant={plan.featured ? 'hero' : 'outline'}
+                    className="w-full"
+                  >
+                    {plan.cta}
+                  </Button>
+                </a>
+              ) : (
+                <Link to={plan.href}>
+                  <Button
+                    variant={plan.featured ? 'hero' : 'outline'}
+                    className="w-full"
+                  >
+                    {plan.cta}
+                  </Button>
+                </Link>
+              )}
             </motion.div>
           ))}
         </div>
+
+        <p className="text-center text-xs text-muted-foreground mt-8">
+          All plans include a free tier to try before you commit. No credit card
+          required to start.
+        </p>
       </div>
     </section>
   );
