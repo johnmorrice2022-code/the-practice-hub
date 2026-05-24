@@ -33,6 +33,7 @@ const paidPlans = [
       'Unlimited practice questions',
       'GCSE Maths and Physics',
       'Pearson Edexcel and AQA',
+      'Access to Free Lesson Mondays',
       'Intelligent marking and feedback',
       '5 JAM Help exchanges per question',
       'Full progress tracking',
