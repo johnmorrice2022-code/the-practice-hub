@@ -260,12 +260,12 @@ const OnboardingFlow = () => {
       });
       return;
     }
-
     toast({
       title: `Welcome to The Hub Jam, ${firstName}!`,
       description: "Your account is all set. Let's get started.",
     });
 
+    await refreshProfile();
     navigate('/dashboard');
   };
 

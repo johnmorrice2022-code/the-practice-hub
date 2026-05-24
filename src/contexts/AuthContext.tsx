@@ -25,7 +25,10 @@ interface AuthContextType {
   hasMathsStreams: boolean;
   hasPhysicsStreams: boolean;
   questionsUsed: number;
+  onboardingComplete: boolean;
+  onboardingLoading: boolean;
   refreshSubscription: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -39,7 +42,10 @@ const AuthContext = createContext<AuthContextType>({
   hasMathsStreams: false,
   hasPhysicsStreams: false,
   questionsUsed: 0,
+  onboardingComplete: false,
+  onboardingLoading: true,
   refreshSubscription: async () => {},
+  refreshProfile: async () => {},
   signOut: async () => {},
 });
 
@@ -49,6 +55,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [subscriptionLoading, setSubscriptionLoading] = useState(true);
   const [questionsUsed, setQuestionsUsed] = useState(0);
+  const [onboardingComplete, setOnboardingComplete] = useState(false);
+  const [onboardingLoading, setOnboardingLoading] = useState(true);
 
   useEffect(() => {
     const {
@@ -64,44 +72,54 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => authSub.unsubscribe();
   }, []);
 
-  const fetchSubscriptionData = async (userId: string) => {
+  const fetchUserData = async (userId: string) => {
     setSubscriptionLoading(true);
+    setOnboardingLoading(true);
     try {
-      const { data: subData } = await supabase
-        .from('subscriptions')
-        .select('tier, status, stripe_price_id, current_period_end')
-        .eq('user_id', userId)
-        .eq('status', 'active')
-        .maybeSingle();
-      setSubscription(subData ?? null);
+      const [subResult, profileResult] = await Promise.all([
+        supabase
+          .from('subscriptions')
+          .select('tier, status, stripe_price_id, current_period_end')
+          .eq('user_id', userId)
+          .eq('status', 'active')
+          .maybeSingle(),
+        supabase
+          .from('profiles')
+          .select('questions_used, onboarding_complete')
+          .eq('id', userId)
+          .maybeSingle(),
+      ]);
 
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('questions_used')
-        .eq('id', userId)
-        .maybeSingle();
-      setQuestionsUsed(profileData?.questions_used ?? 0);
+      setSubscription(subResult.data ?? null);
+      setQuestionsUsed(profileResult.data?.questions_used ?? 0);
+      setOnboardingComplete(profileResult.data?.onboarding_complete ?? false);
     } catch {
       setSubscription(null);
+      setOnboardingComplete(false);
     } finally {
       setSubscriptionLoading(false);
+      setOnboardingLoading(false);
     }
   };
 
   useEffect(() => {
     if (session?.user) {
-      fetchSubscriptionData(session.user.id);
+      fetchUserData(session.user.id);
     } else if (!loading) {
       setSubscription(null);
       setSubscriptionLoading(false);
       setQuestionsUsed(0);
+      setOnboardingComplete(false);
+      setOnboardingLoading(false);
     }
   }, [session, loading]);
 
   const refreshSubscription = async () => {
-    if (session?.user) {
-      await fetchSubscriptionData(session.user.id);
-    }
+    if (session?.user) await fetchUserData(session.user.id);
+  };
+
+  const refreshProfile = async () => {
+    if (session?.user) await fetchUserData(session.user.id);
   };
 
   const signOut = async () => {
@@ -130,7 +148,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         hasMathsStreams,
         hasPhysicsStreams,
         questionsUsed,
+        onboardingComplete,
+        onboardingLoading,
         refreshSubscription,
+        refreshProfile,
         signOut,
       }}
     >
