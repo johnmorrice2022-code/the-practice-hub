@@ -132,7 +132,7 @@ function PlanCard({
         ))}
       </ul>
       {plan.external ? (
-        
+        <a
           href={plan.href}
           target="_blank"
           rel="noopener noreferrer"
