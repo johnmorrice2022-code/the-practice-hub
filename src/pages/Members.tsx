@@ -224,7 +224,15 @@ const Members = () => {
           />
         </div>
 
-        <div className="mt-8 text-center">
+        <div className="mt-8 flex flex-col items-center gap-4">
+          
+            href="https://billing.stripe.com/p/login/test_00w14ggP40WMblCdqyf7i00"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm font-medium px-4 py-2 rounded-lg border border-gray-200 hover:border-[#E23D28] hover:text-[#E23D28] transition-colors"
+          >
+            Manage subscription
+          </a>
           <button
             onClick={() => navigate('/dashboard')}
             className="text-sm text-muted-foreground hover:text-foreground transition-colors"
