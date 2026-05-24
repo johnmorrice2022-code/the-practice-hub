@@ -1,103 +1,100 @@
-import { Button } from "@/components/ui/button";
-import { motion } from "framer-motion";
-import { Check } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Button } from '@/components/ui/button';
+import { motion } from 'framer-motion';
+import { Check } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 const freePlan = {
-  name: "Free",
-  price: "£0",
-  period: "forever",
-  description: "Try the platform at your own pace — no credit card needed",
+  name: 'Free',
+  price: '£0',
+  period: 'forever',
+  description: 'Try the platform at your own pace — no credit card needed',
   features: [
-    "10 practice questions per day",
-    "GCSE Maths and Physics",
-    "Pearson Edexcel and AQA",
-    "AI marking and feedback",
-    "2 JAM Help exchanges per question",
-    "Progress tracking",
+    '10 practice questions per day',
+    'GCSE Maths and Physics',
+    'Pearson Edexcel and AQA',
+    'Intelligent marking and feedback',
+    '2 JAM Help exchanges per question',
+    'Progress tracking',
   ],
-  cta: "Start free",
-  href: "/signup",
+  cta: 'Start free',
+  href: '/signup',
   external: false,
   featured: false,
 };
 
 const paidPlans = [
   {
-    name: "The Practice Hub",
-    price: "£10.99",
-    period: "per month",
-    description: "Unlimited practice with full AI support",
+    name: 'The Practice Hub',
+    price: '£10.99',
+    period: 'per month',
+    description: 'Unlimited practice with full AI support',
     features: [
-      "Unlimited practice questions",
-      "GCSE Maths and Physics",
-      "Pearson Edexcel and AQA",
-      "AI marking and feedback",
-      "5 JAM Help exchanges per question",
-      "Full progress tracking",
+      'Unlimited practice questions',
+      'GCSE Maths and Physics',
+      'Pearson Edexcel and AQA',
+      'Intelligent marking and feedback',
+      '5 JAM Help exchanges per question',
+      'Full progress tracking',
     ],
-    cta: "Get started",
-    href: "https://buy.stripe.com/test_7sY9AM1Ua34U89q0DMf7i04",
+    cta: 'Get started',
+    href: 'https://buy.stripe.com/test_7sY9AM1Ua34U89q0DMf7i04',
     external: true,
     featured: false,
   },
   {
-    name: "Practice Hub + Maths Livestreams",
-    price: "£18.99",
-    period: "per month",
-    description: "Unlimited practice plus weekly live Maths teaching",
+    name: 'Practice Hub + Maths Livestreams',
+    price: '£18.99',
+    period: 'per month',
+    description:
+      'Unlimited practice plus weekly live Maths teaching and recordings',
     features: [
-      "Everything in The Practice Hub",
-      "Weekly members-only Maths livestreams",
-      "Foundation and Higher covered",
-      "Members-only recordings",
+      'Everything in The Practice Hub',
+      'Weekly members-only Maths livestreams',
+      'Foundation and Higher covered',
+      'Members-only recordings',
     ],
-    cta: "Get started",
-    href: "https://buy.stripe.com/test_eVq6oA42i20Q75meuCf7i05",
+    cta: 'Get started',
+    href: 'https://buy.stripe.com/test_eVq6oA42i20Q75meuCf7i05',
     external: true,
     featured: false,
   },
   {
-    name: "Practice Hub + Physics Livestreams",
-    price: "£18.99",
-    period: "per month",
-    description: "Unlimited practice plus weekly live Physics teaching",
+    name: 'Practice Hub + Physics Livestreams',
+    price: '£18.99',
+    period: 'per month',
+    description:
+      'Unlimited practice plus weekly live Physics teaching and recordings',
     features: [
-      "Everything in The Practice Hub",
-      "Weekly members-only Physics livestreams",
-      "Foundation and Higher covered",
-      "Members-only recordings",
+      'Everything in The Practice Hub',
+      'Weekly members-only Physics livestreams',
+      'Foundation and Higher covered',
+      'Members-only recordings',
     ],
-    cta: "Get started",
-    href: "https://buy.stripe.com/test_eVq5kw7eu5d2blCgCKf7i06",
+    cta: 'Get started',
+    href: 'https://buy.stripe.com/test_eVq5kw7eu5d2blCgCKf7i06',
     external: true,
     featured: false,
   },
   {
-    name: "Practice Hub + Maths & Physics Livestreams",
-    price: "£24.99",
-    period: "per month",
-    description: "The complete package — unlimited practice and live teaching for both subjects",
+    name: 'Practice Hub + Maths & Physics Livestreams',
+    price: '£24.99',
+    period: 'per month',
+    description:
+      'The complete package — unlimited practice and live teaching plus recordings, for both subjects',
     features: [
-      "Everything in The Practice Hub",
-      "Weekly Maths and Physics livestreams",
-      "Foundation and Higher covered",
-      "Members-only recordings",
+      'Everything in The Practice Hub',
+      'Weekly Maths and Physics livestreams',
+      'Foundation and Higher covered',
+      'Members-only recordings',
     ],
-    cta: "Get started",
-    href: "https://buy.stripe.com/test_28E9AMdCSaxm75mfyGf7i07",
+    cta: 'Get started',
+    href: 'https://buy.stripe.com/test_28E9AMdCSaxm75mfyGf7i07',
     external: true,
     featured: true,
   },
 ];
 
-function PlanCard({
-  plan,
-  index,
-}: {
-  plan: typeof freePlan;
-  index: number;
-}) {
+function PlanCard({ plan, index }: { plan: typeof freePlan; index: number }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
@@ -106,8 +103,8 @@ function PlanCard({
       transition={{ delay: index * 0.1, duration: 0.5 }}
       className={`rounded-xl p-8 border card-shadow flex flex-col ${
         plan.featured
-          ? "bg-card border-primary ring-2 ring-primary/20"
-          : "bg-card border-border"
+          ? 'bg-card border-primary ring-2 ring-primary/20'
+          : 'bg-card border-border'
       }`}
     >
       {plan.featured && (
@@ -139,7 +136,7 @@ function PlanCard({
           className="w-full block"
         >
           <Button
-            variant={plan.featured ? "hero" : "outline"}
+            variant={plan.featured ? 'hero' : 'outline'}
             className="w-full"
           >
             {plan.cta}
@@ -148,7 +145,7 @@ function PlanCard({
       ) : (
         <Link to={plan.href}>
           <Button
-            variant={plan.featured ? "hero" : "outline"}
+            variant={plan.featured ? 'hero' : 'outline'}
             className="w-full"
           >
             {plan.cta}
@@ -185,7 +182,8 @@ export function PricingCards() {
         </div>
 
         <p className="text-center text-xs text-muted-foreground mt-8">
-          All plans include a free tier to try before you commit. No credit card required to start.
+          All plans include a free tier to try before you commit. No credit card
+          required to start.
         </p>
       </div>
     </section>
