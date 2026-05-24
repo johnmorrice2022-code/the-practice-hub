@@ -621,7 +621,7 @@ export function PracticeRoom({
               { label: 'Practice Hub + Physics Livestreams', price: '£18.99/mo', url: 'https://buy.stripe.com/test_eVq5kw7eu5d2blCgCKf7i06' },
               { label: 'Practice Hub + Maths & Physics Livestreams', price: '£24.99/mo', url: 'https://buy.stripe.com/test_28E9AMdCSaxm75mfyGf7i07' },
             ].map((plan) => (
-              
+              <a
                 key={plan.url}
                 href={plan.url}
                 target="_blank"
