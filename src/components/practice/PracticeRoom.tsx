@@ -142,8 +142,8 @@ export function PracticeRoom({
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [partAnswers, setPartAnswers] = useState
-    Record<string, Record<string, string>>
-  >({});
+  Record<string, Record<string, string>>
+>({});
   const [treeAnswers, setTreeAnswers] = useState<Record<string, TreeAnswers>>(
     {}
   );
