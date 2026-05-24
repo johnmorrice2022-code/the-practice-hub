@@ -810,6 +810,7 @@ export default function AdminReviewQueue() {
   const [view, setView] = useState<View>('queue');
   const [subtopics, setSubtopics] = useState<SubtopicWithCounts[]>([]);
   const [loadingSubtopics, setLoadingSubtopics] = useState(true);
+  const [subjectFilter, setSubjectFilter] = useState<'Maths' | 'Physics'>('Maths');
   const [selectedSubtopic, setSelectedSubtopic] =
     useState<SubtopicWithCounts | null>(null);
   const [generatingFor, setGeneratingFor] = useState<string | null>(null);
@@ -844,7 +845,7 @@ export default function AdminReviewQueue() {
       const { data: subs } = await supabase
         .from('subtopics')
         .select('id, subtopic_name, topic, tier, subject, grade_band, slug')
-        .ilike('subject', '%math%')
+        .ilike('subject', subjectFilter === 'Maths' ? '%math%' : '%physics%')
         .order('topic')
         .order('subtopic_name');
 
@@ -882,7 +883,7 @@ export default function AdminReviewQueue() {
 
   useEffect(() => {
     if (authed) loadSubtopics();
-  }, [authed, loadSubtopics]);
+  }, [authed, loadSubtopics, subjectFilter]);
 
   async function handleGenerate(subtopic: SubtopicWithCounts) {
     setGeneratingFor(subtopic.id);
@@ -896,7 +897,11 @@ export default function AdminReviewQueue() {
             apikey: SUPABASE_ANON_KEY,
             Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
           },
-          body: JSON.stringify({ subtopicId: subtopic.id, count: 20 }),
+          body: JSON.stringify({
+            subtopicId: subtopic.id,
+            count: 20,
+            ...(subjectFilter === 'Physics' && { physicsTier: subtopic.tier }),
+          }),
         }
       );
       if (!res.ok) throw new Error('Generation failed');
@@ -1126,12 +1131,26 @@ export default function AdminReviewQueue() {
               <span className="text-sm font-semibold text-gray-800">
                 Review Queue
               </span>
-              <span
-                className="ml-1 text-[10px] font-medium px-1.5 py-0.5 rounded uppercase tracking-wide"
-                style={{ background: '#F5A623', color: 'white' }}
-              >
-                Maths
-              </span>
+              <div className="flex items-center rounded-lg border border-black/10 overflow-hidden ml-1">
+                <button
+                  onClick={() => setSubjectFilter('Maths')}
+                  className="text-[10px] font-semibold px-2.5 py-1 uppercase tracking-wide transition-colors"
+                  style={subjectFilter === 'Maths'
+                    ? { background: '#F5A623', color: 'white' }
+                    : { background: 'transparent', color: '#9ca3af' }}
+                >
+                  Maths
+                </button>
+                <button
+                  onClick={() => setSubjectFilter('Physics')}
+                  className="text-[10px] font-semibold px-2.5 py-1 uppercase tracking-wide transition-colors"
+                  style={subjectFilter === 'Physics'
+                    ? { background: '#E23D28', color: 'white' }
+                    : { background: 'transparent', color: '#9ca3af' }}
+                >
+                  Physics
+                </button>
+              </div>
             </div>
             <button
               onClick={() => navigate('/admin')}
