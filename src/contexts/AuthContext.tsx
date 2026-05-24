@@ -72,9 +72,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => authSub.unsubscribe();
   }, []);
 
-  const fetchUserData = async (userId: string) => {
+  const fetchUserData = async (userId: string, initialLoad = false) => {
     setSubscriptionLoading(true);
-    setOnboardingLoading(true);
+    if (initialLoad) setOnboardingLoading(true);
     try {
       const [subResult, profileResult] = await Promise.all([
         supabase
@@ -91,7 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       ]);
 
       setSubscription(subResult.data ?? null);
-      // Daily reset: if questions_used_date is not today, treat count as 0
+
       const today = new Date().toISOString().split('T')[0];
       const usedDate = profileResult.data?.questions_used_date ?? null;
       const questionsUsedToday =
@@ -103,13 +103,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setOnboardingComplete(false);
     } finally {
       setSubscriptionLoading(false);
-      setOnboardingLoading(false);
+      if (initialLoad) setOnboardingLoading(false);
     }
   };
 
   useEffect(() => {
     if (session?.user) {
-      fetchUserData(session.user.id);
+      fetchUserData(session.user.id, true);
     } else if (!loading) {
       setSubscription(null);
       setSubscriptionLoading(false);
