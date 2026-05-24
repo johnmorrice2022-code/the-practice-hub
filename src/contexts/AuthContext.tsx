@@ -73,7 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const fetchUserData = async (userId: string, initialLoad = false) => {
-    setSubscriptionLoading(true);
+    if (initialLoad) setSubscriptionLoading(true);
     if (initialLoad) setOnboardingLoading(true);
     try {
       const [subResult, profileResult] = await Promise.all([
@@ -102,7 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSubscription(null);
       setOnboardingComplete(false);
     } finally {
-      setSubscriptionLoading(false);
+      if (initialLoad) setSubscriptionLoading(false);
       if (initialLoad) setOnboardingLoading(false);
     }
   };
