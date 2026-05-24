@@ -879,7 +879,7 @@ export default function AdminReviewQueue() {
     } finally {
       setLoadingSubtopics(false);
     }
-  }, []);
+  }, [subjectFilter]);
 
   useEffect(() => {
     if (authed) loadSubtopics();
