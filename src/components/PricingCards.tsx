@@ -45,8 +45,7 @@ const paidPlans = [
     name: 'Practice Hub + Maths Livestreams',
     price: '£18.99',
     period: 'per month',
-    description:
-      'Unlimited practice plus weekly live Maths teaching and recordings',
+    description: 'Unlimited practice plus weekly live Maths teaching.',
     features: [
       'Everything in The Practice Hub',
       'Weekly members-only Maths livestreams',
@@ -62,8 +61,7 @@ const paidPlans = [
     name: 'Practice Hub + Physics Livestreams',
     price: '£18.99',
     period: 'per month',
-    description:
-      'Unlimited practice plus weekly live Physics teaching and recordings',
+    description: 'Unlimited practice plus weekly live Physics teaching.',
     features: [
       'Everything in The Practice Hub',
       'Weekly members-only Physics livestreams',
@@ -80,7 +78,7 @@ const paidPlans = [
     price: '£24.99',
     period: 'per month',
     description:
-      'The complete package — unlimited practice and live teaching plus recordings, for both subjects',
+      'The complete package — unlimited practice and live teaching, for both subjects',
     features: [
       'Everything in The Practice Hub',
       'Weekly Maths and Physics livestreams',
