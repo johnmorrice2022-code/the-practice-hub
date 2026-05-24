@@ -594,9 +594,9 @@ export function PracticeRoom({
 
   // ── Render ────────────────────────────────────────────────────────────────
 
-  if (!isSubscribed && questionsUsed >= FREE_QUESTION_LIMIT) {
+ if (!isSubscribed && questionsUsed >= FREE_QUESTION_LIMIT) {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4 px-6">
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4 px-6 py-12">
         <div
           className="bg-card rounded-xl p-8 text-center max-w-sm w-full"
           style={{ boxShadow: CARD_SHADOW }}
@@ -611,16 +611,38 @@ export function PracticeRoom({
             You've reached today's limit
           </h2>
           <p className="text-sm text-muted-foreground mb-6">
-            Free accounts get {FREE_QUESTION_LIMIT} questions per day. Come
-            back tomorrow, or unlock unlimited practice with a subscription.
+            Free accounts get {FREE_QUESTION_LIMIT} questions per day. Unlock unlimited practice with a subscription.
           </p>
+
+          <div className="space-y-2 mb-6">
+            {[
+              { label: 'The Practice Hub', price: '£10.99/mo', url: 'https://buy.stripe.com/test_7sY9AM1Ua34U89q0DMf7i04' },
+              { label: 'Practice Hub + Maths Livestreams', price: '£18.99/mo', url: 'https://buy.stripe.com/test_eVq6oA42i20Q75meuCf7i05' },
+              { label: 'Practice Hub + Physics Livestreams', price: '£18.99/mo', url: 'https://buy.stripe.com/test_eVq5kw7eu5d2blCgCKf7i06' },
+              { label: 'Practice Hub + Maths & Physics Livestreams', price: '£24.99/mo', url: 'https://buy.stripe.com/test_28E9AMdCSaxm75mfyGf7i07' },
+            ].map((plan) => (
+              
+                key={plan.url}
+                href={plan.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-between w-full px-4 py-3 rounded-lg border border-gray-200 hover:border-[#E23D28] hover:bg-[#E23D28]/5 transition-all text-left"
+              >
+                <span className="text-sm font-medium text-foreground">{plan.label}</span>
+                <span className="text-sm font-bold text-[#E23D28] ml-2 shrink-0">{plan.price}</span>
+              </a>
+            ))}
+          </div>
+
           <button
             onClick={onExit}
-            className="w-full h-11 rounded-lg text-sm font-semibold text-white transition-opacity"
-            style={{ background: 'linear-gradient(135deg, #E23D28 0%, #F5A623 100%)' }}
+            className="w-full h-10 rounded-lg text-sm font-medium text-muted-foreground border border-gray-200 hover:border-gray-300 transition-colors"
           >
             Back to hub
           </button>
+          <p className="text-xs text-muted-foreground mt-4">
+            Come back tomorrow for {FREE_QUESTION_LIMIT} more free questions.
+          </p>
         </div>
       </div>
     );
