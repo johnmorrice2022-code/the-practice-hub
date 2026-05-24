@@ -204,7 +204,7 @@ const COUNTRIES = [
 ];
 
 const OnboardingFlow = () => {
-  const { user } = useAuth();
+  const { user, refreshProfile } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
