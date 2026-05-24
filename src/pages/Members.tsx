@@ -225,7 +225,7 @@ const Members = () => {
         </div>
 
         <div className="mt-8 flex flex-col items-center gap-4">
-          
+          <a
             href="https://billing.stripe.com/p/login/test_00w14ggP40WMblCdqyf7i00"
             target="_blank"
             rel="noopener noreferrer"
