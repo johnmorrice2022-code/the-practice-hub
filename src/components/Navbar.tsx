@@ -8,6 +8,7 @@ import logo from '@/assets/logo.png';
 const navLinks = [
   { label: 'How It Works', href: '/#how-it-works' },
   { label: 'Pricing', href: '/#pricing' },
+  { label: 'Jam Sessions', href: '/jam-sessions' },
   { label: 'About', href: '/#about' },
 ];
 
@@ -22,9 +23,9 @@ export function Navbar() {
   const appLinks = [
     { label: 'Dashboard', href: '/dashboard' },
     { label: 'Practice', href: '/practice' },
+    { label: 'Jam Sessions', href: '/jam-sessions' },
     ...(isSubscribed ? [{ label: 'Members', href: '/members' }] : []),
   ];
-
   const handleSignOut = async () => {
     await signOut();
     navigate('/');

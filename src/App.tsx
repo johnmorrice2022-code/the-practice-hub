@@ -25,6 +25,7 @@ import Members from './pages/Members';
 import AdminMembers from './pages/admin/AdminMembers';
 import OnboardingFlow from './components/onboarding/OnboardingFlow';
 import ResetPassword from './pages/ResetPassword';
+import JamSessions from './pages/JamSessions';
 
 const queryClient = new QueryClient();
 
@@ -42,6 +43,7 @@ const App = () => (
             <Route path="/signup" element={<Signup />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/jam-sessions" element={<JamSessions />} />
 
             {/* Onboarding — auth required, no onboarding check */}
             <Route

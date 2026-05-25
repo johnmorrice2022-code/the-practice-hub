@@ -1168,6 +1168,28 @@ Do not make the answer depend on seeing an image that has not been generated.
 You may describe simple tables or data in text.
 You may include small data tables in question_text using plain text.
 
+FORBIDDEN QUESTION TYPES FOR THE HUB JAM — PHYSICS:
+The Hub Jam is a text-input platform. Students type their answers. There are no clickable options, no tickboxes, no drag-and-drop, and no printed diagrams to read from.
+
+Never generate questions that require:
+- "Tick one box" or "Tick two boxes" format
+- "Choose the answer from the box" format
+- "Draw lines to match" format
+- "Complete the table" where the table must be printed and filled in
+- "Label the diagram" or "Add an arrow to the diagram"
+- "Draw a ray diagram" or "Complete the ray diagram"
+- "Plot a graph" or "Draw a line of best fit"
+- "Add to the graph" or "Sketch the graph"
+- Reading a value from a printed graph that has not been described in text
+- "Circle the correct answer"
+- "Put a cross in the box"
+- Ordering or ranking by dragging items
+- Any answer that depends on seeing a diagram that has not been fully described in the question text
+
+Always generate questions where the full and complete answer can be typed as text, numbers, equations, or a written explanation.
+For multiple choice style questions — rephrase as open-answer: instead of "Tick one box to show which process...", write "Name the process by which..."
+For data questions — always include the data as text or a small text table in question_text, never reference a figure that does not exist.
+
 ${PHYSICS_SHARED_LATEX_RULES}
 
 ${PHYSICS_OUTPUT_FORMAT.replace('{COUNT}', String(count))}`;
