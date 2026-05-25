@@ -20,6 +20,7 @@ import {
   Clock,
   Check,
   Megaphone,
+  Flag,
 } from 'lucide-react';
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -30,6 +31,7 @@ const ADMIN_EMAIL = 'johnmorrice2022@gmail.com';
 interface Stats {
   diagramsUploaded: number | null;
   probabilityQuestions: number | null;
+  feedbackCount: number | null;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -78,6 +80,7 @@ export default function AdminHub() {
   const [stats, setStats] = useState<Stats>({
     diagramsUploaded: null,
     probabilityQuestions: null,
+    feedbackCount: null,
   });
 
   // ── Auth ────────────────────────────────────────────────────────────────────
@@ -99,11 +102,16 @@ export default function AdminHub() {
   useEffect(() => {
     if (!authed) return;
 
-    Promise.all([countDiagramsUploaded(), countProbabilityQuestions()]).then(
-      ([diagramsUploaded, probabilityQuestions]) => {
-        setStats({ diagramsUploaded, probabilityQuestions });
-      }
-    );
+    Promise.all([
+      countDiagramsUploaded(),
+      countProbabilityQuestions(),
+      supabase
+        .from('question_feedback')
+        .select('*', { count: 'exact', head: true })
+        .then(({ count }) => count ?? 0),
+    ]).then(([diagramsUploaded, probabilityQuestions, feedbackCount]) => {
+      setStats({ diagramsUploaded, probabilityQuestions, feedbackCount });
+    });
   }, [authed]);
 
   if (!authChecked || !authed) return null;
@@ -201,6 +209,18 @@ export default function AdminHub() {
             statLabel=""
             statsLoaded={true}
             onClick={() => navigate('/admin/members')}
+          />
+
+          {/*{/* Question Feedback */}
+          <ToolCard
+            icon={<Flag size={18} color="white" />}
+            iconBg="#E23D28"
+            title="Question Feedback"
+            description="Review flagged questions where students felt marking was wrong or questions were unclear."
+            stat={stats.feedbackCount}
+            statLabel="flags to review"
+            statsLoaded={stats.feedbackCount !== null}
+            onClick={() => navigate('/admin/feedback')}
           />
         </div>
 
