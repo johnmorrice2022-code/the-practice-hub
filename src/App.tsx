@@ -23,6 +23,7 @@ import AdminHub from './pages/admin/AdminHub';
 import AdminReviewQueue from './pages/admin/AdminReviewQueue';
 import Members from './pages/Members';
 import AdminMembers from './pages/admin/AdminMembers';
+import AdminFeedback from './pages/admin/AdminFeedback';
 import OnboardingFlow from './components/onboarding/OnboardingFlow';
 import ResetPassword from './pages/ResetPassword';
 import JamSessions from './pages/JamSessions';
@@ -130,6 +131,7 @@ const App = () => (
             />
             <Route path="/admin/review-queue" element={<AdminReviewQueue />} />
             <Route path="/admin/members" element={<AdminMembers />} />
+            <Route path="/admin/feedback" element={<AdminFeedback />} />
 
             <Route path="*" element={<NotFound />} />
           </Routes>
