@@ -267,16 +267,18 @@ const JamSessions = () => {
           <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
             <li>
               <span className="font-medium text-foreground">Monday</span> — free
-              public session, alternating Foundation and Higher each month
-              (Maths then Physics)
+              public session, alternating Higher and Foundation each week. Maths
+              6PM, Physics 7:30PM.
             </li>
             <li>
               <span className="font-medium text-foreground">Wednesday</span> —
-              members session, Foundation Maths followed by Higher Maths
+              members session, Foundation Maths (6PM) followed by Higher Maths
+              (7:30PM)
             </li>
             <li>
               <span className="font-medium text-foreground">Thursday</span> —
-              members session, Foundation Physics followed by Higher Physics
+              members session, Foundation Physics (6PM) followed by Higher
+              Physics (7:30PM)
             </li>
             <li className="pt-1">
               All sessions are taught to the same standard. The cycle resets and
