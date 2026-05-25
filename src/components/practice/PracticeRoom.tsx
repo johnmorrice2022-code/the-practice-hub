@@ -165,8 +165,6 @@ export function PracticeRoom({
     loadQuestions();
   }, [config.subtopicId]);
 
-  // ── Reset session state ───────────────────────────────────────────────────
-
   function resetSession() {
     setCurrentIndex(0);
     setAnswers({});
@@ -176,8 +174,6 @@ export function PracticeRoom({
     setPhase('answering');
     sessionStartTime.current = Date.now();
   }
-
-  // ── Increment questions used (free tier only) ─────────────────────────────
 
   const incrementQuestionsUsed = async () => {
     if (isSubscribed) return;
@@ -195,8 +191,6 @@ export function PracticeRoom({
       .eq('id', user.id);
     await refreshProfile();
   };
-
-  // ── Load questions — merged pool ──────────────────────────────────────────
 
   const loadQuestions = async () => {
     setGeneratingQuestions(true);
@@ -269,8 +263,6 @@ export function PracticeRoom({
       await generateAIQuestions();
     }
   };
-
-  // ── Live AI generation (fallback) ─────────────────────────────────────────
 
   const generateAIQuestions = async () => {
     setGeneratingQuestions(true);
@@ -353,8 +345,6 @@ export function PracticeRoom({
       setGeneratingQuestions(false);
     }
   };
-
-  // ── Session helpers ───────────────────────────────────────────────────────
 
   const currentQuestion = questions[currentIndex];
   const totalMarks = questions.reduce((sum, q) => sum + q.marks, 0);
@@ -571,8 +561,6 @@ export function PracticeRoom({
     setJamHelpOpen(true);
   };
 
-  // ── Derived state ─────────────────────────────────────────────────────────
-
   const allAnswered =
     questions.length > 0 && questions.every((q) => hasAnswer(q));
   const currentFeedback = currentQuestion
@@ -592,9 +580,7 @@ export function PracticeRoom({
       ? 100
       : ((currentIndex + 1) / Math.max(questions.length, 1)) * 100;
 
-  // ── Render ────────────────────────────────────────────────────────────────
-
- if (!isSubscribed && questionsUsed >= FREE_QUESTION_LIMIT) {
+  if (!isSubscribed && questionsUsed >= FREE_QUESTION_LIMIT) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4 px-6 py-12">
         <div
@@ -802,6 +788,9 @@ export function PracticeRoom({
                     currentFeedback
                   )
                 }
+                questionId={currentQuestion?.id}
+                subtopicId={config.subtopicId}
+                studentAnswer={buildAnswerForMarking(currentQuestion)}
               />
             ) : phase === 'marking' && isMarking ? (
               <div className="flex flex-col items-center justify-center py-16 gap-3">
@@ -897,6 +886,9 @@ export function PracticeRoom({
                             feedbacks[currentQuestion.id]
                           )
                         }
+                        questionId={currentQuestion.id}
+                        subtopicId={config.subtopicId}
+                        studentAnswer={buildAnswerForMarking(currentQuestion)}
                       />
                     </div>
                   )}

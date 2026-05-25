@@ -1,3 +1,4 @@
+import { FlagFeedback } from './FlagFeedback';
 import { useEffect, useRef } from 'react';
 import katex from 'katex';
 import {
@@ -30,6 +31,9 @@ interface FeedbackCardProps {
   feedback: MarkingFeedback;
   questionNumber: number;
   onJamHelp?: () => void;
+  questionId?: string;
+  subtopicId?: string;
+  studentAnswer?: string;
 }
 
 function renderMath(text: string): string {
@@ -139,6 +143,9 @@ export function FeedbackCard({
   feedback,
   questionNumber,
   onJamHelp,
+  questionId,
+  subtopicId,
+  studentAnswer,
 }: FeedbackCardProps) {
   const percentage = Math.round(
     (feedback.marks_awarded / feedback.marks_available) * 100
@@ -275,26 +282,37 @@ export function FeedbackCard({
         </>
       )}
 
-      {/* JAM Help button */}
-      {onJamHelp && (
+      {/* Flag + JAM Help */}
+      {(onJamHelp || questionId) && (
         <>
           <div className="border-t border-border/50" />
-          <div className="flex items-center justify-between">
-            <p className="text-xs text-muted-foreground">
-              Still not sure? Get guided help.
-            </p>
-            <button
-              onClick={onJamHelp}
-              className="flex items-center gap-2 text-xs font-semibold px-4 py-2 rounded-lg transition-all duration-150 active:scale-[0.97]"
-              style={{
-                color: '#fff',
-                background: 'linear-gradient(135deg, #E23D28 0%, #F5A623 100%)',
-                boxShadow: '0 2px 10px rgba(226,61,40,0.25)',
-              }}
-            >
-              <MessageCircle size={12} />
-              JAM Help
-            </button>
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            {questionId && subtopicId && studentAnswer !== undefined ? (
+              <FlagFeedback
+                questionId={questionId}
+                subtopicId={subtopicId}
+                studentAnswer={studentAnswer}
+                marksAwarded={feedback.marks_awarded}
+                marksAvailable={feedback.marks_available}
+              />
+            ) : (
+              <div />
+            )}
+            {onJamHelp && (
+              <button
+                onClick={onJamHelp}
+                className="flex items-center gap-2 text-xs font-semibold px-4 py-2 rounded-lg transition-all duration-150 active:scale-[0.97]"
+                style={{
+                  color: '#fff',
+                  background:
+                    'linear-gradient(135deg, #E23D28 0%, #F5A623 100%)',
+                  boxShadow: '0 2px 10px rgba(226,61,40,0.25)',
+                }}
+              >
+                <MessageCircle size={12} />
+                JAM Help
+              </button>
+            )}
           </div>
         </>
       )}

@@ -195,10 +195,11 @@ const JamSessions = () => {
           Jam <span className="text-accent-amber">Sessions</span>
         </h1>
         <p className="mt-2 text-muted-foreground max-w-2xl">
-          Every week The Hub Jam runs live GCSE Maths and Physics sessions —
-          free on Mondays, members sessions on Wednesdays and Thursdays.
-          Sessions follow a rolling 6-month cycle focused on the high-value,
-          high-frequency topics that make the biggest difference in exams.
+          Every week The Hub Jam runs live 60-minute GCSE Maths and Physics
+          sessions — free on Mondays, members sessions on Wednesdays and
+          Thursdays. Sessions follow a rolling 6-month cycle focused on the
+          high-value, high-frequency topics that make the biggest difference in
+          exams.
         </p>
 
         <div className="mt-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
