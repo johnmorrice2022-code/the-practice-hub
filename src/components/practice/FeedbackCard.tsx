@@ -33,6 +33,7 @@ interface FeedbackCardProps {
   onJamHelp?: () => void;
   questionId?: string;
   subtopicId?: string;
+  questionText?: string;
   studentAnswer?: string;
 }
 
@@ -145,6 +146,7 @@ export function FeedbackCard({
   onJamHelp,
   questionId,
   subtopicId,
+  questionText,
   studentAnswer,
 }: FeedbackCardProps) {
   const percentage = Math.round(
@@ -287,10 +289,14 @@ export function FeedbackCard({
         <>
           <div className="border-t border-border/50" />
           <div className="flex items-center justify-between gap-4 flex-wrap">
-            {questionId && subtopicId && studentAnswer !== undefined ? (
+            {questionId &&
+            subtopicId &&
+            questionText !== undefined &&
+            studentAnswer !== undefined ? (
               <FlagFeedback
                 questionId={questionId}
                 subtopicId={subtopicId}
+                questionText={questionText}
                 studentAnswer={studentAnswer}
                 marksAwarded={feedback.marks_awarded}
                 marksAvailable={feedback.marks_available}

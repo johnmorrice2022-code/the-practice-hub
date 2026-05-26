@@ -9,6 +9,7 @@ interface FeedbackRow {
   id: string;
   question_id: string;
   subtopic_id: string;
+  question_text: string | null;
   student_answer: string;
   marks_awarded: number;
   marks_available: number;
@@ -187,6 +188,18 @@ export default function AdminFeedback() {
                   </div>
                 </div>
 
+                {/* Question text */}
+                {row.question_text && (
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wide text-gray-300 font-medium mb-1">
+                      Question
+                    </p>
+                    <p className="text-sm text-gray-700 leading-relaxed bg-blue-50 rounded-lg px-3 py-2">
+                      {row.question_text}
+                    </p>
+                  </div>
+                )}
+
                 {/* Student answer */}
                 <div>
                   <p className="text-[10px] uppercase tracking-wide text-gray-300 font-medium mb-1">
@@ -197,7 +210,7 @@ export default function AdminFeedback() {
                   </p>
                 </div>
 
-                {/* Comment */}
+                {/* Student comment */}
                 {row.student_comment && (
                   <div>
                     <p className="text-[10px] uppercase tracking-wide text-gray-300 font-medium mb-1">

@@ -154,7 +154,6 @@ export function PracticeRoom({
   const [markingGuidance, setMarkingGuidance] = useState<string | null>(null);
   const sessionStartTime = useRef<number | null>(null);
 
-  // JAM Help state
   const [jamHelpOpen, setJamHelpOpen] = useState(false);
   const [jamHelpQuestion, setJamHelpQuestion] = useState<Question | null>(null);
   const [jamHelpAnswer, setJamHelpAnswer] = useState<string>('');
@@ -599,7 +598,6 @@ export function PracticeRoom({
           <p className="text-sm text-muted-foreground mb-6">
             Free accounts get {FREE_QUESTION_LIMIT} questions per day. Unlock unlimited practice with a subscription.
           </p>
-
           <div className="space-y-2 mb-6">
             {[
               { label: 'The Practice Hub', price: '£10.99/mo', url: 'https://buy.stripe.com/test_7sY9AM1Ua34U89q0DMf7i04' },
@@ -619,7 +617,6 @@ export function PracticeRoom({
               </a>
             ))}
           </div>
-
           <button
             onClick={onExit}
             className="w-full h-10 rounded-lg text-sm font-medium text-muted-foreground border border-gray-200 hover:border-gray-300 transition-colors"
@@ -642,12 +639,9 @@ export function PracticeRoom({
             <div
               className="w-6 h-6 rounded-full animate-spin flex-shrink-0"
               style={{
-                background:
-                  'conic-gradient(from 0deg, #E23D28, #F5A623, #E23D28)',
-                maskImage:
-                  'radial-gradient(farthest-side, transparent 60%, black 61%)',
-                WebkitMaskImage:
-                  'radial-gradient(farthest-side, transparent 60%, black 61%)',
+                background: 'conic-gradient(from 0deg, #E23D28, #F5A623, #E23D28)',
+                maskImage: 'radial-gradient(farthest-side, transparent 60%, black 61%)',
+                WebkitMaskImage: 'radial-gradient(farthest-side, transparent 60%, black 61%)',
               }}
             />
             <p className="text-sm text-muted-foreground">
@@ -750,8 +744,7 @@ export function PracticeRoom({
             className="h-full transition-all duration-500"
             style={{
               width: `${progressPct}%`,
-              background:
-                'linear-gradient(90deg, #C8331F 0%, #E23D28 45%, #F5A623 100%)',
+              background: 'linear-gradient(90deg, #C8331F 0%, #E23D28 45%, #F5A623 100%)',
             }}
           />
         </div>
@@ -772,8 +765,7 @@ export function PracticeRoom({
             <div
               className="absolute top-0 left-0 right-0 h-[3px]"
               style={{
-                background:
-                  'linear-gradient(90deg, #C8331F 0%, #E23D28 45%, #F5A623 100%)',
+                background: 'linear-gradient(90deg, #C8331F 0%, #E23D28 45%, #F5A623 100%)',
               }}
             />
 
@@ -790,6 +782,7 @@ export function PracticeRoom({
                 }
                 questionId={currentQuestion?.id}
                 subtopicId={config.subtopicId}
+                questionText={currentQuestion?.question_text}
                 studentAnswer={buildAnswerForMarking(currentQuestion)}
               />
             ) : phase === 'marking' && isMarking ? (
@@ -797,12 +790,9 @@ export function PracticeRoom({
                 <div
                   className="w-6 h-6 rounded-full animate-spin"
                   style={{
-                    background:
-                      'conic-gradient(from 0deg, #E23D28, #F5A623, #E23D28)',
-                    maskImage:
-                      'radial-gradient(farthest-side, transparent 60%, black 61%)',
-                    WebkitMaskImage:
-                      'radial-gradient(farthest-side, transparent 60%, black 61%)',
+                    background: 'conic-gradient(from 0deg, #E23D28, #F5A623, #E23D28)',
+                    maskImage: 'radial-gradient(farthest-side, transparent 60%, black 61%)',
+                    WebkitMaskImage: 'radial-gradient(farthest-side, transparent 60%, black 61%)',
                   }}
                 />
                 <p className="text-sm text-muted-foreground">
@@ -856,8 +846,7 @@ export function PracticeRoom({
                           className="flex items-center gap-2 text-xs font-semibold px-4 py-2 rounded-lg transition-all duration-150 disabled:opacity-40 active:scale-[0.97]"
                           style={{
                             color: '#fff',
-                            background:
-                              'linear-gradient(135deg, #E23D28 0%, #F5A623 100%)',
+                            background: 'linear-gradient(135deg, #E23D28 0%, #F5A623 100%)',
                             boxShadow: '0 2px 10px rgba(226,61,40,0.30)',
                           }}
                         >
@@ -888,6 +877,7 @@ export function PracticeRoom({
                         }
                         questionId={currentQuestion.id}
                         subtopicId={config.subtopicId}
+                        questionText={currentQuestion.question_text}
                         studentAnswer={buildAnswerForMarking(currentQuestion)}
                       />
                     </div>
@@ -935,8 +925,7 @@ export function PracticeRoom({
                 className="flex items-center gap-2 text-xs font-semibold px-4 py-2 rounded-lg transition-all duration-150 active:scale-[0.97]"
                 style={{
                   color: '#fff',
-                  background:
-                    'linear-gradient(135deg, #E23D28 0%, #F5A623 100%)',
+                  background: 'linear-gradient(135deg, #E23D28 0%, #F5A623 100%)',
                   boxShadow: '0 2px 10px rgba(226,61,40,0.28)',
                 }}
               >

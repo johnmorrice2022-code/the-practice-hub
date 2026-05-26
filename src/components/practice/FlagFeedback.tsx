@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 interface FlagFeedbackProps {
   questionId: string;
   subtopicId: string;
+  questionText: string;
   studentAnswer: string;
   marksAwarded: number;
   marksAvailable: number;
@@ -22,6 +23,7 @@ const options: { type: FeedbackType; label: string }[] = [
 export function FlagFeedback({
   questionId,
   subtopicId,
+  questionText,
   studentAnswer,
   marksAwarded,
   marksAvailable,
@@ -41,6 +43,7 @@ export function FlagFeedback({
         question_id: questionId,
         subtopic_id: subtopicId,
         user_id: user?.id ?? null,
+        question_text: questionText,
         student_answer: studentAnswer,
         marks_awarded: marksAwarded,
         marks_available: marksAvailable,
