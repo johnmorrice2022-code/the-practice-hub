@@ -14,7 +14,7 @@ interface Paragraph {
   text: string;
   diagram_url?: string | null;
   is_non_example?: boolean;
-  style?: 'key-point' | 'exam-tip' | 'watch-out' | 'subheading';
+  style?: 'key-point' | 'exam-tip' | 'watch-out' | 'subheading' | 'higher-only';
 }
 
 interface IndexItem {
@@ -152,6 +152,25 @@ function WatchOut({ text }: { text: string }) {
   );
 }
 
+function HigherOnly({ text }: { text: string }) {
+  return (
+    <div
+      className="rounded-lg px-5 py-4"
+      style={{ background: '#F0F0FF', border: '1px solid #C4B5FD' }}
+    >
+      <div className="flex items-center gap-1.5 mb-2">
+        <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: '#6D28D9' }}>
+          Higher ▲
+        </span>
+      </div>
+      <div
+        className="text-[14.5px] leading-[1.85] text-foreground m-0 question-text"
+        dangerouslySetInnerHTML={{ __html: renderMath(text) }}
+      />
+    </div>
+  );
+}
+
 function Subheading({ text }: { text: string }) {
   return (
     <h3
@@ -197,6 +216,8 @@ function StyledParagraph({ para }: { para: Paragraph }) {
         return <WatchOut text={para.text} />;
       case 'subheading':
         return <Subheading text={para.text} />;
+      case 'higher-only':
+        return <HigherOnly text={para.text} />;
       default:
         return (
           <div
