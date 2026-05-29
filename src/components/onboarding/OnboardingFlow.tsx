@@ -266,6 +266,12 @@ const OnboardingFlow = () => {
     });
 
     await refreshProfile();
+
+    const pendingPlan = sessionStorage.getItem('pendingPlanUrl');
+    if (pendingPlan && user) {
+      sessionStorage.removeItem('pendingPlanUrl');
+      window.open(`${pendingPlan}?client_reference_id=${user.id}`, '_blank', 'noopener,noreferrer');
+    }
     navigate('/dashboard');
   };
 

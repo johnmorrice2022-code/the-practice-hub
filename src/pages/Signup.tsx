@@ -31,8 +31,7 @@ const Signup = () => {
     if (error) {
       toast({ title: "Could not create account", description: error.message, variant: "destructive" });
     } else {
-      toast({ title: "Account created", description: "Check your email to confirm, then log in." });
-      navigate("/login");
+      navigate("/onboarding");
     }
   };
 

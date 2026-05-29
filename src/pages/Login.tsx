@@ -17,7 +17,7 @@ const Login = () => {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
@@ -29,6 +29,11 @@ const Login = () => {
         variant: 'destructive',
       });
     } else {
+      const pendingPlan = sessionStorage.getItem('pendingPlanUrl');
+      if (pendingPlan && data.user) {
+        sessionStorage.removeItem('pendingPlanUrl');
+        window.open(`${pendingPlan}?client_reference_id=${data.user.id}`, '_blank', 'noopener,noreferrer');
+      }
       navigate('/dashboard');
     }
   };

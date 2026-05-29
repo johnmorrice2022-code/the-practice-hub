@@ -136,7 +136,7 @@ export function PracticeRoom({
   calculatorAllowed,
   onExit,
 }: PracticeRoomProps) {
-  const { isSubscribed, questionsUsed, refreshProfile } = useAuth();
+  const { isSubscribed, questionsUsed, refreshProfile, user } = useAuth();
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -604,18 +604,21 @@ export function PracticeRoom({
               { label: 'Practice Hub + Maths Livestreams', price: '£18.99/mo', url: 'https://buy.stripe.com/test_eVq6oA42i20Q75meuCf7i05' },
               { label: 'Practice Hub + Physics Livestreams', price: '£18.99/mo', url: 'https://buy.stripe.com/test_eVq5kw7eu5d2blCgCKf7i06' },
               { label: 'Practice Hub + Maths & Physics Livestreams', price: '£24.99/mo', url: 'https://buy.stripe.com/test_28E9AMdCSaxm75mfyGf7i07' },
-            ].map((plan) => (
-              <a
-                key={plan.url}
-                href={plan.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-between w-full px-4 py-3 rounded-lg border border-gray-200 hover:border-[#E23D28] hover:bg-[#E23D28]/5 transition-all text-left"
-              >
-                <span className="text-sm font-medium text-foreground">{plan.label}</span>
-                <span className="text-sm font-bold text-[#E23D28] ml-2 shrink-0">{plan.price}</span>
-              </a>
-            ))}
+            ].map((plan) => {
+              const href = user?.id ? `${plan.url}?client_reference_id=${user.id}` : plan.url;
+              return (
+                <a
+                  key={plan.url}
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-between w-full px-4 py-3 rounded-lg border border-gray-200 hover:border-[#E23D28] hover:bg-[#E23D28]/5 transition-all text-left"
+                >
+                  <span className="text-sm font-medium text-foreground">{plan.label}</span>
+                  <span className="text-sm font-bold text-[#E23D28] ml-2 shrink-0">{plan.price}</span>
+                </a>
+              );
+            })}
           </div>
           <button
             onClick={onExit}

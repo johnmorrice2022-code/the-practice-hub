@@ -4,13 +4,15 @@ import { useAuth } from '@/contexts/AuthContext';
 interface ProtectedRouteProps {
   children: React.ReactNode;
   requireOnboarding?: boolean;
+  requireAdmin?: boolean;
 }
 
 const ProtectedRoute = ({
   children,
   requireOnboarding = true,
+  requireAdmin = false,
 }: ProtectedRouteProps) => {
-  const { user, loading, onboardingComplete, onboardingLoading } = useAuth();
+  const { user, loading, onboardingComplete, onboardingLoading, isAdmin } = useAuth();
 
   if (loading || onboardingLoading) {
     return (
@@ -22,6 +24,10 @@ const ProtectedRoute = ({
 
   if (!user) {
     return <Navigate to="/login" replace />;
+  }
+
+  if (requireAdmin && !isAdmin) {
+    return <Navigate to="/" replace />;
   }
 
   // On the onboarding route: if already complete, send to dashboard

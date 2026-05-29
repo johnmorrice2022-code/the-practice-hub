@@ -15,6 +15,8 @@ export interface Subscription {
   current_period_end: string;
 }
 
+const ADMIN_EMAIL = 'johnmorrice2022@gmail.com';
+
 interface AuthContextType {
   session: Session | null;
   user: User | null;
@@ -22,6 +24,7 @@ interface AuthContextType {
   subscription: Subscription | null;
   subscriptionLoading: boolean;
   isSubscribed: boolean;
+  isAdmin: boolean;
   hasMathsStreams: boolean;
   hasPhysicsStreams: boolean;
   questionsUsed: number;
@@ -39,6 +42,7 @@ const AuthContext = createContext<AuthContextType>({
   subscription: null,
   subscriptionLoading: true,
   isSubscribed: false,
+  isAdmin: false,
   hasMathsStreams: false,
   hasPhysicsStreams: false,
   questionsUsed: 0,
@@ -132,6 +136,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const isSubscribed = subscription?.status === 'active';
+  const isAdmin = session?.user?.email === ADMIN_EMAIL;
   const hasMathsStreams =
     isSubscribed &&
     (subscription?.tier === 'platform_maths' ||
@@ -150,6 +155,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         subscription,
         subscriptionLoading,
         isSubscribed,
+        isAdmin,
         hasMathsStreams,
         hasPhysicsStreams,
         questionsUsed,

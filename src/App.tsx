@@ -122,16 +122,37 @@ const App = () => (
               }
             />
 
-            {/* Admin routes — no onboarding check */}
-            <Route path="/admin" element={<AdminHub />} />
-            <Route path="/admin/diagrams" element={<AdminDiagrams />} />
-            <Route
-              path="/admin/probability-questions"
-              element={<AdminProbabilityQuestions />}
-            />
-            <Route path="/admin/review-queue" element={<AdminReviewQueue />} />
-            <Route path="/admin/members" element={<AdminMembers />} />
-            <Route path="/admin/feedback" element={<AdminFeedback />} />
+            {/* Admin routes — auth + admin role required, no onboarding check */}
+            <Route path="/admin" element={
+              <ProtectedRoute requireOnboarding={false} requireAdmin={true}>
+                <AdminHub />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/diagrams" element={
+              <ProtectedRoute requireOnboarding={false} requireAdmin={true}>
+                <AdminDiagrams />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/probability-questions" element={
+              <ProtectedRoute requireOnboarding={false} requireAdmin={true}>
+                <AdminProbabilityQuestions />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/review-queue" element={
+              <ProtectedRoute requireOnboarding={false} requireAdmin={true}>
+                <AdminReviewQueue />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/members" element={
+              <ProtectedRoute requireOnboarding={false} requireAdmin={true}>
+                <AdminMembers />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/feedback" element={
+              <ProtectedRoute requireOnboarding={false} requireAdmin={true}>
+                <AdminFeedback />
+              </ProtectedRoute>
+            } />
 
             <Route path="*" element={<NotFound />} />
           </Routes>

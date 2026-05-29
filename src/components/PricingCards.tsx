@@ -1,7 +1,8 @@
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
 import { Check } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 
 const freePlan = {
   name: 'Free',
@@ -95,6 +96,19 @@ const paidPlans = [
 ];
 
 function PlanCard({ plan, index }: { plan: typeof freePlan; index: number }) {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+
+  const handlePaidClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault();
+    if (!user) {
+      sessionStorage.setItem('pendingPlanUrl', plan.href);
+      navigate('/signup');
+      return;
+    }
+    window.open(`${plan.href}?client_reference_id=${user.id}`, '_blank', 'noopener,noreferrer');
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
@@ -131,6 +145,7 @@ function PlanCard({ plan, index }: { plan: typeof freePlan; index: number }) {
       {plan.external ? (
         <a
           href={plan.href}
+          onClick={handlePaidClick}
           target="_blank"
           rel="noopener noreferrer"
           className="w-full block"
