@@ -188,6 +188,27 @@ const FREE_JAM_HELP_TURNS = 2;
 const SUBSCRIBER_JAM_HELP_TURNS = 5;
 ```
 
+### Learning content paragraph styles
+Stored in `sections[].paragraphs[].style` (or `is_non_example: true` for legacy watch-out):
+
+| style | Renders as |
+|-------|-----------|
+| _(none)_ | Plain body text |
+| `key-point` | Amber left-border block |
+| `exam-tip` | Green bordered block with "Exam tip" label |
+| `watch-out` | Red bordered block with "Watch out" label |
+| `subheading` | Bold inline subheading |
+| `higher-only` | Purple block with "Higher ▲" label — visible to all tiers, signals Higher content |
+
+Mirrors UK GCSE textbook convention: Foundation students see everything; Higher content is highlighted inline.
+
+### Unauthenticated pricing flow
+When a logged-out user clicks a paid plan:
+1. `PricingCards.tsx` stores the Stripe URL in `sessionStorage('pendingPlanUrl')` → `/signup`
+2. `Signup.tsx` → on success → `/onboarding` (not `/login`)
+3. `OnboardingFlow.tsx` → on complete → opens Stripe URL with `?client_reference_id=user.id` → `/dashboard`
+4. `Login.tsx` → on success → also checks `sessionStorage` (for returning users who click plan then log in)
+
 ---
 
 ## File Structure (key files)
@@ -197,9 +218,9 @@ src/
   lib/
     renderMathInText.ts           -- shared KaTeX renderer ($...$ and $$...$$)
   contexts/
-    AuthContext.tsx               -- auth, subscription, onboarding, questionsUsed
+    AuthContext.tsx               -- auth, subscription, onboarding, questionsUsed, isAdmin
   pages/
-    Login.tsx
+    Login.tsx                     -- consumes sessionStorage pendingPlanUrl after login
     ResetPassword.tsx
     Members.tsx                   -- manage subscription link at bottom
     JamSessions.tsx               -- public curriculum/livestream page
@@ -210,11 +231,16 @@ src/
       AdminProbabilityQuestions.tsx
       AdminDiagrams.tsx           -- works for all subjects
       AdminMembers.tsx
+      AdminFeedback.tsx           -- review flagged questions
+      AdminLearningContent.tsx    -- edit learning content sections/paragraphs per subtopic
   components/
     Navbar.tsx                    -- Jam Sessions in both navLinks and appLinks
-    ProtectedRoute.tsx            -- reads from AuthContext, no Supabase query on mount
+    ProtectedRoute.tsx            -- requireAdmin prop; skips onboarding redirect for admin routes
     onboarding/
-      OnboardingFlow.tsx
+      OnboardingFlow.tsx          -- on complete, opens Stripe if sessionStorage pendingPlanUrl set
+    learn/
+      LearningContent.tsx         -- section-by-section reader with styled paragraph types
+      InteractiveSection.tsx
     practice/
       PracticeRoom.tsx            -- merged pool, free tier gate, incrementQuestionsUsed
       QuestionCard.tsx
@@ -238,7 +264,7 @@ supabase/
     jam-help/
     generate-mark-scheme/
     create-checkout-session/
-    stripe-webhook/
+    stripe-webhook/               -- handles checkout.session.completed, subscription.updated/deleted
 ```
 
 ---
@@ -338,7 +364,9 @@ End-to-end Stripe subscription flow is working:
 
 ### Before Stripe goes live
 - [ ] Create live mode Stripe products and payment links
+  - On each Payment Link: After payment → Redirect to website → `https://app.thehubjam.co.uk/dashboard`
 - [ ] Update 4 payment links in `PracticeRoom.tsx`
+- [ ] Update 4 payment links in `PricingCards.tsx`
 - [ ] Update Manage subscription portal link in `Members.tsx`
 - [ ] Set live `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` in Supabase secrets
 - [ ] Create live mode webhook destination in Stripe
