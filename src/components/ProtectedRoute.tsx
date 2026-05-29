@@ -31,7 +31,7 @@ const ProtectedRoute = ({
   }
 
   // On the onboarding route: if already complete, send to dashboard
-  if (!requireOnboarding && onboardingComplete) {
+  if (!requireAdmin && !requireOnboarding && onboardingComplete) {
     return <Navigate to="/dashboard" replace />;
   }
 

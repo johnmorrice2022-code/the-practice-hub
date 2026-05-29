@@ -21,6 +21,7 @@ import {
   Check,
   Megaphone,
   Flag,
+  BookOpen,
 } from 'lucide-react';
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -164,6 +165,18 @@ export default function AdminHub() {
 
         {/* ── Live tools ── */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-10">
+          {/* Learning Content Editor */}
+          <ToolCard
+            icon={<BookOpen size={18} color="white" />}
+            iconBg="#E23D28"
+            title="Learning Content"
+            description="Edit section headings, paragraph text and styles for any subtopic."
+            stat={null}
+            statLabel=""
+            statsLoaded={true}
+            onClick={() => navigate('/admin/learning-content')}
+          />
+
           {/* Diagram CMS */}
           <ToolCard
             icon={<ImageIcon size={18} color="white" />}

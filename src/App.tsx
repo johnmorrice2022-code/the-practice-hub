@@ -24,6 +24,7 @@ import AdminReviewQueue from './pages/admin/AdminReviewQueue';
 import Members from './pages/Members';
 import AdminMembers from './pages/admin/AdminMembers';
 import AdminFeedback from './pages/admin/AdminFeedback';
+import AdminLearningContent from './pages/admin/AdminLearningContent';
 import OnboardingFlow from './components/onboarding/OnboardingFlow';
 import ResetPassword from './pages/ResetPassword';
 import JamSessions from './pages/JamSessions';
@@ -151,6 +152,11 @@ const App = () => (
             <Route path="/admin/feedback" element={
               <ProtectedRoute requireOnboarding={false} requireAdmin={true}>
                 <AdminFeedback />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/learning-content" element={
+              <ProtectedRoute requireOnboarding={false} requireAdmin={true}>
+                <AdminLearningContent />
               </ProtectedRoute>
             } />
 
