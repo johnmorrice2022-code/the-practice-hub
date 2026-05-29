@@ -352,17 +352,21 @@ Physics questions show "No calculator" label — all AQA Physics papers allow ca
 
 ## Current Priorities (as of 29/05/2026)
 
-### Stripe — COMPLETE ✅
-End-to-end Stripe subscription flow is working:
-- Unauthenticated users who click a paid plan are taken through signup → onboarding → Stripe (plan URL preserved in `sessionStorage`)
-- Returning users who click a plan and log in are taken directly to Stripe
-- Webhook (`stripe-webhook` Edge Function) writes correct tier + price ID to `subscriptions` table on `checkout.session.completed`
-- `.env` updated to point at correct Supabase project (`wgcxwtgspmfnzugszhdc`)
+### Done this session ✅
+- Stripe subscription flow end-to-end (webhook writes correct tier/price; signup → onboarding → Stripe flow)
+- `.env` fixed to correct Supabase project (`wgcxwtgspmfnzugszhdc`)
+- Admin route redirect bug fixed (ProtectedRoute now skips onboarding check for admin routes)
+- Learning Content Editor at `/admin/learning-content` — edit sections, paragraphs, styles, reorder
+- Higher Only paragraph style — purple "Higher ▲" block in student view; mirrors UK GCSE textbook convention
+- Diagrams bucket RLS policy added — image uploads now work from admin CMS
+- Admin CMS verified working on iPad/mobile
 
-### Next session
+### Next session — content & launch prep
+- [ ] Legal documents — Privacy Policy, Safeguarding Policy, Terms & Conditions (Claude drafts, John reviews)
+- [ ] ICO registration (ico.org.uk, £40/year — 20 min online form)
 - [ ] Fix Physics "No calculator" label
-- [ ] Extend seeded question authoring form for Physics
 - [ ] Second Physics subtopic end-to-end (candidate: `density-states-of-matter`)
+- [ ] Re-enable email confirmation in Supabase Auth
 
 ### Before marketing
 - [ ] ICO registration (ico.org.uk, £40/year)
