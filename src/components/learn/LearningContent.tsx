@@ -287,9 +287,9 @@ export function LearningContent({
           style={{ boxShadow: '0 1px 8px rgba(0,0,0,0.06)' }}
         >
           {/* Section heading */}
-          <h2 className="text-xl font-semibold text-foreground">
-            {currentSection.heading}
-          </h2>
+          <h2 className="text-xl font-semibold text-foreground question-text"
+            dangerouslySetInnerHTML={{ __html: renderMath(currentSection.heading) }}
+          />
 
           {/* Index section */}
           {currentSection.type === 'index' && currentSection.items ? (
