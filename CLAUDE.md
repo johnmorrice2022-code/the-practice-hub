@@ -167,6 +167,18 @@ VALUES (
 ### Two-track question system
 - **AI-generated questions** — for algebra, calculations, standard questions. Generated on demand or in batches via AdminReviewQueue.
 - **Seeded questions** — John's hand-authored questions, stored in `seeded_questions`. LaTeX supported via `$...$` (inline) and `$$...$$` (display).
+
+### LaTeX quick reference (for content authoring)
+| Output | LaTeX |
+|--------|-------|
+| Inline expression | `$x^2 + 1$` |
+| Display (centred) | `$$E = mc^2$$` |
+| Degree symbol | `$90^{\circ}$` |
+| Greek theta | `$\theta$` |
+| Fraction | `$\frac{a}{b}$` |
+| Square root | `$\sqrt{x}$` |
+
+LaTeX renders in: learning content section headings, paragraph text, question text, mark schemes, and JAM Help responses.
 - `PracticeRoom.tsx` merges both pools, shuffles, picks up to 4. Falls back to live AI generation only when both tables are empty.
 
 ### Diagram component pattern
