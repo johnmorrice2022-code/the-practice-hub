@@ -54,11 +54,20 @@ These rules exist because violations have caused real incidents. Follow them wit
 |----------|--------|
 | Hosting  | Netlify — auto-deploys from GitHub main branch |
 | Database | Supabase Pro — project ref `wgcxwtgspmfnzugszhdc` |
-| Storage  | Supabase Storage — bucket: `diagrams` (single bucket, public) |
+| Storage  | Supabase Storage — bucket: `diagrams` (single bucket, public read) |
 | Domain   | app.thehubjam.co.uk (Netlify) / thehubjam.co.uk (WordPress) |
 | Payments | Stripe — currently in **test mode**; switch to live before launch |
 
 **Supabase project URL:** `https://wgcxwtgspmfnzugszhdc.supabase.co`
+
+### Storage RLS
+The `diagrams` bucket requires an RLS policy for authenticated uploads. If ever recreated, run:
+```sql
+CREATE POLICY "Authenticated users can manage diagrams"
+ON storage.objects FOR ALL TO authenticated
+USING (bucket_id = 'diagrams')
+WITH CHECK (bucket_id = 'diagrams');
+```
 **Region:** West Europe (London) — eu-west-2
 
 ---
