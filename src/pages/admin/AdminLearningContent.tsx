@@ -14,11 +14,16 @@ interface Paragraph {
   is_non_example?: boolean;
   style?: 'key-point' | 'exam-tip' | 'watch-out' | 'subheading' | 'higher-only';
 }
+interface IndexItem {
+  label: string;
+  section_index: number;
+}
 interface Section {
   heading: string;
   paragraphs: Paragraph[];
   type?: string;
   component?: string;
+  items?: IndexItem[];
 }
 interface Subtopic {
   id: string;
@@ -138,6 +143,10 @@ export default function AdminLearningContent() {
   const addParagraph      = (si: number)                      => mutate(s => { s[si].paragraphs.push({ text: '' }); return s; });
   const deleteParagraph   = (si: number, pi: number)          => mutate(s => { s[si].paragraphs.splice(pi, 1); return s; });
   const addSection        = ()                                 => mutate(s => { s.push({ heading: 'New section', paragraphs: [{ text: '' }] }); return s; });
+  const addIndexItem      = (si: number)                      => mutate(s => { (s[si].items ??= []).push({ label: '', section_index: 0 }); return s; });
+  const deleteIndexItem   = (si: number, ii: number)          => mutate(s => { s[si].items?.splice(ii, 1); return s; });
+  const updateIndexLabel  = (si: number, ii: number, v: string) => mutate(s => { if (s[si].items?.[ii]) s[si].items[ii].label = v; return s; });
+  const updateIndexTarget = (si: number, ii: number, v: number) => mutate(s => { if (s[si].items?.[ii]) s[si].items[ii].section_index = v; return s; });
   const deleteSection     = (si: number)                      => mutate(s => { s.splice(si, 1); return s; });
   const moveSectionUp     = (si: number)                      => mutate(s => { if (si > 0) [s[si-1], s[si]] = [s[si], s[si-1]]; return s; });
   const moveSectionDown   = (si: number)                      => mutate(s => { if (si < s.length-1) [s[si], s[si+1]] = [s[si+1], s[si]]; return s; });
@@ -236,6 +245,7 @@ export default function AdminLearningContent() {
             {working.map((section, si) => (
               <SectionCard key={si}
                 section={section} sectionIndex={si} total={working.length}
+                allSections={working}
                 onUpdateHeading={v => updateHeading(si, v)}
                 onUpdateParaText={(pi, v) => updateParaText(si, pi, v)}
                 onUpdateParaStyle={(pi, v) => updateParaStyle(si, pi, v)}
@@ -244,6 +254,10 @@ export default function AdminLearningContent() {
                 onDelete={() => deleteSection(si)}
                 onMoveUp={() => moveSectionUp(si)}
                 onMoveDown={() => moveSectionDown(si)}
+                onAddIndexItem={() => addIndexItem(si)}
+                onDeleteIndexItem={ii => deleteIndexItem(si, ii)}
+                onUpdateIndexLabel={(ii, v) => updateIndexLabel(si, ii, v)}
+                onUpdateIndexTarget={(ii, v) => updateIndexTarget(si, ii, v)}
               />
             ))}
             <button onClick={addSection}
@@ -262,26 +276,34 @@ export default function AdminLearningContent() {
 
 interface SectionCardProps {
   section: Section; sectionIndex: number; total: number;
+  allSections: Section[];
   onUpdateHeading: (v: string) => void;
   onUpdateParaText: (pi: number, v: string) => void;
   onUpdateParaStyle: (pi: number, v: string) => void;
   onAddParagraph: () => void;
   onDeleteParagraph: (pi: number) => void;
   onDelete: () => void; onMoveUp: () => void; onMoveDown: () => void;
+  onAddIndexItem: () => void;
+  onDeleteIndexItem: (ii: number) => void;
+  onUpdateIndexLabel: (ii: number, v: string) => void;
+  onUpdateIndexTarget: (ii: number, v: number) => void;
 }
 
 function SectionCard({
-  section, sectionIndex, total,
+  section, sectionIndex, total, allSections,
   onUpdateHeading, onUpdateParaText, onUpdateParaStyle,
   onAddParagraph, onDeleteParagraph, onDelete, onMoveUp, onMoveDown,
+  onAddIndexItem, onDeleteIndexItem, onUpdateIndexLabel, onUpdateIndexTarget,
 }: SectionCardProps) {
   const [collapsed, setCollapsed] = useState(false);
+  const isIndex = section.type === 'index';
 
   return (
     <div className="bg-white rounded-xl border overflow-hidden" style={{ borderColor: 'rgba(0,0,0,0.06)' }}>
       {/* Section header */}
       <div className="flex items-center gap-2 px-4 py-3 border-b" style={{ borderColor: 'rgba(0,0,0,0.05)', background: 'rgba(0,0,0,0.015)' }}>
         <span className="text-[11px] font-semibold text-gray-300 w-5 flex-shrink-0">§{sectionIndex + 1}</span>
+        {isIndex && <span className="text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded flex-shrink-0" style={{ background: '#F5A623', color: 'white' }}>Index</span>}
         <input type="text" value={section.heading} onChange={e => onUpdateHeading(e.target.value)}
           className="flex-1 text-sm font-semibold text-gray-800 bg-transparent border-none outline-none focus:bg-gray-50 px-1 py-0.5 rounded"
           placeholder="Section heading…" />
@@ -295,9 +317,33 @@ function SectionCard({
         </div>
       </div>
 
-      {!collapsed && (
+      {!collapsed && isIndex && (
+        <div className="p-4 space-y-2">
+          <p className="text-[11px] text-gray-400 mb-3">Each item links to a section by number. Section numbers update when you reorder.</p>
+          {(section.items ?? []).map((item, ii) => (
+            <div key={ii} className="flex items-center gap-2">
+              <input type="text" value={item.label} onChange={e => onUpdateIndexLabel(ii, e.target.value)}
+                className="flex-1 text-sm border rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 transition"
+                style={{ borderColor: 'rgba(0,0,0,0.10)' }} placeholder="Menu label…" />
+              <select value={item.section_index} onChange={e => onUpdateIndexTarget(ii, Number(e.target.value))}
+                className="text-xs border rounded-lg px-2 py-1.5 focus:outline-none bg-white"
+                style={{ borderColor: 'rgba(0,0,0,0.10)' }}>
+                {allSections.map((s, i) => (
+                  <option key={i} value={i}>§{i + 1} {s.heading}</option>
+                ))}
+              </select>
+              <button onClick={() => onDeleteIndexItem(ii)} className="p-1 text-gray-200 hover:text-red-400 transition-colors flex-shrink-0"><Trash2 size={12} /></button>
+            </div>
+          ))}
+          <button onClick={onAddIndexItem} className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 transition-colors mt-1">
+            <Plus size={12} /> Add menu item
+          </button>
+        </div>
+      )}
+
+      {!collapsed && !isIndex && (
         <div className="p-4 space-y-3">
-          {section.paragraphs.map((para, pi) => (
+          {(section.paragraphs ?? []).map((para, pi) => (
             <ParagraphRow key={pi} para={para} paraIndex={pi}
               onUpdateText={v => onUpdateParaText(pi, v)}
               onUpdateStyle={v => onUpdateParaStyle(pi, v)}
