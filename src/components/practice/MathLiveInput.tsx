@@ -134,10 +134,7 @@ function MathRow({
       mf.defaultMode = 'text';
       mf.smartFence = true;
       mf.smartSuperscript = true;
-      // 'manual' suppresses MathLive's virtual keyboard so the device's
-      // native keyboard handles typing — space, letters, numbers all work.
-      // Math symbols are inserted via our toolbar instead.
-      mf.mathVirtualKeyboardPolicy = 'manual';
+      mf.mathVirtualKeyboardPolicy = 'auto';
 
       mf.style.cssText = `
         display: block;
@@ -188,7 +185,11 @@ function MathRow({
         const shadow = (mf as any).shadowRoot as ShadowRoot | null;
         if (shadow) {
           const s = document.createElement('style');
-          s.textContent = `.ML__contains-highlight { background: transparent !important; }`;
+          s.textContent = `
+            :host { --_contains-highlight-background-color: transparent !important; --_contains-highlight-color: inherit !important; }
+            .ML__contains-highlight { background: transparent !important; }
+            .ML__highlight { background: transparent !important; }
+          `;
           shadow.prepend(s);
         }
         // Clear any auto-selection set on mount
