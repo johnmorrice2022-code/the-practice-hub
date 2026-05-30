@@ -156,12 +156,6 @@ function MathRow({
       mf.addEventListener('focusout', () => cbRefs.current.onBlur());
 
       mf.addEventListener('keydown', (ev: KeyboardEvent) => {
-        // Space → visible hard space in math mode
-        if (ev.key === ' ' && !ev.ctrlKey && !ev.metaKey && !ev.altKey) {
-          ev.preventDefault();
-          mf.insert('\\ ', { mode: 'math' });
-          return;
-        }
         // Enter → new row
         if (ev.key === 'Enter') {
           ev.preventDefault();
