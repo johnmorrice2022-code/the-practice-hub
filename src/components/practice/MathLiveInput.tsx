@@ -7,6 +7,7 @@ interface Sym {
   latex: string;
   label: string;
   structured?: boolean;
+  insertMode?: 'math' | 'text'; // default: 'math'
 }
 
 const PRIMARY: Sym[] = [
@@ -20,6 +21,7 @@ const PRIMARY: Sym[] = [
   { display: '×',    latex: '\\times ',          label: 'Multiply' },
   { display: '÷',    latex: '\\div ',            label: 'Divide' },
   { display: '±',    latex: '\\pm ',             label: 'Plus/minus' },
+  { display: '␣',    latex: ' ',                 label: 'Space',       insertMode: 'text' },
 ];
 
 const MORE: Sym[] = [
@@ -148,6 +150,10 @@ function MathRow({
         --primary-color: #E23D28;
         --caret-color: #E23D28;
         --selection-background-color: rgba(226,61,40,0.15);
+        --contains-highlight-background-color: transparent;
+        --_contains-highlight-background-color: transparent;
+        --contains-highlight-color: inherit;
+        --_contains-highlight-color: inherit;
       `;
 
       mf.addEventListener('input', () => {
@@ -176,6 +182,8 @@ function MathRow({
       mountRef.current.appendChild(mf);
       mfRef.current = mf;
       mfById.current.set(row.id, mf);
+      // Clear any auto-selection MathLive sets on mount
+      requestAnimationFrame(() => mf.executeCommand('moveToMathfieldEnd'));
     });
 
     return () => {
@@ -317,7 +325,6 @@ export function MathLiveInput({
   // ── Insert symbol into the currently focused row ───────────────────────────
 
   const insertSymbol = (sym: Sym) => {
-    // Find the focused math-field
     const mf = focusedRowId !== null
       ? mfById.current.get(focusedRowId)
       : mfById.current.get(rows[rows.length - 1]?.id);
@@ -326,7 +333,7 @@ export function MathLiveInput({
     mf.focus();
     mf.insert(sym.latex, {
       selectionMode: sym.structured ? 'placeholder' : 'after',
-      mode: 'math',
+      mode: sym.insertMode ?? 'math',
     });
   };
 
