@@ -168,6 +168,27 @@ VALUES (
 - **AI-generated questions** — for algebra, calculations, standard questions. Generated on demand or in batches via AdminReviewQueue.
 - **Seeded questions** — John's hand-authored questions, stored in `seeded_questions`. LaTeX supported via `$...$` (inline) and `$$...$$` (display).
 
+### Seeded question mark scheme format (critical)
+Use flat Edexcel M1/A1 format with a `criterion` string per mark. **Never use nested objects, `methods` arrays, or `requirement`/`reason` fields** — these confuse the marking AI and produce broken step_breakdown output.
+
+```json
+[
+  {"mark": "M1", "criterion": "specific method step — name the theorem/rule used"},
+  {"mark": "M1", "criterion": "next step — for alternatives use: Method 1: X OR Method 2: Y"},
+  {"mark": "A1", "criterion": "correct final answer with all reasons stated"},
+  {"mark": "TOTAL", "criterion": "N marks"}
+]
+```
+
+- `M1` — method/working step (shows as **Method** badge)
+- `A1` — final answer accuracy (shows as **Accuracy** badge)
+- Alternative approaches: express inline as `Method 1: ... OR Method 2: ...` in the criterion string
+- Be specific — name the exact theorem (e.g. "angle at circumference is half angle at centre"), never vague ("used a circle theorem")
+
+**Worked solution format:** separate each step with `\n` so FeedbackCard renders them as individual boxes. Use `$...$` for LaTeX. For multiple methods, label them `Method 1:` and `Method 2:` with a blank line (`\n\n`) between methods.
+
+**Runtime note:** `mark_scheme` stored as a JSON string scalar (common when inserted via Supabase table editor) is handled automatically by the `parsedScheme` normaliser in `mark-answer/index.ts`. Prefer inserting via SQL with `'[...]'::jsonb` cast to store it correctly.
+
 ### LaTeX quick reference (for content authoring)
 | Output | LaTeX |
 |--------|-------|
@@ -266,8 +287,10 @@ src/
       PracticeRoom.tsx            -- merged pool, free tier gate, incrementQuestionsUsed
       QuestionCard.tsx
       FeedbackCard.tsx
-      JamHelpPanel.tsx            -- maxTurns prop, effectiveMaxTurns
-      MathInputToolbar.tsx
+      JamHelpPanel.tsx            -- keyed by questionId, resets only on question change
+      MathInput.tsx               -- CURRENT deployed input: textarea + MathLive popup (popup broken on mobile — replace next session)
+      MathInputToolbar.tsx        -- DEAD FILE (not imported, delete next session)
+      MathLiveInput.tsx           -- DEAD FILE (not imported, delete next session)
       SessionSetup.tsx
     diagrams/
       ProbabilityTree.tsx
@@ -362,22 +385,54 @@ Physics questions show "No calculator" label — all AQA Physics papers allow ca
 
 ---
 
-## Current Priorities (as of 29/05/2026)
+## Current Priorities (as of 30/05/2026)
 
 ### Done this session ✅
-- Stripe subscription flow end-to-end (webhook writes correct tier/price; signup → onboarding → Stripe flow)
-- `.env` fixed to correct Supabase project (`wgcxwtgspmfnzugszhdc`)
-- Admin route redirect bug fixed (ProtectedRoute now skips onboarding check for admin routes)
-- Learning Content Editor at `/admin/learning-content` — edit sections, paragraphs, styles, reorder
-- Higher Only paragraph style — purple "Higher ▲" block in student view; mirrors UK GCSE textbook convention
-- Diagrams bucket RLS policy added — image uploads now work from admin CMS
-- Admin CMS verified working on iPad/mobile
+- JAM Help conversation reset bug fixed — panel close/reopen no longer wipes messages or resets turn counter. Now resets only on question change (keyed by `questionId`).
+- Maths marking improved — `mark-answer` edge function now has Section 4 "Following Student Working": Claude traces through student algebra before marking, recognises algebraic methods as equivalent to arithmetic (e.g. `3x + 2x = 180` earns the M1 just as `3/5 × 180 = 108` does). Also clarified model solution is one valid route, removed "strictly" wording from marking prompt.
 
-### Next session — content & launch prep
-- [ ] Legal documents — Privacy Policy, Safeguarding Policy, Terms & Conditions (Claude drafts, John reviews)
-- [ ] ICO registration (ico.org.uk, £40/year — 20 min online form)
+### Math input — next session priority (read carefully)
+The current deployed state has `MathInput.tsx` with a textarea + MathLive popup. **The popup does not work on mobile/tablet** — MathLive web components don't reliably receive focus/input on iOS/Android. Do not attempt to fix MathLive further.
+
+**Agreed plan: custom inline math chips** — no external math library.
+
+Architecture:
+- `contenteditable` div as the prose container (space, Enter, mobile keyboard all native)
+- Inline visual chips inserted at cursor for structured math
+- Plain Unicode toolbar buttons for simple symbols (×, ÷, π, °, θ, ≤, ≥, ≈)
+- Output serialised to readable text for Claude — no LaTeX needed, Claude marks `3/5`, `x^2`, `sqrt(25)` fine
+
+Chips to build (in priority order):
+1. **FractionChip** — numerator box / line / denominator box, CSS layout
+2. **PowerChip** — base + raised small exponent box (handles x², x³, xⁿ)
+3. **RootChip** — radical with vinculum (overline), optional index for cube root
+4. Chips can be nested (e.g. root chip containing a fraction chip)
+5. Trig (`sin`, `cos`, `tan`) — do NOT need chips, student types `sin(30°)` with ° from toolbar
+
+Each chip:
+- Is `contenteditable="false"` so cursor skips over it as a unit
+- Has two states: editing (highlighted input boxes) and locked (rendered visual)
+- Tapping/clicking opens it for editing; Tab or tap-outside locks it
+- Serialises to human-readable text for Claude: `3/5`, `x^2`, `√(25)`
+
+Dead files to delete at start of next session:
+- `src/components/practice/MathLiveInput.tsx` — abandoned, not imported anywhere
+- `src/components/practice/MathInputToolbar.tsx` — replaced, not imported anywhere
+- `mathlive` npm package can be removed once chips are working
+
+New files to create:
+- `src/components/practice/MathEditor.tsx` — the contenteditable container + toolbar
+- `src/components/practice/chips/FractionChip.tsx`
+- `src/components/practice/chips/PowerChip.tsx`
+- `src/components/practice/chips/RootChip.tsx`
+
+`QuestionCard.tsx` `AutoTextarea` will use `MathEditor` instead of `MathInput`.
+
+### Next session — after math input
 - [ ] Fix Physics "No calculator" label
 - [ ] Second Physics subtopic end-to-end (candidate: `density-states-of-matter`)
+- [ ] Legal documents — Privacy Policy, Safeguarding Policy, Terms & Conditions
+- [ ] ICO registration (ico.org.uk, £40/year)
 - [ ] Re-enable email confirmation in Supabase Auth
 
 ### Before marketing
