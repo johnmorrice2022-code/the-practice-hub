@@ -12,6 +12,7 @@ interface Message {
 interface JamHelpPanelProps {
   isOpen: boolean;
   onClose: () => void;
+  questionId: string;
   questionText: string;
   studentAnswer: string;
   feedback?: MarkingFeedback | null;
@@ -65,6 +66,7 @@ function renderMath(text: string): string {
 export function JamHelpPanel({
   isOpen,
   onClose,
+  questionId,
   questionText,
   studentAnswer,
   feedback,
@@ -82,14 +84,19 @@ export function JamHelpPanel({
 
   const effectiveMaxTurns = maxTurns ?? MAX_TURNS;
 
+  // Reset conversation only when the question changes, not on panel open/close
+  useEffect(() => {
+    setMessages([]);
+    setInput('');
+    setTurnCount(0);
+  }, [questionId]);
+
+  // Focus input when panel opens (without resetting conversation)
   useEffect(() => {
     if (isOpen) {
-      setMessages([]);
-      setInput('');
-      setTurnCount(0);
       setTimeout(() => inputRef.current?.focus(), 300);
     }
-  }, [isOpen, questionText]);
+  }, [isOpen]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });

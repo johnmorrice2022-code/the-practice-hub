@@ -943,6 +943,7 @@ export function PracticeRoom({
         <JamHelpPanel
           isOpen={jamHelpOpen}
           onClose={() => setJamHelpOpen(false)}
+          questionId={jamHelpQuestion.id}
           questionText={jamHelpQuestion.question_text}
           studentAnswer={jamHelpAnswer}
           feedback={jamHelpFeedback}
