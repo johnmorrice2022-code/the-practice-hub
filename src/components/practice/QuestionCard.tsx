@@ -1,4 +1,3 @@
-import { useEffect, useRef } from 'react';
 import {
   CircleTheoremDiagram,
   TheoremType,
@@ -9,7 +8,7 @@ import {
   InteractiveProbabilityTree,
   TreeAnswers,
 } from '@/components/diagrams/InteractiveProbabilityTree';
-import { MathInputToolbar } from './MathInputToolbar';
+import { MathLiveInput } from './MathLiveInput';
 import { renderMathInText } from '@/lib/renderMathInText';
 
 export interface QuestionPart {
@@ -50,36 +49,7 @@ function AutoTextarea({
   onChange: (v: string) => void;
   placeholder: string;
 }) {
-  const ref = useRef<HTMLTextAreaElement>(null);
-  useEffect(() => {
-    const el = ref.current;
-    if (el) {
-      el.style.height = 'auto';
-      el.style.height = Math.max(120, el.scrollHeight) + 'px';
-    }
-  }, [value]);
-
-  return (
-    <div>
-      <MathInputToolbar textareaRef={ref} value={value} onChange={onChange} />
-      <textarea
-        ref={ref}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        className="exam-textarea"
-        style={{
-          borderColor: value.trim() ? 'rgba(245,166,35,0.5)' : undefined,
-          boxShadow: value.trim()
-            ? '0 0 0 3px rgba(245,166,35,0.12)'
-            : undefined,
-          borderRadius: '10px 10px 0 0',
-          borderBottom: '1px dashed #d4c8bc',
-          fontFamily: "'Courier New', Courier, monospace",
-        }}
-      />
-    </div>
-  );
+  return <MathLiveInput value={value} onChange={onChange} placeholder={placeholder} />;
 }
 
 export function QuestionCard({
