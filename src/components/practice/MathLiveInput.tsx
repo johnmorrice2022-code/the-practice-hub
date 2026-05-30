@@ -6,37 +6,37 @@ interface Sym {
   display: string;
   latex: string;
   label: string;
-  structured?: boolean; // true = cursor lands in a placeholder box
+  structured?: boolean;
 }
 
 const PRIMARY: Sym[] = [
-  { display: 'a/b',  latex: '\\frac{#@}{#?}',     label: 'Fraction',    structured: true },
-  { display: 'x²',   latex: '^{2}',                label: 'Squared' },
-  { display: 'xⁿ',   latex: '^{#?}',               label: 'Power',       structured: true },
-  { display: '√',    latex: '\\sqrt{#@}',           label: 'Square root', structured: true },
-  { display: '∛',    latex: '\\sqrt[3]{#@}',        label: 'Cube root',   structured: true },
-  { display: 'π',    latex: '\\pi ',                label: 'Pi' },
-  { display: '°',    latex: '^{\\circ}',            label: 'Degrees' },
-  { display: '×',    latex: '\\times ',             label: 'Multiply' },
-  { display: '÷',    latex: '\\div ',               label: 'Divide' },
-  { display: '±',    latex: '\\pm ',                label: 'Plus/minus' },
+  { display: 'a/b',  latex: '\\frac{#@}{#?}',  label: 'Fraction',    structured: true },
+  { display: 'x²',   latex: '^{2}',             label: 'Squared' },
+  { display: 'xⁿ',   latex: '^{#?}',            label: 'Power',       structured: true },
+  { display: '√',    latex: '\\sqrt{#@}',        label: 'Square root', structured: true },
+  { display: '∛',    latex: '\\sqrt[3]{#@}',     label: 'Cube root',   structured: true },
+  { display: 'π',    latex: '\\pi ',             label: 'Pi' },
+  { display: '°',    latex: '^{\\circ}',         label: 'Degrees' },
+  { display: '×',    latex: '\\times ',          label: 'Multiply' },
+  { display: '÷',    latex: '\\div ',            label: 'Divide' },
+  { display: '±',    latex: '\\pm ',             label: 'Plus/minus' },
 ];
 
 const MORE: Sym[] = [
-  { display: 'sin',    latex: '\\sin(#?)',          label: 'Sine',        structured: true },
-  { display: 'cos',    latex: '\\cos(#?)',          label: 'Cosine',      structured: true },
-  { display: 'tan',    latex: '\\tan(#?)',          label: 'Tangent',     structured: true },
-  { display: 'sin⁻¹', latex: '\\sin^{-1}(#?)',     label: 'Arcsin',      structured: true },
-  { display: 'cos⁻¹', latex: '\\cos^{-1}(#?)',     label: 'Arccos',      structured: true },
-  { display: 'tan⁻¹', latex: '\\tan^{-1}(#?)',     label: 'Arctan',      structured: true },
-  { display: '≤',     latex: '\\leq ',              label: 'Less/equal' },
-  { display: '≥',     latex: '\\geq ',              label: 'Greater/equal' },
-  { display: '≠',     latex: '\\neq ',              label: 'Not equal' },
-  { display: '≈',     latex: '\\approx ',           label: 'Approximately' },
-  { display: 'θ',     latex: '\\theta ',            label: 'Theta' },
-  { display: 'α',     latex: '\\alpha ',            label: 'Alpha' },
-  { display: 'β',     latex: '\\beta ',             label: 'Beta' },
-  { display: 'Δ',     latex: '\\Delta ',            label: 'Delta' },
+  { display: 'sin',    latex: '\\sin(#?)',       label: 'Sine',        structured: true },
+  { display: 'cos',    latex: '\\cos(#?)',       label: 'Cosine',      structured: true },
+  { display: 'tan',    latex: '\\tan(#?)',       label: 'Tangent',     structured: true },
+  { display: 'sin⁻¹', latex: '\\sin^{-1}(#?)', label: 'Arcsin',      structured: true },
+  { display: 'cos⁻¹', latex: '\\cos^{-1}(#?)', label: 'Arccos',      structured: true },
+  { display: 'tan⁻¹', latex: '\\tan^{-1}(#?)', label: 'Arctan',      structured: true },
+  { display: '≤',     latex: '\\leq ',           label: 'Less/equal' },
+  { display: '≥',     latex: '\\geq ',           label: 'Greater/equal' },
+  { display: '≠',     latex: '\\neq ',           label: 'Not equal' },
+  { display: '≈',     latex: '\\approx ',        label: 'Approximately' },
+  { display: 'θ',     latex: '\\theta ',         label: 'Theta' },
+  { display: 'α',     latex: '\\alpha ',         label: 'Alpha' },
+  { display: 'β',     latex: '\\beta ',          label: 'Beta' },
+  { display: 'Δ',     latex: '\\Delta ',         label: 'Delta' },
 ];
 
 // ─── SymbolButton ──────────────────────────────────────────────────────────────
@@ -87,6 +87,153 @@ function SymbolButton({ sym, onInsert }: { sym: Sym; onInsert: (s: Sym) => void 
   );
 }
 
+// ─── Row data ─────────────────────────────────────────────────────────────────
+
+interface Row { id: number; value: string }
+
+let _rowIdCounter = 0;
+const newRow = (value = ''): Row => ({ id: _rowIdCounter++, value });
+
+// ─── MathRow: one line of working ─────────────────────────────────────────────
+
+interface MathRowProps {
+  row: Row;
+  rowIndex: number;
+  totalRows: number;
+  focusedRowId: number | null;
+  mfById: React.MutableRefObject<Map<number, any>>;
+  onValue: (id: number, value: string) => void;
+  onEnter: (id: number) => void;
+  onBackspaceEmpty: (id: number) => void;
+  onFocus: (id: number) => void;
+  onBlur: () => void;
+}
+
+function MathRow({
+  row, rowIndex, totalRows, focusedRowId,
+  mfById, onValue, onEnter, onBackspaceEmpty, onFocus, onBlur,
+}: MathRowProps) {
+  const mountRef  = useRef<HTMLDivElement>(null);
+  const mfRef     = useRef<any>(null);
+
+  // Stable callback refs — avoids stale closures in the imperative event listeners
+  const cbRefs = useRef({ onValue, onEnter, onBackspaceEmpty, onFocus, onBlur, rowId: row.id });
+  cbRefs.current = { onValue, onEnter, onBackspaceEmpty, onFocus, onBlur, rowId: row.id };
+
+  // Mount the math-field once per row lifetime
+  useEffect(() => {
+    let cancelled = false;
+
+    import('mathlive').then(() => {
+      if (cancelled || !mountRef.current) return;
+
+      const mf = document.createElement('math-field') as any;
+      mf.value = row.value || '';
+      mf.smartFence = true;
+      mf.smartSuperscript = true;
+      mf.mathVirtualKeyboardPolicy = 'auto';
+
+      mf.style.cssText = `
+        display: block;
+        width: 100%;
+        min-height: 48px;
+        padding: 10px 14px;
+        font-size: 18px;
+        line-height: 1.6;
+        border: none;
+        outline: none;
+        box-sizing: border-box;
+        background: transparent;
+        --primary-color: #E23D28;
+        --caret-color: #E23D28;
+        --selection-background-color: rgba(226,61,40,0.15);
+      `;
+
+      mf.addEventListener('input', () => {
+        cbRefs.current.onValue(cbRefs.current.rowId, mf.value || '');
+      });
+      mf.addEventListener('focusin',  () => cbRefs.current.onFocus(cbRefs.current.rowId));
+      mf.addEventListener('focusout', () => cbRefs.current.onBlur());
+
+      mf.addEventListener('keydown', (ev: KeyboardEvent) => {
+        // Space → visible hard space in math mode
+        if (ev.key === ' ' && !ev.ctrlKey && !ev.metaKey && !ev.altKey) {
+          ev.preventDefault();
+          mf.insert('\\ ', { mode: 'math' });
+          return;
+        }
+        // Enter → new row
+        if (ev.key === 'Enter') {
+          ev.preventDefault();
+          cbRefs.current.onEnter(cbRefs.current.rowId);
+          return;
+        }
+        // Backspace at start of empty row → remove row
+        if (ev.key === 'Backspace') {
+          const v: string = mf.value || '';
+          if (!v.trim()) {
+            ev.preventDefault();
+            cbRefs.current.onBackspaceEmpty(cbRefs.current.rowId);
+          }
+        }
+      });
+
+      mountRef.current.appendChild(mf);
+      mfRef.current = mf;
+      mfById.current.set(row.id, mf);
+    });
+
+    return () => {
+      cancelled = true;
+      const mf = mfRef.current;
+      if (mf) {
+        try { mf.parentNode?.removeChild(mf); } catch {}
+        mfRef.current = null;
+      }
+      mfById.current.delete(row.id);
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps — mount once
+
+  // Sync value into field (e.g. external reset)
+  useEffect(() => {
+    const mf = mfRef.current;
+    if (!mf) return;
+    const next = row.value || '';
+    if (mf.value !== next) mf.value = next;
+  }, [row.value]);
+
+  const isFocused = focusedRowId === row.id;
+  const isLast = rowIndex === totalRows - 1;
+
+  return (
+    <div
+      style={{
+        position: 'relative',
+        borderBottom: isLast ? 'none' : '1px solid #ede7e0',
+      }}
+    >
+      {/* Row number pill for multi-row */}
+      {totalRows > 1 && (
+        <span style={{
+          position: 'absolute',
+          top: 14,
+          right: 10,
+          fontSize: 10,
+          color: isFocused ? '#E23D28' : '#c4bab2',
+          fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif",
+          fontWeight: 600,
+          pointerEvents: 'none',
+          userSelect: 'none',
+          transition: 'color 0.15s',
+        }}>
+          {rowIndex + 1}
+        </span>
+      )}
+      <div ref={mountRef} />
+    </div>
+  );
+}
+
 // ─── MathLiveInput ─────────────────────────────────────────────────────────────
 
 interface MathLiveInputProps {
@@ -100,115 +247,111 @@ export function MathLiveInput({
   onChange,
   placeholder = 'Show your working here…',
 }: MathLiveInputProps) {
-  const mountRef   = useRef<HTMLDivElement>(null);
-  const mfRef      = useRef<any>(null);
-  const onChangeRef = useRef(onChange);
-  onChangeRef.current = onChange;
+  // Stable ID → math-field map for imperative focus
+  const mfById = useRef(new Map<number, any>());
 
-  const [showMore, setShowMore] = useState(false);
-  const [isEmpty,  setIsEmpty]  = useState(!(value ?? '').trim());
-  const [focused,  setFocused]  = useState(false);
+  // Rows state — source of truth for the working area
+  const [rows, setRows] = useState<Row[]>(() =>
+    (value ? value.split('\n') : ['']).map(v => newRow(v))
+  );
 
-  // ── Mount the math-field element once ────────────────────────────────────────
+  const [showMore,     setShowMore]     = useState(false);
+  const [focusedRowId, setFocusedRowId] = useState<number | null>(null);
+
+  // Prevent onChange → value → setRows loop
+  const skipNextSync = useRef(false);
+
+  // Propagate rows → parent
   useEffect(() => {
-    let cancelled = false;
+    const joined = rows.map(r => r.value).join('\n');
+    skipNextSync.current = true;
+    onChange(joined);
+  }, [rows]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    import('mathlive').then(() => {
-      if (cancelled || !mountRef.current) return;
-
-      const mf = document.createElement('math-field') as any;
-
-      mf.value = value ?? '';
-
-      // MathLive configuration
-      mf.smartFence            = true;
-      mf.smartSuperscript      = true;
-      mf.removeExtraneousParentheses = false;
-      mf.mathVirtualKeyboardPolicy = 'auto'; // shows on touch, hidden on desktop
-
-      // Brand colour via CSS variable
-      mf.style.cssText = `
-        display: block;
-        width: 100%;
-        min-height: 120px;
-        padding: 16px;
-        font-size: 18px;
-        line-height: 1.9;
-        border-radius: 0 0 10px 10px;
-        border: 1.5px solid #d4c8bc;
-        border-top: 1px dashed #d4c8bc;
-        background: #fff;
-        outline: none;
-        box-sizing: border-box;
-        --primary-color: #E23D28;
-        --caret-color: #E23D28;
-        --selection-background-color: rgba(226,61,40,0.15);
-      `;
-
-      mf.addEventListener('input', () => {
-        const v: string = mf.value ?? '';
-        onChangeRef.current(v);
-        setIsEmpty(!v.trim());
-      });
-
-      mf.addEventListener('focusin',  () => setFocused(true));
-      mf.addEventListener('focusout', () => setFocused(false));
-
-      mountRef.current.appendChild(mf);
-      mfRef.current = mf;
-      setIsEmpty(!(mf.value ?? '').trim());
-    });
-
-    return () => {
-      cancelled = true;
-      const mf = mfRef.current;
-      if (mf) {
-        try { mf.parentNode?.removeChild(mf); } catch {}
-        mfRef.current = null;
-      }
-    };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ── Sync external value into the field (e.g. question change / reset) ────────
+  // Sync parent value → rows (question change / external reset)
   useEffect(() => {
-    const mf = mfRef.current;
-    if (!mf) return;
-    const next = value ?? '';
-    if (mf.value !== next) {
-      mf.value = next;
-      setIsEmpty(!next.trim());
+    if (skipNextSync.current) {
+      skipNextSync.current = false;
+      return;
     }
-  }, [value]);
+    const incoming = value ?? '';
+    const current  = rows.map(r => r.value).join('\n');
+    if (incoming !== current) {
+      setRows((incoming ? incoming.split('\n') : ['']).map(v => newRow(v)));
+    }
+  }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Sync focus/value border state to the math-field element ─────────────────
-  useEffect(() => {
-    const mf = mfRef.current;
-    if (!mf) return;
-    const hasContent = (value ?? '').trim().length > 0;
-    mf.style.border = focused
-      ? '1.5px solid #E23D28'
-      : hasContent
-        ? '1.5px solid rgba(245,166,35,0.5)'
-        : '1.5px solid #d4c8bc';
-    mf.style.borderTop = focused || hasContent ? mf.style.border : '1px dashed #d4c8bc';
-    mf.style.boxShadow = focused
-      ? '0 0 0 3px rgba(226,61,40,0.12)'
-      : hasContent
-        ? '0 0 0 3px rgba(245,166,35,0.12)'
-        : 'none';
-  }, [focused, value]);
+  // ── Row event handlers ──────────────────────────────────────────────────────
 
-  // ── Insert a symbol ───────────────────────────────────────────────────────────
+  const handleValue = (id: number, v: string) => {
+    setRows(prev => prev.map(r => r.id === id ? { ...r, value: v } : r));
+  };
+
+  const handleEnter = (id: number) => {
+    setRows(prev => {
+      const idx = prev.findIndex(r => r.id === id);
+      const next = [...prev];
+      next.splice(idx + 1, 0, newRow(''));
+      return next;
+    });
+    // Focus the new row — it won't exist yet so we delay
+    setTimeout(() => {
+      setRows(prev => {
+        const idx = prev.findIndex(r => r.id === id);
+        const newRowEntry = prev[idx + 1];
+        if (newRowEntry) mfById.current.get(newRowEntry.id)?.focus();
+        return prev;
+      });
+    }, 80);
+  };
+
+  const handleBackspaceEmpty = (id: number) => {
+    setRows(prev => {
+      const idx = prev.findIndex(r => r.id === id);
+      if (idx === 0 || prev.length <= 1) return prev;
+      const prevRow = prev[idx - 1];
+      setTimeout(() => mfById.current.get(prevRow.id)?.focus(), 40);
+      return prev.filter(r => r.id !== id);
+    });
+  };
+
+  const handleFocus = (id: number) => {
+    setFocusedRowId(id);
+  };
+
+  // ── Insert symbol into the currently focused row ───────────────────────────
+
   const insertSymbol = (sym: Sym) => {
-    const mf = mfRef.current;
+    // Find the focused math-field
+    const mf = focusedRowId !== null
+      ? mfById.current.get(focusedRowId)
+      : mfById.current.get(rows[rows.length - 1]?.id);
+
     if (!mf) return;
     mf.focus();
     mf.insert(sym.latex, {
       selectionMode: sym.structured ? 'placeholder' : 'after',
       mode: 'math',
     });
-    setIsEmpty(false);
   };
+
+  // ── Derived display state ──────────────────────────────────────────────────
+
+  const isEmpty    = rows.every(r => !r.value.trim());
+  const isFocused  = focusedRowId !== null;
+  const hasContent = !isEmpty;
+
+  const containerBorder = isFocused
+    ? '1.5px solid #E23D28'
+    : hasContent
+      ? '1.5px solid rgba(245,166,35,0.5)'
+      : '1.5px solid #d4c8bc';
+
+  const containerShadow = isFocused
+    ? '0 0 0 3px rgba(226,61,40,0.12)'
+    : hasContent
+      ? '0 0 0 3px rgba(245,166,35,0.12)'
+      : 'none';
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -229,10 +372,9 @@ export function MathLiveInput({
           <SymbolButton key={sym.label} sym={sym} onInsert={insertSymbol} />
         ))}
 
-        {/* More toggle */}
         <button
           type="button"
-          onClick={() => setShowMore((v) => !v)}
+          onClick={() => setShowMore(v => !v)}
           style={{
             height: 34,
             padding: '2px 10px',
@@ -262,7 +404,7 @@ export function MathLiveInput({
         </button>
       </div>
 
-      {/* ── More symbols panel ── */}
+      {/* ── More symbols ── */}
       {showMore && (
         <div style={{
           display: 'flex',
@@ -280,14 +422,22 @@ export function MathLiveInput({
         </div>
       )}
 
-      {/* ── Math field mount point ── */}
-      <div style={{ position: 'relative' }}>
-        {/* Placeholder — shown when field is empty */}
+      {/* ── Working area (multi-row) ── */}
+      <div style={{
+        position: 'relative',
+        border: containerBorder,
+        borderRadius: '0 0 10px 10px',
+        background: '#fff',
+        boxShadow: containerShadow,
+        transition: 'border-color 0.15s, box-shadow 0.15s',
+        overflow: 'hidden',
+      }}>
+        {/* Placeholder */}
         {isEmpty && (
           <div style={{
             position: 'absolute',
-            top: 18,
-            left: 18,
+            top: 12,
+            left: 16,
             pointerEvents: 'none',
             color: '#b5a89a',
             fontSize: 15,
@@ -298,8 +448,31 @@ export function MathLiveInput({
           </div>
         )}
 
-        {/* MathLive element is appended here by the mount useEffect */}
-        <div ref={mountRef} />
+        {rows.map((row, i) => (
+          <MathRow
+            key={row.id}
+            row={row}
+            rowIndex={i}
+            totalRows={rows.length}
+            focusedRowId={focusedRowId}
+            mfById={mfById}
+            onValue={handleValue}
+            onEnter={handleEnter}
+            onBackspaceEmpty={handleBackspaceEmpty}
+            onFocus={handleFocus}
+            onBlur={() => setFocusedRowId(null)}
+          />
+        ))}
+
+        {/* Hint */}
+        <div style={{
+          padding: '4px 14px 8px',
+          fontSize: 10,
+          color: '#c4bab2',
+          fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif",
+        }}>
+          Enter for new line · Tab between boxes
+        </div>
       </div>
     </div>
   );
