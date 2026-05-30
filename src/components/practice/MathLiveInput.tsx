@@ -129,6 +129,7 @@ function MathRow({
 
       const mf = document.createElement('math-field') as any;
       mf.value = row.value || '';
+      mf.defaultMode = 'text';
       mf.smartFence = true;
       mf.smartSuperscript = true;
       mf.mathVirtualKeyboardPolicy = 'auto';
