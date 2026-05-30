@@ -193,7 +193,24 @@ ISW — IGNORE SUBSEQUENT WORKING:
 INCORRECT METHOD GIVING CORRECT ANSWER:
 - If it is clear from the working that the correct answer was obtained from incorrect working, award 0 marks.
 
-SECTION 4: SPECIFIC QUESTION TYPE RULES
+SECTION 4: FOLLOWING STUDENT WORKING — READ THIS BEFORE MARKING ANYTHING
+
+Before awarding or withholding any mark, read the student's full working from start to finish and:
+(a) identify what mathematical approach they are using
+(b) trace through their algebra or arithmetic to find what values they computed at each step
+(c) check whether those values are correct given their approach — not whether they match the mark scheme's presentation
+
+M marks and P marks are awarded for ANY correct method. The model solution and mark scheme worked examples show ONE valid route. A student who reaches the same result via a different valid route earns the same M/P marks.
+
+ALGEBRAIC EQUIVALENCE: A student who sets up and solves an algebraic equation deserves the same credit as one who uses direct arithmetic, provided the algebra is correct and produces the correct result.
+- Example: if the mark scheme expects "CDA = 3/5 × 180 = 108°" and the student writes "let CDA = 3x, CBA = 2x. 3x + 2x = 180, so x = 36. CDA = 108°" — this IS the correct method. The algebra correctly applies the ratio to the 180° constraint. Award the M mark.
+- Trace through the student's algebra fully. Do not deny an M mark simply because the presentation differs from the mark scheme.
+
+Before marking any M or P mark as "not_awarded", ask: "Does the student's working correctly apply the relevant mathematical concept, even if it looks different from the mark scheme?"
+
+OE: All criteria marked "oe" must accept any mathematically equivalent form, including algebraic approaches.
+
+SECTION 5: SPECIFIC QUESTION TYPE RULES
 
 PROBABILITY:
 - Answers must be given as a fraction, percentage or decimal.
@@ -219,7 +236,7 @@ ${
 - For proof and show that questions, all algebraic steps must be shown clearly.`
 }
 
-SECTION 5: MARK SCHEME IS A CLOSED LIST
+SECTION 6: MARK SCHEME IS A CLOSED LIST
 You may only award marks listed in the mark scheme. Do not invent marks. The step_breakdown must contain exactly the entries in the mark scheme.
 
 Where the scheme says oe, use mathematical judgement to accept equivalent forms.
@@ -228,13 +245,13 @@ Where the scheme gives "acceptable examples" and "not acceptable examples", appl
 ${
   markingGuidance
     ? `
-SECTION 6: SUBTOPIC-SPECIFIC RULES (HIGHEST PRIORITY)
+SECTION 7: SUBTOPIC-SPECIFIC RULES (HIGHEST PRIORITY)
 These rules are specific to this subtopic and override all general rules above where they conflict.
 ${markingGuidance}`
     : ''
 }
 
-SECTION 7: FEEDBACK FOR STUDENTS
+SECTION 8: FEEDBACK FOR STUDENTS
 You are writing for a 14-16 year old student.
 - Never use the word "wrong". Use "not quite", "nearly there", "this needed one more step".
 - Always say what the student did correctly before explaining what was missing.
@@ -261,7 +278,7 @@ Return ONLY a JSON object. No markdown, no preamble, no explanation outside the 
   ],
   "error_type": "none" | "arithmetic" | "algebraic" | "method" | "incomplete" | "unit" | "rounding" | "missing_explanation" | "wrong_answer",
   "feedback_summary": "2-3 warm, specific, actionable sentences for the student",
-  "worked_solution": "full model solution with correct working shown, using LaTeX for all mathematical expressions",
+  "worked_solution": "full model solution, one step per line using \\n between steps. If the MODEL SOLUTION shows multiple methods, include all of them, labelled Method 1, Method 2 etc., with \\n between every step.",
   "revision_focus": "one specific skill or concept to practise"
 }`;
 }
@@ -292,6 +309,15 @@ serve(async (req) => {
 
     const isMultiPart = parts && parts.length > 0;
 
+    // Normalise markScheme — the DB can store it as a JSON string scalar if
+    // it was inserted incorrectly. Parse it back to an array when that happens.
+    let parsedScheme: any[] = [];
+    if (Array.isArray(markScheme)) {
+      parsedScheme = markScheme;
+    } else if (typeof markScheme === 'string') {
+      try { parsedScheme = JSON.parse(markScheme) ?? []; } catch { /* leave [] */ }
+    }
+
     const isPhysics =
       subject?.toLowerCase().includes('physics') ||
       examBoard?.toLowerCase() === 'aqa';
@@ -310,20 +336,20 @@ ${isMultiPart ? `\nPARTS:\n${parts.map((p: any) => `(${p.part_label}) [${p.marks
 
 MARK SCHEME (these are the ONLY marks available — do not add any others):
 ${JSON.stringify(
-  markScheme.filter((m: any) => m.mark !== 'TOTAL'),
+  parsedScheme.filter((m: any) => m.mark !== 'TOTAL'),
   null,
   2
 )}
 
 TOTAL MARKS AVAILABLE: ${marks}
 
-MODEL SOLUTION:
+MODEL SOLUTION (one valid approach — other valid methods that reach the same results deserve equal credit):
 ${workedSolution || 'Not provided.'}
 
 STUDENT'S ANSWER:
 ${studentAnswer}
 
-Mark this answer strictly against the mark scheme above. Return only the JSON object.`;
+Trace through the student's working fully before marking. Award M and P marks for any correct method, not only the method shown above. Return only the JSON object.`;
 
     const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
     if (!ANTHROPIC_API_KEY)
@@ -376,9 +402,7 @@ Mark this answer strictly against the mark scheme above. Return only the JSON ob
     }
 
     // Strip any invented steps beyond the mark scheme length
-    const schemeLength = Array.isArray(markScheme)
-      ? markScheme.filter((m: any) => m.mark !== 'TOTAL').length
-      : marks;
+    const schemeLength = parsedScheme.filter((m: any) => m.mark !== 'TOTAL').length || marks;
     if (feedback.step_breakdown.length > schemeLength) {
       feedback.step_breakdown = feedback.step_breakdown.slice(0, schemeLength);
     }
