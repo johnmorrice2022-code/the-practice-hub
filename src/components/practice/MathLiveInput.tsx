@@ -134,7 +134,10 @@ function MathRow({
       mf.defaultMode = 'text';
       mf.smartFence = true;
       mf.smartSuperscript = true;
-      mf.mathVirtualKeyboardPolicy = 'auto';
+      // 'manual' suppresses MathLive's virtual keyboard so the device's
+      // native keyboard handles typing — space, letters, numbers all work.
+      // Math symbols are inserted via our toolbar instead.
+      mf.mathVirtualKeyboardPolicy = 'manual';
 
       mf.style.cssText = `
         display: block;
@@ -150,10 +153,6 @@ function MathRow({
         --primary-color: #E23D28;
         --caret-color: #E23D28;
         --selection-background-color: rgba(226,61,40,0.15);
-        --contains-highlight-background-color: transparent;
-        --_contains-highlight-background-color: transparent;
-        --contains-highlight-color: inherit;
-        --_contains-highlight-color: inherit;
       `;
 
       mf.addEventListener('input', () => {
@@ -182,8 +181,19 @@ function MathRow({
       mountRef.current.appendChild(mf);
       mfRef.current = mf;
       mfById.current.set(row.id, mf);
-      // Clear any auto-selection MathLive sets on mount
-      requestAnimationFrame(() => mf.executeCommand('moveToMathfieldEnd'));
+
+      // Inject CSS into MathLive's shadow DOM — the only way to remove the
+      // blue text-zone highlight (CSS vars on the host element don't reach it)
+      requestAnimationFrame(() => {
+        const shadow = (mf as any).shadowRoot as ShadowRoot | null;
+        if (shadow) {
+          const s = document.createElement('style');
+          s.textContent = `.ML__contains-highlight { background: transparent !important; }`;
+          shadow.prepend(s);
+        }
+        // Clear any auto-selection set on mount
+        mf.executeCommand('moveToMathfieldEnd');
+      });
     });
 
     return () => {
@@ -373,6 +383,36 @@ export function MathLiveInput({
         {PRIMARY.map((sym) => (
           <SymbolButton key={sym.label} sym={sym} onInsert={insertSymbol} />
         ))}
+
+        {/* New line button — works on all devices including mobile */}
+        <button
+          type="button"
+          title="New line"
+          onClick={() => {
+            const id = focusedRowId ?? rows[rows.length - 1]?.id;
+            if (id !== null && id !== undefined) handleEnter(id);
+          }}
+          style={{
+            minWidth: 38,
+            height: 34,
+            padding: '2px 8px',
+            borderRadius: 7,
+            border: '1px solid #e8ddd2',
+            background: '#fff',
+            color: '#3d3530',
+            fontSize: 16,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+            WebkitTapHighlightColor: 'transparent',
+          }}
+          onMouseEnter={(e) => Object.assign(e.currentTarget.style, { background: 'linear-gradient(135deg,rgba(226,61,40,.10) 0%,rgba(245,166,35,.10) 100%)', borderColor: '#E23D28', color: '#E23D28' })}
+          onMouseLeave={(e) => Object.assign(e.currentTarget.style, { background: '#fff', borderColor: '#e8ddd2', color: '#3d3530' })}
+        >
+          ↵
+        </button>
 
         <button
           type="button"
