@@ -25,7 +25,7 @@ Update it at the end of any session where something significant changes.
 - Run with `npm run dev`
 - Open VS Code with `open -a "Visual Studio Code" ~/Desktop/the-practice-hub-main`
 - Node installed via Homebrew
-- Dev server runs on localhost:8080 or 8081
+- Dev server runs on localhost:8080, 8081, or 8082 (picks first available port)
 - Google OAuth always redirects to the live site — test locally with email/password accounts only
 
 ---
@@ -285,13 +285,16 @@ src/
       InteractiveSection.tsx
     practice/
       PracticeRoom.tsx            -- merged pool, free tier gate, incrementQuestionsUsed
-      QuestionCard.tsx
+      QuestionCard.tsx            -- uses MathEditor for answer input
       FeedbackCard.tsx
       JamHelpPanel.tsx            -- keyed by questionId, resets only on question change
-      MathInput.tsx               -- CURRENT deployed input: textarea + MathLive popup (popup broken on mobile — replace next session)
-      MathInputToolbar.tsx        -- DEAD FILE (not imported, delete next session)
-      MathLiveInput.tsx           -- DEAD FILE (not imported, delete next session)
+      MathEditor.tsx              -- CURRENT input: contenteditable + chip toolbar (mobile-safe)
+      MathInput.tsx               -- legacy file (may still exist but no longer imported)
       SessionSetup.tsx
+      chips/
+        FractionChip.tsx          -- numerator/bar/denominator visual chip
+        PowerChip.tsx             -- base + raised exponent chip
+        RootChip.tsx              -- √ chip, simple (√x) and full (ⁿ√xᵐ) variants
     diagrams/
       ProbabilityTree.tsx
       InteractiveProbabilityTree.tsx
@@ -385,55 +388,30 @@ Physics questions show "No calculator" label — all AQA Physics papers allow ca
 
 ---
 
-## Current Priorities (as of 30/05/2026)
+## Current Priorities (as of 31/05/2026)
 
 ### Done this session ✅
-- JAM Help conversation reset bug fixed — panel close/reopen no longer wipes messages or resets turn counter. Now resets only on question change (keyed by `questionId`).
-- Maths marking improved — `mark-answer` edge function now has Section 4 "Following Student Working": Claude traces through student algebra before marking, recognises algebraic methods as equivalent to arithmetic (e.g. `3x + 2x = 180` earns the M1 just as `3/5 × 180 = 108` does). Also clarified model solution is one valid route, removed "strictly" wording from marking prompt.
+- Custom chip-based math input built and deployed — `MathEditor.tsx` with `FractionChip`, `PowerChip`, `RootChip`. Replaces MathLive (which broke on mobile). Now mobile-safe: contenteditable container, inline chips, symbol toolbar.
+- Chip serialisation: fractions → `(a)/(b)`, powers → `(base)^(exp)`, roots → `√(x)` / `n√(x)`. Claude understands all formats.
+- `mark-answer` edge function updated — both Maths and Physics prompts now include student answer notation guide so Claude correctly interprets chip output.
+- Dead files removed: `MathInputToolbar.tsx`, `MathLiveInput.tsx`.
+- `mathlive` npm package can be removed (chips are working — no longer needed).
 
-### Math input — next session priority (read carefully)
-The current deployed state has `MathInput.tsx` with a textarea + MathLive popup. **The popup does not work on mobile/tablet** — MathLive web components don't reliably receive focus/input on iOS/Android. Do not attempt to fix MathLive further.
+### MathEditor architecture (for reference)
+- `contenteditable` div as prose container — space, Enter, mobile keyboard all native
+- Chips are `contenteditable="false"` spans rendered via React portals
+- Toolbar: chip buttons (a/b, xⁿ, √, ⁿ√) + symbol buttons (×, ÷, π, °, θ…) + More drawer
+- When a chip is open, chip buttons insert plain text fallback instead (`/`, `^`, `√`)
+- Chips lock on Tab, Enter, or blur-outside; click to re-edit
+- Serialises to plain text on every change — no LaTeX needed
 
-**Agreed plan: custom inline math chips** — no external math library.
-
-Architecture:
-- `contenteditable` div as the prose container (space, Enter, mobile keyboard all native)
-- Inline visual chips inserted at cursor for structured math
-- Plain Unicode toolbar buttons for simple symbols (×, ÷, π, °, θ, ≤, ≥, ≈)
-- Output serialised to readable text for Claude — no LaTeX needed, Claude marks `3/5`, `x^2`, `sqrt(25)` fine
-
-Chips to build (in priority order):
-1. **FractionChip** — numerator box / line / denominator box, CSS layout
-2. **PowerChip** — base + raised small exponent box (handles x², x³, xⁿ)
-3. **RootChip** — radical with vinculum (overline), optional index for cube root
-4. Chips can be nested (e.g. root chip containing a fraction chip)
-5. Trig (`sin`, `cos`, `tan`) — do NOT need chips, student types `sin(30°)` with ° from toolbar
-
-Each chip:
-- Is `contenteditable="false"` so cursor skips over it as a unit
-- Has two states: editing (highlighted input boxes) and locked (rendered visual)
-- Tapping/clicking opens it for editing; Tab or tap-outside locks it
-- Serialises to human-readable text for Claude: `3/5`, `x^2`, `√(25)`
-
-Dead files to delete at start of next session:
-- `src/components/practice/MathLiveInput.tsx` — abandoned, not imported anywhere
-- `src/components/practice/MathInputToolbar.tsx` — replaced, not imported anywhere
-- `mathlive` npm package can be removed once chips are working
-
-New files to create:
-- `src/components/practice/MathEditor.tsx` — the contenteditable container + toolbar
-- `src/components/practice/chips/FractionChip.tsx`
-- `src/components/practice/chips/PowerChip.tsx`
-- `src/components/practice/chips/RootChip.tsx`
-
-`QuestionCard.tsx` `AutoTextarea` will use `MathEditor` instead of `MathInput`.
-
-### Next session — after math input
+### Next session
 - [ ] Fix Physics "No calculator" label
 - [ ] Second Physics subtopic end-to-end (candidate: `density-states-of-matter`)
 - [ ] Legal documents — Privacy Policy, Safeguarding Policy, Terms & Conditions
 - [ ] ICO registration (ico.org.uk, £40/year)
 - [ ] Re-enable email confirmation in Supabase Auth
+- [ ] Remove `mathlive` npm package
 
 ### Before marketing
 - [ ] ICO registration (ico.org.uk, £40/year)
