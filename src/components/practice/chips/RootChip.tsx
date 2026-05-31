@@ -14,7 +14,6 @@ interface RootChipProps {
   onChange: (data: RootChipData) => void;
   onLock: () => void;
   onEdit: () => void;
-  onDelete?: () => void;
 }
 
 const SMALL_INPUT: React.CSSProperties = {
@@ -45,7 +44,7 @@ const MAIN_INPUT: React.CSSProperties = {
   boxSizing: 'border-box',
 };
 
-export function RootChip({ data, editing, focusTarget = 'index', variant = 'full', onChange, onLock, onEdit, onDelete }: RootChipProps) {
+export function RootChip({ data, editing, focusTarget = 'index', variant = 'full', onChange, onLock, onEdit }: RootChipProps) {
   const indexRef    = useRef<HTMLInputElement>(null);
   const radicandRef = useRef<HTMLInputElement>(null);
   const expRef      = useRef<HTMLInputElement>(null);
@@ -161,9 +160,8 @@ export function RootChip({ data, editing, focusTarget = 'index', variant = 'full
   return (
     <span
       onClick={onEdit}
-      title="Click to edit"
+      title="Tap to edit"
       style={{
-        position: 'relative',
         display: 'inline-flex',
         alignItems: 'center',
         verticalAlign: 'middle',
@@ -203,24 +201,6 @@ export function RootChip({ data, editing, focusTarget = 'index', variant = 'full
           </span>
         )}
       </span>
-      {onDelete && (
-        <span
-          role="button"
-          aria-label="Delete"
-          onMouseDown={e => e.preventDefault()}
-          onClick={e => { e.stopPropagation(); onDelete(); }}
-          style={{
-            position: 'absolute', top: -8, right: -8,
-            width: 20, height: 20, borderRadius: '50%',
-            background: '#E23D28', color: '#fff',
-            fontSize: 12, fontWeight: 700, lineHeight: 1,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer', zIndex: 1,
-            WebkitTapHighlightColor: 'transparent' as any,
-            userSelect: 'none' as any,
-          }}
-        >×</span>
-      )}
     </span>
   );
 }

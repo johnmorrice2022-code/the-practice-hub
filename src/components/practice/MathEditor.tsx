@@ -11,6 +11,12 @@ type ChipState =
   | { id: string; type: 'power';    editing: boolean; data: PowerChipData }
   | { id: string; type: 'root';     editing: boolean; data: RootChipData; focusTarget: 'index' | 'radicand'; variant: 'simple' | 'full' };
 
+// Represents the chip currently open in the edit panel (always outside the contenteditable)
+type EditingChipState =
+  | { id: string; type: 'fraction'; data: FractionChipData }
+  | { id: string; type: 'power';    data: PowerChipData }
+  | { id: string; type: 'root';     data: RootChipData; focusTarget: 'index' | 'radicand'; variant: 'simple' | 'full' };
+
 // ─── Serialise ────────────────────────────────────────────────────────────────
 
 function serialiseChip(chip: ChipState): string {
@@ -143,7 +149,11 @@ export function MathEditor({
   const chipContainersRef = useRef<Map<string, HTMLElement>>(new Map());
   const chipsRef = useRef<Map<string, ChipState>>(new Map());
   const [chips, setChips] = useState<Map<string, ChipState>>(new Map());
-  const [anyChipEditing, setAnyChipEditing] = useState(false);
+  // editingChip drives the edit panel rendered BELOW the contenteditable.
+  // Chips inside the contenteditable are always in locked (non-editing) state,
+  // which prevents iOS from focusing inputs inside the contenteditable and
+  // causing the cursor to veer off-screen.
+  const [editingChip, setEditingChip] = useState<EditingChipState | null>(null);
   const [showMore, setShowMore] = useState(false);
   const [focused, setFocused] = useState(false);
 
@@ -172,7 +182,7 @@ export function MathEditor({
     chipContainersRef.current.clear();
     divRef.current.textContent = value;
     lastEmittedRef.current = value;
-    setAnyChipEditing(false);
+    setEditingChip(null);
   }, [value, updateChipsState]);
 
   // ── MutationObserver — detect chip deletion by Backspace/Delete ─────────────
@@ -220,12 +230,37 @@ export function MathEditor({
     onChange(text);
   }, [onChange]);
 
-  // ── Insert text — works in contenteditable OR inside a chip's input ──────────
+  // ── Restore cursor after chip span ──────────────────────────────────────────
+  // Places cursor in a text node immediately after the chip span.
+  // iOS needs an adjacent text node to anchor the caret — setStartAfter(inlineBlock) alone
+  // causes the caret to render outside the input bounds on iPadOS/iOS Safari.
+
+  const restoreCursorAfterChip = useCallback((id: string) => {
+    const el = chipContainersRef.current.get(id);
+    const div = divRef.current;
+    if (!el || !div) return;
+    const nextSib = el.nextSibling;
+    let anchorNode: Node;
+    if (nextSib && nextSib.nodeType === Node.TEXT_NODE) {
+      anchorNode = nextSib;
+    } else {
+      anchorNode = document.createTextNode('\u200B');
+      nextSib ? el.parentNode?.insertBefore(anchorNode, nextSib) : el.after(anchorNode);
+    }
+    const r = document.createRange();
+    r.setStart(anchorNode, 0);
+    r.collapse(true);
+    window.getSelection()?.removeAllRanges();
+    window.getSelection()?.addRange(r);
+    div.focus();
+  }, []);
+
+  // ── Insert text — works in contenteditable OR any focused HTML input ─────────
 
   const insertText = useCallback((text: string) => {
-    // If a chip sub-input is focused, insert there via native value setter
+    // If any input is focused (chip panel inputs or contenteditable), insert there
     const active = document.activeElement;
-    if (active instanceof HTMLInputElement && active.closest('[data-chip-id]')) {
+    if (active instanceof HTMLInputElement) {
       const start = active.selectionStart ?? active.value.length;
       const end   = active.selectionEnd   ?? active.value.length;
       const newVal = active.value.slice(0, start) + text + active.value.slice(end);
@@ -265,7 +300,7 @@ export function MathEditor({
     emit();
   }, [emit]);
 
-  // ── Insert chip — only when focus is in the main contenteditable ─────────────
+  // ── Insert chip ──────────────────────────────────────────────────────────────
 
   const insertChip = useCallback((
     type: 'fraction' | 'power' | 'root',
@@ -276,7 +311,6 @@ export function MathEditor({
     if (!div) return;
 
     const sel = window.getSelection();
-    // Only insert when cursor is genuinely inside the contenteditable
     if (!sel || !sel.rangeCount || !div.contains(sel.getRangeAt(0).commonAncestorContainer)) return;
 
     const range = sel.getRangeAt(0);
@@ -289,8 +323,7 @@ export function MathEditor({
     range.deleteContents();
     range.insertNode(span);
 
-    // iOS Safari cannot reliably place the caret after a contentEditable='false'
-    // inline-block element — it needs a following text node to anchor the cursor.
+    // Place cursor in a text node after the chip (not setStartAfter the inline-block)
     const nextSib = span.nextSibling;
     let anchorNode: Node;
     if (nextSib && nextSib.nodeType === Node.TEXT_NODE) {
@@ -299,7 +332,6 @@ export function MathEditor({
       anchorNode = document.createTextNode('\u200B');
       nextSib ? span.parentNode?.insertBefore(anchorNode, nextSib) : span.after(anchorNode);
     }
-
     const r = document.createRange();
     r.setStart(anchorNode, 0);
     r.collapse(true);
@@ -308,59 +340,66 @@ export function MathEditor({
 
     chipContainersRef.current.set(id, span);
 
+    // Chips are always locked inside the contenteditable — editing happens in the
+    // panel below, which keeps all inputs outside the contenteditable DOM tree.
     const newChip: ChipState =
-      type === 'fraction' ? { id, type, editing: true, data: { numerator: '', denominator: '' } } :
-      type === 'power'    ? { id, type, editing: true, data: { base: '', exponent: '' } } :
-                            { id, type, editing: true, focusTarget, variant, data: { radicand: '', index: '', exponent: '' } };
+      type === 'fraction' ? { id, type, editing: false, data: { numerator: '', denominator: '' } } :
+      type === 'power'    ? { id, type, editing: false, data: { base: '', exponent: '' } } :
+                            { id, type, editing: false, focusTarget, variant, data: { radicand: '', index: '', exponent: '' } };
 
     updateChipsState(prev => new Map(prev).set(id, newChip));
-    setAnyChipEditing(true);
+
+    const editState: EditingChipState =
+      type === 'fraction' ? { id, type, data: { numerator: '', denominator: '' } } :
+      type === 'power'    ? { id, type, data: { base: '', exponent: '' } } :
+                            { id, type, data: { radicand: '', index: '', exponent: '' }, focusTarget, variant };
+    setEditingChip(editState);
   }, [updateChipsState]);
 
-  // ── Lock / edit chip ────────────────────────────────────────────────────────
+  // ── Edit panel actions ───────────────────────────────────────────────────────
 
-  const lockChip = useCallback((id: string) => {
+  const openEditPanel = useCallback((id: string) => {
+    const chip = chipsRef.current.get(id);
+    if (!chip) return;
+    if (chip.type === 'fraction') setEditingChip({ id, type: 'fraction', data: { ...chip.data } });
+    else if (chip.type === 'power') setEditingChip({ id, type: 'power', data: { ...chip.data } });
+    else if (chip.type === 'root') setEditingChip({ id, type: 'root', data: { ...chip.data }, focusTarget: chip.focusTarget, variant: chip.variant });
+  }, []);
+
+  const confirmChipEdit = useCallback(() => {
+    if (!editingChip) return;
+    const { id, data } = editingChip;
     updateChipsState(prev => {
       const next = new Map(prev);
       const chip = next.get(id);
-      if (chip) next.set(id, { ...chip, editing: false });
-      return next;
+      if (!chip) return prev;
+      return next.set(id, { ...chip, data: data as any, editing: false });
     });
-    setAnyChipEditing(false);
-
+    setEditingChip(null);
     requestAnimationFrame(() => {
-      const el = chipContainersRef.current.get(id);
-      const div = divRef.current;
-      if (el && div) {
-        const nextSib = el.nextSibling;
-        let anchorNode: Node;
-        if (nextSib && nextSib.nodeType === Node.TEXT_NODE) {
-          anchorNode = nextSib;
-        } else {
-          anchorNode = document.createTextNode('\u200B');
-          nextSib ? el.parentNode?.insertBefore(anchorNode, nextSib) : el.after(anchorNode);
-        }
-        const r = document.createRange();
-        r.setStart(anchorNode, 0);
-        r.collapse(true);
-        const sel = window.getSelection();
-        sel?.removeAllRanges();
-        sel?.addRange(r);
-        div.focus();
-      }
+      restoreCursorAfterChip(id);
       emit();
     });
-  }, [emit, updateChipsState]);
+  }, [editingChip, emit, restoreCursorAfterChip, updateChipsState]);
 
-  const editChip = useCallback((id: string) => {
-    updateChipsState(prev => {
-      const next = new Map(prev);
-      const chip = next.get(id);
-      if (chip) next.set(id, { ...chip, editing: true });
-      return next;
-    });
-    setAnyChipEditing(true);
-  }, [updateChipsState]);
+  const cancelChipEdit = useCallback(() => {
+    if (!editingChip) return;
+    const id = editingChip.id;
+    setEditingChip(null);
+    // Delete the chip if it was newly inserted and has no data yet
+    const chip = chipsRef.current.get(id);
+    if (chip) {
+      const isEmpty =
+        chip.type === 'fraction' ? !chip.data.numerator && !chip.data.denominator :
+        chip.type === 'power'    ? !chip.data.base && !chip.data.exponent :
+                                   !chip.data.radicand;
+      if (isEmpty) {
+        const el = chipContainersRef.current.get(id);
+        if (el?.parentNode) el.parentNode.removeChild(el);
+      }
+    }
+    requestAnimationFrame(() => divRef.current?.focus());
+  }, [editingChip]);
 
   const deleteChip = useCallback((id: string) => {
     const el = chipContainersRef.current.get(id);
@@ -376,6 +415,12 @@ export function MathEditor({
     ? '0 0 0 3px rgba(226,61,40,0.12)'
     : hasContent ? '0 0 0 3px rgba(245,166,35,0.12)' : 'none';
 
+  const panelLabel =
+    editingChip?.type === 'fraction' ? 'Fraction' :
+    editingChip?.type === 'power'    ? 'Power' :
+    editingChip?.type === 'root'     ? (editingChip.variant === 'full' ? 'Root' : 'Square root') :
+    '';
+
   return (
     <>
       <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -390,15 +435,15 @@ export function MathEditor({
           borderBottom: 'none',
           alignItems: 'center',
         }}>
-          {/* Chip buttons — when a chip is open, fall back to inserting the plain character */}
-          <TBtn label="a/b" title="Fraction"    onPress={() => anyChipEditing ? insertText('/') : insertChip('fraction')}                        wide />
-          <TBtn label="xⁿ"  title="Power"       onPress={() => anyChipEditing ? insertText('^') : insertChip('power')}                          wide />
-          <TBtn label="√"   title="Square root" onPress={() => anyChipEditing ? insertText('√') : insertChip('root', 'radicand', 'simple')}           />
-          <TBtn label="ⁿ√"  title="Nth root"    onPress={() => anyChipEditing ? insertText('√') : insertChip('root', 'index', 'full')}           wide />
+          {/* Chip buttons — disabled while a chip edit panel is open */}
+          <TBtn label="a/b" title="Fraction"    onPress={() => insertChip('fraction')}                     wide disabled={!!editingChip} />
+          <TBtn label="xⁿ"  title="Power"       onPress={() => insertChip('power')}                       wide disabled={!!editingChip} />
+          <TBtn label="√"   title="Square root" onPress={() => insertChip('root', 'radicand', 'simple')}       disabled={!!editingChip} />
+          <TBtn label="ⁿ√"  title="Nth root"    onPress={() => insertChip('root', 'index', 'full')}       wide disabled={!!editingChip} />
 
           <span style={{ width: 1, height: 22, background: '#e8ddd2', margin: '0 2px', flexShrink: 0 }} />
 
-          {/* Symbol buttons — work in both contenteditable and chip inputs */}
+          {/* Symbol buttons — work in both contenteditable and panel inputs */}
           {PRIMARY_SYMS.map(s => (
             <TBtn key={s.label} label={s.label} title={s.title} onPress={() => insertText(s.label)} />
           ))}
@@ -463,8 +508,8 @@ export function MathEditor({
               fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif",
               border: `1.5px solid ${borderColor}`,
               borderTop: '1px dashed #d4c8bc',
-              borderBottomLeftRadius: 10,
-              borderBottomRightRadius: 10,
+              borderBottomLeftRadius: editingChip ? 0 : 10,
+              borderBottomRightRadius: editingChip ? 0 : 10,
               background: '#fff',
               outline: 'none',
               boxSizing: 'border-box',
@@ -490,9 +535,119 @@ export function MathEditor({
           )}
         </div>
 
+        {/* ── Chip edit panel — rendered outside the contenteditable so iOS ────
+             doesn't focus inputs inside the contenteditable DOM tree, which
+             causes the caret to veer off-screen on iPadOS/iOS Safari.       ── */}
+        {editingChip && (() => {
+          const chipId = editingChip.id;
+          return (
+            <div style={{
+              padding: '12px 14px 14px',
+              background: '#faf6f1',
+              border: '1.5px solid #d4c8bc',
+              borderTop: '1px solid #ece4da',
+              borderBottomLeftRadius: 10,
+              borderBottomRightRadius: 10,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 10,
+            }}>
+              {/* Header */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{
+                  fontSize: 12, fontWeight: 600, color: '#8c857c', letterSpacing: '0.04em',
+                  textTransform: 'uppercase',
+                  fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif",
+                }}>
+                  {panelLabel}
+                </span>
+                <button
+                  type="button"
+                  onMouseDown={e => e.preventDefault()}
+                  onClick={cancelChipEdit}
+                  style={{
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    color: '#a39485', fontSize: 18, lineHeight: 1, padding: '2px 4px',
+                    fontFamily: 'sans-serif', WebkitTapHighlightColor: 'transparent' as any,
+                  }}
+                  aria-label="Close"
+                >✕</button>
+              </div>
+
+              {/* Chip editing inputs */}
+              <div style={{ display: 'flex', alignItems: 'center' }}>
+                {editingChip.type === 'fraction' && (
+                  <FractionChip
+                    data={editingChip.data}
+                    editing={true}
+                    onChange={d => setEditingChip(prev => prev ? { ...prev, data: d } : null)}
+                    onLock={confirmChipEdit}
+                    onEdit={() => {}}
+                  />
+                )}
+                {editingChip.type === 'power' && (
+                  <PowerChip
+                    data={editingChip.data}
+                    editing={true}
+                    onChange={d => setEditingChip(prev => prev ? { ...prev, data: d } : null)}
+                    onLock={confirmChipEdit}
+                    onEdit={() => {}}
+                  />
+                )}
+                {editingChip.type === 'root' && (
+                  <RootChip
+                    data={editingChip.data}
+                    editing={true}
+                    focusTarget={editingChip.focusTarget}
+                    variant={editingChip.variant}
+                    onChange={d => setEditingChip(prev => prev ? { ...prev, data: d } : null)}
+                    onLock={confirmChipEdit}
+                    onEdit={() => {}}
+                  />
+                )}
+              </div>
+
+              {/* Actions */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <button
+                  type="button"
+                  onMouseDown={e => e.preventDefault()}
+                  onClick={() => { setEditingChip(null); deleteChip(chipId); requestAnimationFrame(() => divRef.current?.focus()); }}
+                  style={{
+                    background: 'none', border: 'none', cursor: 'pointer', padding: '6px 2px',
+                    color: '#E23D28', fontSize: 13, fontWeight: 500,
+                    fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif",
+                    WebkitTapHighlightColor: 'transparent' as any,
+                  }}
+                >
+                  Delete
+                </button>
+                <button
+                  type="button"
+                  onMouseDown={e => e.preventDefault()}
+                  onClick={confirmChipEdit}
+                  style={{
+                    padding: '7px 18px',
+                    borderRadius: 8,
+                    border: 'none',
+                    background: 'linear-gradient(135deg, #E23D28 0%, #F5A623 100%)',
+                    color: '#fff',
+                    fontSize: 14, fontWeight: 600,
+                    fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif",
+                    cursor: 'pointer',
+                    WebkitTapHighlightColor: 'transparent' as any,
+                  }}
+                >
+                  Done ✓
+                </button>
+              </div>
+            </div>
+          );
+        })()}
+
       </div>
 
-      {/* ── Chip portals ─────────────────────────────────────────────────────── */}
+      {/* ── Chip portals — always locked (editing: false) ─────────────────────── */}
       {Array.from(chips.entries()).map(([id, chip]) => {
         const el = chipContainersRef.current.get(id);
         if (!el) return null;
@@ -503,16 +658,10 @@ export function MathEditor({
               {createPortal(
                 <FractionChip
                   data={chip.data}
-                  editing={chip.editing}
-                  onChange={d => updateChipsState(prev => {
-                    const next = new Map(prev);
-                    const c = next.get(id);
-                    if (c && c.type === 'fraction') next.set(id, { ...c, data: d });
-                    return next;
-                  })}
-                  onLock={() => lockChip(id)}
-                  onEdit={() => editChip(id)}
-                  onDelete={() => deleteChip(id)}
+                  editing={false}
+                  onChange={() => {}}
+                  onLock={() => {}}
+                  onEdit={() => openEditPanel(id)}
                 />,
                 el
               )}
@@ -526,16 +675,10 @@ export function MathEditor({
               {createPortal(
                 <PowerChip
                   data={chip.data}
-                  editing={chip.editing}
-                  onChange={d => updateChipsState(prev => {
-                    const next = new Map(prev);
-                    const c = next.get(id);
-                    if (c && c.type === 'power') next.set(id, { ...c, data: d });
-                    return next;
-                  })}
-                  onLock={() => lockChip(id)}
-                  onEdit={() => editChip(id)}
-                  onDelete={() => deleteChip(id)}
+                  editing={false}
+                  onChange={() => {}}
+                  onLock={() => {}}
+                  onEdit={() => openEditPanel(id)}
                 />,
                 el
               )}
@@ -549,18 +692,12 @@ export function MathEditor({
               {createPortal(
                 <RootChip
                   data={chip.data}
-                  editing={chip.editing}
+                  editing={false}
                   focusTarget={chip.focusTarget}
                   variant={chip.variant}
-                  onChange={d => updateChipsState(prev => {
-                    const next = new Map(prev);
-                    const c = next.get(id);
-                    if (c && c.type === 'root') next.set(id, { ...c, data: d });
-                    return next;
-                  })}
-                  onLock={() => lockChip(id)}
-                  onEdit={() => editChip(id)}
-                  onDelete={() => deleteChip(id)}
+                  onChange={() => {}}
+                  onLock={() => {}}
+                  onEdit={() => openEditPanel(id)}
                 />,
                 el
               )}

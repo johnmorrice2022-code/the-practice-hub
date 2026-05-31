@@ -11,7 +11,6 @@ interface FractionChipProps {
   onChange: (data: FractionChipData) => void;
   onLock: () => void;
   onEdit: () => void;
-  onDelete?: () => void;
 }
 
 const INPUT: React.CSSProperties = {
@@ -38,7 +37,7 @@ const BAR: React.CSSProperties = {
   minWidth: 24,
 };
 
-export function FractionChip({ data, editing, onChange, onLock, onEdit, onDelete }: FractionChipProps) {
+export function FractionChip({ data, editing, onChange, onLock, onEdit }: FractionChipProps) {
   const numRef = useRef<HTMLInputElement>(null);
   const denRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLSpanElement>(null);
@@ -102,9 +101,8 @@ export function FractionChip({ data, editing, onChange, onLock, onEdit, onDelete
   return (
     <span
       onClick={onEdit}
-      title="Click to edit"
+      title="Tap to edit"
       style={{
-        position: 'relative',
         display: 'inline-flex',
         flexDirection: 'column',
         alignItems: 'center',
@@ -124,24 +122,6 @@ export function FractionChip({ data, editing, onChange, onLock, onEdit, onDelete
       <span style={{ fontSize: 14, lineHeight: 1.3, color: '#3d3530', whiteSpace: 'nowrap' }}>
         {data.denominator || '?'}
       </span>
-      {onDelete && (
-        <span
-          role="button"
-          aria-label="Delete"
-          onMouseDown={e => e.preventDefault()}
-          onClick={e => { e.stopPropagation(); onDelete(); }}
-          style={{
-            position: 'absolute', top: -8, right: -8,
-            width: 20, height: 20, borderRadius: '50%',
-            background: '#E23D28', color: '#fff',
-            fontSize: 12, fontWeight: 700, lineHeight: 1,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer', zIndex: 1,
-            WebkitTapHighlightColor: 'transparent' as any,
-            userSelect: 'none' as any,
-          }}
-        >×</span>
-      )}
     </span>
   );
 }
