@@ -46,6 +46,8 @@ These rules exist because violations have caused real incidents. Follow them wit
 
 6. **Edit in VS Code → save → verify with `grep` → commit.** This is the correct sequence.
 
+7. **Never write `\u200B` as a literal character** via the Edit or Write tools — the tools silently emit the actual invisible zero-width space (U+200B) instead of the escape sequence, which breaks regexes and string replacements. Use a Python script (`/tmp/fix.py`) to write `\u200B` escape sequences into JS/TS source files.
+
 ---
 
 ## Infrastructure
@@ -202,6 +204,29 @@ Use flat Edexcel M1/A1 format with a `criterion` string per mark. **Never use ne
 LaTeX renders in: learning content section headings, paragraph text, question text, mark schemes, and JAM Help responses.
 - `PracticeRoom.tsx` merges both pools, shuffles, picks up to 4. Falls back to live AI generation only when both tables are empty.
 
+
+### MathEditor chip architecture (critical for iOS)
+`MathEditor.tsx` uses a `contentEditable` div for text input with visual chip elements for fractions, powers, and roots. Key design constraint: **chips inside the contenteditable are always in locked (non-editing) state** — no `<input>` elements ever render inside the contenteditable DOM tree.
+
+When the user inserts or taps a chip, an **edit panel renders below the contenteditable** (in-flow, same flex column). All chip inputs live in the panel. This prevents iOS Safari from focusing inputs inside the contenteditable, which caused the cursor to veer off-screen.
+
+- `EditingChipState` drives the panel; `ChipState` drives the in-contenteditable visual
+- Portals render chips with `editing: false` always
+- `confirmChipEdit` saves panel data, updates `chipsRef`, focuses contenteditable
+- `cancelChipEdit` closes panel, auto-deletes chip if data is all-empty
+- A ZWS text node (U+200B) is inserted after each chip span so iOS can anchor the caret correctly; stripped by `serialise()`
+
+**Chip serialisation format** (sent to the marking AI):
+- Fraction: `(numerator)/(denominator)` — e.g. `(3)/(5)`
+- Power: `(base)^(exponent)` — e.g. `(x)^(2)`
+- Square root: `sqrt(radicand)` — e.g. `sqrt(4)`
+- Nth root: `n*sqrt(radicand)` — e.g. `3*sqrt(8)`
+
+`mark-answer/index.ts` has a STUDENT ANSWER NOTATION section (both Maths and Physics prompts) explaining this notation to Claude. If the serialisation format ever changes, update that section too.
+
+### All AI functions returning 500 simultaneously
+If `generate-questions`, `mark-answer`, and `jam-help` all fail at the same time, check the **Anthropic Console** first — quota exhausted or billing issue is the most likely cause. All five edge functions share the same `ANTHROPIC_API_KEY`. A code regression in one function would not cause all to fail simultaneously.
+
 ### Diagram component pattern
 Each diagram type gets:
 - A renderer component in `src/components/diagrams/`
@@ -288,7 +313,7 @@ src/
       QuestionCard.tsx            -- uses MathEditor for answer input
       FeedbackCard.tsx
       JamHelpPanel.tsx            -- keyed by questionId, resets only on question change
-      MathEditor.tsx              -- CURRENT input: contenteditable + chip toolbar (mobile-safe)
+      MathEditor.tsx              -- contenteditable + chip toolbar; chips always locked in div, edit panel below
       MathInput.tsx               -- legacy file (may still exist but no longer imported)
       SessionSetup.tsx
       chips/
@@ -388,51 +413,8 @@ Physics questions show "No calculator" label — all AQA Physics papers allow ca
 
 ---
 
-## Current Priorities (as of 31/05/2026)
-
-### Done this session ✅
-- Custom chip-based math input built and deployed — `MathEditor.tsx` with `FractionChip`, `PowerChip`, `RootChip`. Replaces MathLive (which broke on mobile). Now mobile-safe: contenteditable container, inline chips, symbol toolbar.
-- Chip serialisation: fractions → `(a)/(b)`, powers → `(base)^(exp)`, roots → `√(x)` / `n√(x)`. Claude understands all formats.
-- `mark-answer` edge function updated — both Maths and Physics prompts now include student answer notation guide so Claude correctly interprets chip output.
-- Dead files removed: `MathInputToolbar.tsx`, `MathLiveInput.tsx`.
-- `mathlive` npm package can be removed (chips are working — no longer needed).
-
-### MathEditor architecture (for reference)
-- `contenteditable` div as prose container — space, Enter, mobile keyboard all native
-- Chips are `contenteditable="false"` spans rendered via React portals
-- Toolbar: chip buttons (a/b, xⁿ, √, ⁿ√) + symbol buttons (×, ÷, π, °, θ…) + More drawer
-- When a chip is open, chip buttons insert plain text fallback instead (`/`, `^`, `√`)
-- Chips lock on Tab, Enter, or blur-outside; click to re-edit
-- Serialises to plain text on every change — no LaTeX needed
-
-### Next session
-- [ ] Fix Physics "No calculator" label
-- [ ] Second Physics subtopic end-to-end (candidate: `density-states-of-matter`)
-- [ ] Legal documents — Privacy Policy, Safeguarding Policy, Terms & Conditions
-- [ ] ICO registration (ico.org.uk, £40/year)
-- [ ] Re-enable email confirmation in Supabase Auth
-- [ ] Remove `mathlive` npm package
-
-### Before marketing
-- [ ] ICO registration (ico.org.uk, £40/year)
-- [ ] Privacy Policy
-- [ ] Safeguarding Policy
-- [ ] Terms & Conditions
-- [ ] Re-enable email confirmation in Supabase Auth
-
-### Before Stripe goes live
-- [ ] Create live mode Stripe products and payment links
-  - On each Payment Link: After payment → Redirect to website → `https://app.thehubjam.co.uk/dashboard`
-- [ ] Update 4 payment links in `PracticeRoom.tsx`
-- [ ] Update 4 payment links in `PricingCards.tsx`
-- [ ] Update Manage subscription portal link in `Members.tsx`
-- [ ] Set live `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` in Supabase secrets
-- [ ] Create live mode webhook destination in Stripe
-
-### Go-to-market
-- [ ] Start YouTube — Free Lesson Mondays + Wed/Thu paid streams
-- [ ] Pricing page on thehubjam.co.uk
-- [ ] Path to first 100 paying subscribers
+## Security & Technical Debt
+See [SECURITY_AUDIT.md](SECURITY_AUDIT.md) — living checklist of all known security issues, code quality findings, and product backlog, ordered by priority.
 
 ---
 
