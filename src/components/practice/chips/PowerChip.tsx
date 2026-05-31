@@ -11,9 +11,10 @@ interface PowerChipProps {
   onChange: (data: PowerChipData) => void;
   onLock: () => void;
   onEdit: () => void;
+  onDelete?: () => void;
 }
 
-export function PowerChip({ data, editing, onChange, onLock, onEdit }: PowerChipProps) {
+export function PowerChip({ data, editing, onChange, onLock, onEdit, onDelete }: PowerChipProps) {
   const baseRef = useRef<HTMLInputElement>(null);
   const expRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLSpanElement>(null);
@@ -103,6 +104,7 @@ export function PowerChip({ data, editing, onChange, onLock, onEdit }: PowerChip
       onClick={onEdit}
       title="Click to edit"
       style={{
+        position: 'relative',
         display: 'inline-flex',
         alignItems: 'flex-start',
         verticalAlign: 'middle',
@@ -121,6 +123,24 @@ export function PowerChip({ data, editing, onChange, onLock, onEdit }: PowerChip
       <span style={{ fontSize: 11, color: '#3d3530', lineHeight: 1, marginTop: 2 }}>
         {data.exponent || '?'}
       </span>
+      {onDelete && (
+        <span
+          role="button"
+          aria-label="Delete"
+          onMouseDown={e => e.preventDefault()}
+          onClick={e => { e.stopPropagation(); onDelete(); }}
+          style={{
+            position: 'absolute', top: -8, right: -8,
+            width: 20, height: 20, borderRadius: '50%',
+            background: '#E23D28', color: '#fff',
+            fontSize: 12, fontWeight: 700, lineHeight: 1,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer', zIndex: 1,
+            WebkitTapHighlightColor: 'transparent' as any,
+            userSelect: 'none' as any,
+          }}
+        >×</span>
+      )}
     </span>
   );
 }

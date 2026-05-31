@@ -32,7 +32,8 @@ function serialise(div: HTMLElement, chipsMap: Map<string, ChipState>): string {
   let out = '';
   for (const node of Array.from(div.childNodes)) {
     if (node.nodeType === Node.TEXT_NODE) {
-      out += node.textContent ?? '';
+      // Strip zero-width spaces used as iOS cursor anchors around chips
+      out += (node.textContent ?? '').replace(/\u200B/g, '');
     } else if (node instanceof HTMLElement) {
       const chipId = node.dataset.chipId;
       if (chipId) {
@@ -288,8 +289,19 @@ export function MathEditor({
     range.deleteContents();
     range.insertNode(span);
 
+    // iOS Safari cannot reliably place the caret after a contentEditable='false'
+    // inline-block element — it needs a following text node to anchor the cursor.
+    const nextSib = span.nextSibling;
+    let anchorNode: Node;
+    if (nextSib && nextSib.nodeType === Node.TEXT_NODE) {
+      anchorNode = nextSib;
+    } else {
+      anchorNode = document.createTextNode('\u200B');
+      nextSib ? span.parentNode?.insertBefore(anchorNode, nextSib) : span.after(anchorNode);
+    }
+
     const r = document.createRange();
-    r.setStartAfter(span);
+    r.setStart(anchorNode, 0);
     r.collapse(true);
     sel.removeAllRanges();
     sel.addRange(r);
@@ -320,8 +332,16 @@ export function MathEditor({
       const el = chipContainersRef.current.get(id);
       const div = divRef.current;
       if (el && div) {
+        const nextSib = el.nextSibling;
+        let anchorNode: Node;
+        if (nextSib && nextSib.nodeType === Node.TEXT_NODE) {
+          anchorNode = nextSib;
+        } else {
+          anchorNode = document.createTextNode('\u200B');
+          nextSib ? el.parentNode?.insertBefore(anchorNode, nextSib) : el.after(anchorNode);
+        }
         const r = document.createRange();
-        r.setStartAfter(el);
+        r.setStart(anchorNode, 0);
         r.collapse(true);
         const sel = window.getSelection();
         sel?.removeAllRanges();
@@ -341,6 +361,12 @@ export function MathEditor({
     });
     setAnyChipEditing(true);
   }, [updateChipsState]);
+
+  const deleteChip = useCallback((id: string) => {
+    const el = chipContainersRef.current.get(id);
+    if (el?.parentNode) el.parentNode.removeChild(el);
+    // MutationObserver handles state cleanup and emit
+  }, []);
 
   // ── Derived style ───────────────────────────────────────────────────────────
 
@@ -486,6 +512,7 @@ export function MathEditor({
                   })}
                   onLock={() => lockChip(id)}
                   onEdit={() => editChip(id)}
+                  onDelete={() => deleteChip(id)}
                 />,
                 el
               )}
@@ -508,6 +535,7 @@ export function MathEditor({
                   })}
                   onLock={() => lockChip(id)}
                   onEdit={() => editChip(id)}
+                  onDelete={() => deleteChip(id)}
                 />,
                 el
               )}
@@ -532,6 +560,7 @@ export function MathEditor({
                   })}
                   onLock={() => lockChip(id)}
                   onEdit={() => editChip(id)}
+                  onDelete={() => deleteChip(id)}
                 />,
                 el
               )}
