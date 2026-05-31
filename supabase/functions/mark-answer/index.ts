@@ -92,7 +92,15 @@ ${markingGuidance}`
     : ''
 }
 
-SECTION 9: FEEDBACK FOR STUDENTS
+SECTION 9: STUDENT ANSWER NOTATION
+The student's answer may contain structured math notation from an input tool. Interpret these as standard mathematical expressions:
+- Fractions: (a)/(b) means a over b, e.g. (3)/(5) = 3/5
+- Powers: (base)^(exp) means base to the power exp, e.g. (x)^(2) = x²
+- Square roots: √(x) means the square root of x
+- Nth roots: n√(x) means the nth root of x, e.g. 3√(8) = ∛8
+- Nested forms such as √((x)^(2)) are valid and mean √(x²)
+
+SECTION 10: FEEDBACK FOR STUDENTS
 You are writing for a 14-16 year old student.
 - Never use the word "wrong". Use "not quite", "nearly there", "this needed one more step".
 - Always say what the student did correctly before explaining what was missing.
@@ -251,7 +259,15 @@ ${markingGuidance}`
     : ''
 }
 
-SECTION 8: FEEDBACK FOR STUDENTS
+SECTION 8: STUDENT ANSWER NOTATION
+The student's answer may contain structured math notation from an input tool. Interpret these as standard mathematical expressions:
+- Fractions: (a)/(b) means a over b, e.g. (3)/(5) = 3/5
+- Powers: (base)^(exp) means base to the power exp, e.g. (x)^(2) = x²
+- Square roots: √(x) means the square root of x
+- Nth roots: n√(x) means the nth root of x, e.g. 3√(8) = ∛8
+- Nested forms such as √((x)^(2)) are valid and mean √(x²)
+
+SECTION 9: FEEDBACK FOR STUDENTS
 You are writing for a 14-16 year old student.
 - Never use the word "wrong". Use "not quite", "nearly there", "this needed one more step".
 - Always say what the student did correctly before explaining what was missing.

@@ -8,7 +8,7 @@ import {
   InteractiveProbabilityTree,
   TreeAnswers,
 } from '@/components/diagrams/InteractiveProbabilityTree';
-import { MathInput } from './MathInput';
+import { MathEditor } from './MathEditor';
 import { renderMathInText } from '@/lib/renderMathInText';
 
 export interface QuestionPart {
@@ -49,7 +49,7 @@ function AutoTextarea({
   onChange: (v: string) => void;
   placeholder: string;
 }) {
-  return <MathInput value={value} onChange={onChange} placeholder={placeholder} />;
+  return <MathEditor value={value} onChange={onChange} placeholder={placeholder} />;
 }
 
 export function QuestionCard({
