@@ -3,8 +3,9 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import {
   BookOpen, X, Loader2, ChevronDown, ChevronUp,
-  Plus, Trash2, Save, HelpCircle, ArrowLeft,
+  Plus, Trash2, Save, HelpCircle, ArrowLeft, PenLine, Bot,
 } from 'lucide-react';
+import { LiveQuestionsTab } from './LiveQuestionsTab';
 
 const ADMIN_EMAIL = 'johnmorrice2022@gmail.com';
 
@@ -98,7 +99,7 @@ export default function AdminLearningContent() {
   const [saved, setSaved] = useState(false);
 
   // Tab state
-  const [activeTab, setActiveTab] = useState<'content' | 'checks'>('content');
+  const [activeTab, setActiveTab] = useState<'content' | 'checks' | 'seeded' | 'ai'>('content');
 
   // Check questions state
   const [checkQuestions, setCheckQuestions] = useState<CheckQuestion[]>([]);
@@ -339,8 +340,13 @@ export default function AdminLearningContent() {
 
         {/* Tab switcher */}
         {selectedSlug && (
-          <div className="flex gap-1 mb-6">
-            {([['content', 'Learning Content', <BookOpen size={12} />], ['checks', 'Check Questions', <HelpCircle size={12} />]] as const).map(([tab, label, icon]) => (
+          <div className="flex flex-wrap gap-1 mb-6">
+            {([
+              ['content', 'Learning Content', <BookOpen size={12} />],
+              ['checks',  'Check Questions',  <HelpCircle size={12} />],
+              ['seeded',  'Live Seeded',       <PenLine size={12} />],
+              ['ai',      'Live AI',           <Bot size={12} />],
+            ] as const).map(([tab, label, icon]) => (
               <button key={tab} onClick={() => setActiveTab(tab)}
                 className="flex items-center gap-1.5 px-3 h-9 rounded-lg text-xs font-medium transition-colors"
                 style={activeTab === tab
@@ -394,6 +400,18 @@ export default function AdminLearningContent() {
             </button>
           </div>
         )}
+
+        {/* ── Live Seeded tab ── */}
+        {activeTab === 'seeded' && selectedSlug && (() => {
+          const sub = subtopics.find(s => s.slug === selectedSlug);
+          return sub ? <LiveQuestionsTab subtopicId={sub.id} source="seeded_questions" badge="Seeded" /> : null;
+        })()}
+
+        {/* ── Live AI tab ── */}
+        {activeTab === 'ai' && selectedSlug && (() => {
+          const sub = subtopics.find(s => s.slug === selectedSlug);
+          return sub ? <LiveQuestionsTab subtopicId={sub.id} source="questions" badge="AI" /> : null;
+        })()}
 
         {/* ── Check Questions tab ── */}
         {activeTab === 'checks' && selectedSlug && (
