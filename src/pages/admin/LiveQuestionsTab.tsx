@@ -60,7 +60,7 @@ export function LiveQuestionsTab({ subtopicId, source, badge }: LiveQuestionsTab
     const query = source === 'seeded_questions'
       ? supabase
           .from('seeded_questions')
-          .select('id, question_text, worked_solution, mark_scheme, diagram_component, calculator_allowed')
+          .select('id, question_text, worked_solution, mark_scheme, diagram_component')
           .eq('subtopic_id', subtopicId)
       : supabase
           .from('questions')
