@@ -22,6 +22,7 @@ import {
   Megaphone,
   Flag,
   BookOpen,
+  Layers,
 } from 'lucide-react';
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -165,6 +166,18 @@ export default function AdminHub() {
 
         {/* ── Live tools ── */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-10">
+          {/* Content Pipeline */}
+          <ToolCard
+            icon={<Layers size={18} color="white" />}
+            iconBg="#E23D28"
+            title="Content Pipeline"
+            description="Create subtopics, manage prompt config, track content status and go live."
+            stat={null}
+            statLabel=""
+            statsLoaded={true}
+            onClick={() => navigate('/admin/content-pipeline')}
+          />
+
           {/* Learning Content Editor */}
           <ToolCard
             icon={<BookOpen size={18} color="white" />}

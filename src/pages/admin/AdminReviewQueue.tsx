@@ -10,7 +10,7 @@
 //   3. Publish view — approve → publish to live questions table
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { QuestionCard } from '@/components/practice/QuestionCard';
 import { renderMathInText } from '@/lib/renderMathInText';
@@ -804,13 +804,16 @@ function SeededQuestionPanel({ subtopic }: { subtopic: SubtopicWithCounts }) {
 
 export default function AdminReviewQueue() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const [authChecked, setAuthChecked] = useState(false);
   const [authed, setAuthed] = useState(false);
   const [view, setView] = useState<View>('queue');
   const [subtopics, setSubtopics] = useState<SubtopicWithCounts[]>([]);
   const [loadingSubtopics, setLoadingSubtopics] = useState(true);
-  const [subjectFilter, setSubjectFilter] = useState<'Maths' | 'Physics'>('Maths');
+  const [subjectFilter, setSubjectFilter] = useState<'Maths' | 'Physics'>(
+    searchParams.get('subject') === 'Physics' ? 'Physics' : 'Maths'
+  );
   const [selectedSubtopic, setSelectedSubtopic] =
     useState<SubtopicWithCounts | null>(null);
   const [generatingFor, setGeneratingFor] = useState<string | null>(null);
@@ -884,6 +887,14 @@ export default function AdminReviewQueue() {
   useEffect(() => {
     if (authed) loadSubtopics();
   }, [authed, loadSubtopics, subjectFilter]);
+
+  // Auto-select subtopic from URL param ?subtopicId=
+  useEffect(() => {
+    const paramId = searchParams.get('subtopicId');
+    if (!paramId || subtopics.length === 0) return;
+    const match = subtopics.find(s => s.id === paramId);
+    if (match) setSelectedSubtopic(match);
+  }, [subtopics, searchParams]);
 
   async function handleGenerate(subtopic: SubtopicWithCounts) {
     setGeneratingFor(subtopic.id);
