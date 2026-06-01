@@ -269,6 +269,31 @@ Stored in `sections[].paragraphs[].style` (or `is_non_example: true` for legacy 
 
 Mirrors UK GCSE textbook convention: Foundation students see everything; Higher content is highlighted inline.
 
+### Admin CMS architecture
+
+Single entry point: `/admin` (AdminHub) → cards link to all tools.
+
+**Content Pipeline** (`/admin/content-pipeline`) is the primary workflow entry point for new subtopics:
+- Create subtopic rows (subject, topic, name, slug, tier — exam_board auto-set from subject)
+- Edit `prompt_config` (system_prompt + marking_guidance) inline — no SQL needed
+- Toggle `active` (Draft / Live) with one tap — no SQL needed
+- Copy UUID — eliminates Supabase dashboard hunting
+- Status chips per subtopic: Prompt ✓/✗, Content ✓/✗, Checks (n), Questions (n)
+- Deep links into Learning Content Editor and Review Queue, pre-filtered to that subtopic via URL params
+
+**Learning Content Editor** (`/admin/learning-content`) has 4 tabs per subtopic:
+1. **Learning Content** — sections and styled paragraphs
+2. **Check Questions** — up to 5 MCQ comprehension checks (full CRUD)
+3. **Live Seeded** — all seeded practice questions; inline edit + delete
+4. **Live AI** — all approved AI practice questions; inline edit + delete
+
+Accepts `?subtopicId=UUID` to pre-select the subtopic (used by Content Pipeline deep links).
+Accepts `?tab=checks` to jump directly to the Check Questions tab.
+
+**Review Queue** (`/admin/review-queue`) accepts `?subject=Physics&subtopicId=UUID` for pre-filtering from Content Pipeline.
+
+**Important:** `seeded_questions` does NOT have a `calculator_allowed` column. Selecting it causes a silent Supabase error returning empty data. Use only: `id, question_text, worked_solution, mark_scheme, diagram_component` (+ `question_order`, `diagram_url`, `diagram_params` as needed).
+
 ### Unauthenticated pricing flow
 When a logged-out user clicks a paid plan:
 1. `PricingCards.tsx` stores the Stripe URL in `sessionStorage('pendingPlanUrl')` → `/signup`
@@ -294,12 +319,14 @@ src/
     Practice.tsx                  -- page wrapper: setup → learning → check → practice flow
     admin/
       AdminHub.tsx
-      AdminReviewQueue.tsx        -- Maths/Physics toggle, subjectFilter state
+      AdminContentPipeline.tsx    -- create subtopics, edit prompt_config, toggle active, status view, deep links
+      AdminLearningContent.tsx    -- 4 tabs: Learning Content, Check Questions, Live Seeded, Live AI; ?subtopicId= param
+      AdminReviewQueue.tsx        -- Maths/Physics toggle; ?subject=&subtopicId= URL params for pre-filtering
       AdminProbabilityQuestions.tsx
       AdminDiagrams.tsx           -- works for all subjects
       AdminMembers.tsx
       AdminFeedback.tsx           -- review flagged questions
-      AdminLearningContent.tsx    -- edit learning content sections/paragraphs per subtopic
+      LiveQuestionsTab.tsx        -- shared component for Live Seeded + Live AI tabs
   components/
     Navbar.tsx                    -- Jam Sessions in both navLinks and appLinks
     ProtectedRoute.tsx            -- requireAdmin prop; skips onboarding redirect for admin routes
@@ -397,16 +424,16 @@ Every feature must pass this test: if a Year 10 Foundation student who is alread
   - ID: `5f604bc6-d7b1-45f5-ac28-c27bab593aec`
 
 ### Factory process for each new Physics subtopic
-1. Upload AQA source document to session (past paper / mark scheme — for style analysis only)
-2. Identify subtopic slug and ID from database
-3. Write scoped `system_prompt` + `marking_guidance` for `prompt_config`
-4. Write learning content (6 sections typical)
-5. Write 5 check questions
-6. Run SQL — use direct `'[...]'::jsonb` cast (see SQL Patterns above)
-7. Verify with `jsonb_typeof` / `jsonb_array_length`
-8. Generate 20 questions in AdminReviewQueue (Physics tab) → review and publish
-9. Add diagrams via Diagram CMS over time
-10. Set `active = true` when ready
+1. Upload AQA source document to session (for style and spec reference)
+2. Create subtopic in **Content Pipeline** (or confirm it already exists) — copy UUID
+3. Set `system_prompt` + `marking_guidance` in **Content Pipeline** prompt config editor
+4. Claude writes learning content + 5 check questions in session → produces SQL
+5. Run SQL — use direct `'[...]'::jsonb` cast (see SQL Patterns above)
+6. Verify with `jsonb_typeof` / `jsonb_array_length`
+7. Edit/tweak in **Learning Content Editor** (Learning Content + Check Questions tabs)
+8. Generate 20 questions in **Review Queue** (pre-filtered via Content Pipeline link) → review and publish
+9. Add diagrams via **Diagram CMS** over time
+10. Set `active = true` via **Content Pipeline** toggle
 
 ### Known Physics issue (to fix)
 Physics questions show "No calculator" label — all AQA Physics papers allow calculators. Fix needed in `PracticeRoom.tsx` (calculator mode default for Physics) and `generate-questions` output (`calculator_allowed: true` for Physics).
@@ -415,6 +442,34 @@ Physics questions show "No calculator" label — all AQA Physics papers allow ca
 
 ## Security & Technical Debt
 See [SECURITY_AUDIT.md](SECURITY_AUDIT.md) — living checklist of all known security issues, code quality findings, and product backlog, ordered by priority.
+
+---
+
+## Current Priorities (as of 01/06/2026)
+
+### Immediate next session
+- [ ] Activate Specific Heat Capacity subtopic end-to-end (AQA doc already uploaded this session)
+- [ ] Fix Physics "No calculator" label
+- [ ] Extend seeded question authoring form for Physics
+
+### Before marketing
+- [ ] ICO registration (ico.org.uk, £40/year)
+- [ ] Privacy Policy
+- [ ] Safeguarding Policy
+- [ ] Terms & Conditions
+- [ ] Re-enable email confirmation in Supabase Auth
+
+### Before Stripe goes live
+- [ ] Create live mode Stripe products and payment links
+- [ ] Update 4 payment links in `PracticeRoom.tsx`
+- [ ] Update Manage subscription portal link in `Members.tsx`
+- [ ] Set live `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` in Supabase secrets
+- [ ] Create live mode webhook destination in Stripe
+
+### Go-to-market
+- [ ] Start YouTube — Free Lesson Mondays + Wed/Thu paid streams
+- [ ] Pricing page on thehubjam.co.uk
+- [ ] Path to first 100 paying subscribers
 
 ---
 
