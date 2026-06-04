@@ -2,6 +2,7 @@ import {
   createContext,
   useContext,
   useEffect,
+  useRef,
   useState,
   ReactNode,
 } from 'react';
@@ -61,6 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [questionsUsed, setQuestionsUsed] = useState(0);
   const [onboardingComplete, setOnboardingComplete] = useState(false);
   const [onboardingLoading, setOnboardingLoading] = useState(true);
+  const initialLoadDoneRef = useRef(false);
 
   useEffect(() => {
     const {
@@ -113,8 +115,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (session?.user) {
-      fetchUserData(session.user.id, true);
+      const isInitialLoad = !initialLoadDoneRef.current;
+      initialLoadDoneRef.current = true;
+      fetchUserData(session.user.id, isInitialLoad);
     } else if (!loading) {
+      initialLoadDoneRef.current = false;
       setSubscription(null);
       setSubscriptionLoading(false);
       setQuestionsUsed(0);
