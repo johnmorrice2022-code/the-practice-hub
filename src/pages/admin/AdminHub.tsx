@@ -10,7 +10,6 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import {
-  ImageIcon,
   GitBranch,
   Triangle,
   ArrowRight,
@@ -21,7 +20,6 @@ import {
   Check,
   Megaphone,
   Flag,
-  BookOpen,
   Layers,
 } from 'lucide-react';
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -31,36 +29,11 @@ const ADMIN_EMAIL = 'johnmorrice2022@gmail.com';
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface Stats {
-  diagramsUploaded: number | null;
   probabilityQuestions: number | null;
   feedbackCount: number | null;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-/** Count paragraphs across all learning_content rows that have a diagram_url set */
-async function countDiagramsUploaded(): Promise<number> {
-  const { data, error } = await supabase
-    .from('learning_content')
-    .select('sections');
-
-  if (error || !data) return 0;
-
-  let count = 0;
-  for (const row of data) {
-    const sections = row.sections as unknown as Array<{
-      paragraphs?: Array<{ diagram_url?: string }>;
-    }>;
-    if (!Array.isArray(sections)) continue;
-    for (const section of sections) {
-      if (!Array.isArray(section.paragraphs)) continue;
-      for (const para of section.paragraphs) {
-        if (para.diagram_url && para.diagram_url.trim() !== '') count++;
-      }
-    }
-  }
-  return count;
-}
 
 async function countProbabilityQuestions(): Promise<number> {
   const { count, error } = await supabase
@@ -80,7 +53,6 @@ export default function AdminHub() {
   const [authChecked, setAuthChecked] = useState(false);
   const [authed, setAuthed] = useState(false);
   const [stats, setStats] = useState<Stats>({
-    diagramsUploaded: null,
     probabilityQuestions: null,
     feedbackCount: null,
   });
@@ -105,21 +77,19 @@ export default function AdminHub() {
     if (!authed) return;
 
     Promise.all([
-      countDiagramsUploaded(),
       countProbabilityQuestions(),
       supabase
         .from('question_feedback')
         .select('*', { count: 'exact', head: true })
         .then(({ count }) => count ?? 0),
-    ]).then(([diagramsUploaded, probabilityQuestions, feedbackCount]) => {
-      setStats({ diagramsUploaded, probabilityQuestions, feedbackCount });
+    ]).then(([probabilityQuestions, feedbackCount]) => {
+      setStats({ probabilityQuestions, feedbackCount });
     });
   }, [authed]);
 
   if (!authChecked || !authed) return null;
 
-  const statsLoaded =
-    stats.diagramsUploaded !== null && stats.probabilityQuestions !== null;
+  const statsLoaded = stats.probabilityQuestions !== null;
 
   return (
     <div className="min-h-screen" style={{ background: '#f9f3eb' }}>
@@ -176,30 +146,6 @@ export default function AdminHub() {
             statLabel=""
             statsLoaded={true}
             onClick={() => navigate('/admin/content-pipeline')}
-          />
-
-          {/* Learning Content Editor */}
-          <ToolCard
-            icon={<BookOpen size={18} color="white" />}
-            iconBg="#E23D28"
-            title="Learning Content"
-            description="Edit section headings, paragraph text and styles for any subtopic."
-            stat={null}
-            statLabel=""
-            statsLoaded={true}
-            onClick={() => navigate('/admin/learning-content')}
-          />
-
-          {/* Diagram CMS */}
-          <ToolCard
-            icon={<ImageIcon size={18} color="white" />}
-            iconBg="#E23D28"
-            title="Diagram CMS"
-            description="Upload diagrams to learning content paragraphs by subtopic."
-            stat={stats.diagramsUploaded}
-            statLabel="diagrams uploaded"
-            statsLoaded={statsLoaded}
-            onClick={() => navigate('/admin/diagrams')}
           />
 
           {/* Probability Questions */}

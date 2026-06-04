@@ -17,7 +17,6 @@ import Hub from './pages/Hub';
 import Settings from './pages/Settings';
 import NotFound from './pages/NotFound';
 import AuthCallback from './pages/AuthCallback';
-import AdminDiagrams from './pages/admin/AdminDiagrams';
 import AdminProbabilityQuestions from './pages/admin/AdminProbabilityQuestions';
 import AdminHub from './pages/admin/AdminHub';
 import AdminReviewQueue from './pages/admin/AdminReviewQueue';
@@ -128,11 +127,6 @@ const App = () => (
             <Route path="/admin" element={
               <ProtectedRoute requireOnboarding={false} requireAdmin={true}>
                 <AdminHub />
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/diagrams" element={
-              <ProtectedRoute requireOnboarding={false} requireAdmin={true}>
-                <AdminDiagrams />
               </ProtectedRoute>
             } />
             <Route path="/admin/probability-questions" element={
