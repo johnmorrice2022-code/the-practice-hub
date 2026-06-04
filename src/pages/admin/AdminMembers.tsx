@@ -37,6 +37,7 @@ const AdminMembers = () => {
     link_image_url: '',
   });
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchData = async () => {
     const [linksRes, announcementsRes] = await Promise.all([
@@ -61,38 +62,41 @@ const AdminMembers = () => {
   const addLink = async () => {
     if (!newLink.title || !newLink.youtube_url || !newLink.stream_date) return;
     setSaving(true);
-    await supabase.from('livestream_links').insert(newLink);
-    setNewLink({
-      subject: 'maths',
-      title: '',
-      youtube_url: '',
-      stream_date: '',
-    });
+    setError(null);
+    const { error: err } = await supabase.from('livestream_links').insert(newLink);
+    if (err) { setError(`Add link failed: ${err.message}`); setSaving(false); return; }
+    setNewLink({ subject: 'maths', title: '', youtube_url: '', stream_date: '' });
     await fetchData();
     setSaving(false);
   };
 
   const deleteLink = async (id: string) => {
-    await supabase.from('livestream_links').delete().eq('id', id);
+    setError(null);
+    const { error: err } = await supabase.from('livestream_links').delete().eq('id', id);
+    if (err) { setError(`Delete failed: ${err.message}`); return; }
     await fetchData();
   };
 
   const addAnnouncement = async () => {
     if (!newAnnouncement.title || !newAnnouncement.body) return;
     setSaving(true);
-    await supabase.from('announcements').insert({
+    setError(null);
+    const { error: err } = await supabase.from('announcements').insert({
       title: newAnnouncement.title,
       body: newAnnouncement.body,
       link_url: newAnnouncement.link_url || null,
       link_image_url: newAnnouncement.link_image_url || null,
     });
+    if (err) { setError(`Post failed: ${err.message}`); setSaving(false); return; }
     setNewAnnouncement({ title: '', body: '', link_url: '', link_image_url: '' });
     await fetchData();
     setSaving(false);
   };
 
   const deleteAnnouncement = async (id: string) => {
-    await supabase.from('announcements').delete().eq('id', id);
+    setError(null);
+    const { error: err } = await supabase.from('announcements').delete().eq('id', id);
+    if (err) { setError(`Delete failed: ${err.message}`); return; }
     await fetchData();
   };
 
@@ -110,6 +114,11 @@ const AdminMembers = () => {
     <div className="min-h-screen bg-[#f9f3eb]">
       <div className="max-w-[800px] mx-auto px-4 sm:px-6 py-8 space-y-8">
         <h1 className="text-2xl font-bold">Members Admin</h1>
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
+            {error}
+          </div>
+        )}
 
         {/* Livestream Links */}
         <div
