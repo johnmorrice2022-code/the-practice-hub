@@ -17,6 +17,8 @@ interface Announcement {
   title: string;
   body: string;
   created_at: string;
+  link_url?: string | null;
+  link_image_url?: string | null;
 }
 
 const Members = () => {
@@ -201,6 +203,30 @@ const Members = () => {
                   <p className="text-sm text-muted-foreground whitespace-pre-wrap">
                     {a.body}
                   </p>
+                  {a.link_url && (
+                    <a
+                      href={a.link_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-3 flex items-center gap-3 rounded-lg border border-border overflow-hidden hover:border-[#E23D28] transition-colors group"
+                    >
+                      {a.link_image_url && (
+                        <img
+                          src={a.link_image_url}
+                          alt=""
+                          className="w-20 h-16 object-cover flex-shrink-0"
+                        />
+                      )}
+                      <span className="flex-1 px-3 py-2 min-w-0">
+                        <span className="block text-xs font-semibold text-gray-700 group-hover:text-[#E23D28] transition-colors truncate">
+                          {a.title}
+                        </span>
+                        <span className="block text-xs text-muted-foreground mt-0.5">
+                          Read post →
+                        </span>
+                      </span>
+                    </a>
+                  )}
                   <p className="text-xs text-muted-foreground/60 mt-2">
                     {formatDate(a.created_at)}
                   </p>

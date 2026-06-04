@@ -15,6 +15,8 @@ interface Announcement {
   title: string;
   body: string;
   created_at: string;
+  link_url?: string | null;
+  link_image_url?: string | null;
 }
 
 const AdminMembers = () => {
@@ -31,6 +33,8 @@ const AdminMembers = () => {
   const [newAnnouncement, setNewAnnouncement] = useState({
     title: '',
     body: '',
+    link_url: '',
+    link_image_url: '',
   });
   const [saving, setSaving] = useState(false);
 
@@ -76,8 +80,13 @@ const AdminMembers = () => {
   const addAnnouncement = async () => {
     if (!newAnnouncement.title || !newAnnouncement.body) return;
     setSaving(true);
-    await supabase.from('announcements').insert(newAnnouncement);
-    setNewAnnouncement({ title: '', body: '' });
+    await supabase.from('announcements').insert({
+      title: newAnnouncement.title,
+      body: newAnnouncement.body,
+      link_url: newAnnouncement.link_url || null,
+      link_image_url: newAnnouncement.link_image_url || null,
+    });
+    setNewAnnouncement({ title: '', body: '', link_url: '', link_image_url: '' });
     await fetchData();
     setSaving(false);
   };
@@ -208,6 +217,23 @@ const AdminMembers = () => {
                 setNewAnnouncement((p) => ({ ...p, body: e.target.value }))
               }
               rows={3}
+              className={inputClass}
+            />
+            <p className="text-xs text-muted-foreground pt-1">Blog link — optional</p>
+            <input
+              placeholder="Blog post URL"
+              value={newAnnouncement.link_url}
+              onChange={(e) =>
+                setNewAnnouncement((p) => ({ ...p, link_url: e.target.value }))
+              }
+              className={inputClass}
+            />
+            <input
+              placeholder="Blog image URL (from WordPress media library)"
+              value={newAnnouncement.link_image_url}
+              onChange={(e) =>
+                setNewAnnouncement((p) => ({ ...p, link_image_url: e.target.value }))
+              }
               className={inputClass}
             />
             <button
