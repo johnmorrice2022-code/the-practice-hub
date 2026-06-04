@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import {
   BookOpen, X, Loader2, ChevronDown, ChevronUp,
   Plus, Trash2, Save, HelpCircle, ArrowLeft, PenLine, Bot,
+  ImagePlus, Upload, AlertTriangle, CheckCircle2,
 } from 'lucide-react';
 import { LiveQuestionsTab } from './LiveQuestionsTab';
 
@@ -55,6 +56,10 @@ const STYLE_COLOURS: Record<string, string> = {
   'subheading':  '#6366f1',
   'higher-only': '#7C3AED',
 };
+
+interface SubtopicInfo { subject: string; topic: string; slug: string; }
+const ALLOWED_TYPES = ['image/svg+xml', 'image/png', 'image/jpeg', 'image/jpg'];
+const ALLOWED_EXTENSIONS = '.svg,.png,.jpg,.jpeg';
 
 function styleValue(para: Paragraph): string {
   if (para.is_non_example) return 'watch-out';
@@ -191,6 +196,7 @@ export default function AdminLearningContent() {
   const deleteSection     = (si: number)                      => mutate(s => { s.splice(si, 1); return s; });
   const moveSectionUp     = (si: number)                      => mutate(s => { if (si > 0) [s[si-1], s[si]] = [s[si], s[si-1]]; return s; });
   const moveSectionDown   = (si: number)                      => mutate(s => { if (si < s.length-1) [s[si], s[si+1]] = [s[si+1], s[si]]; return s; });
+  const updateDiagramUrl  = (si: number, pi: number, url: string | null) => mutate(s => { s[si].paragraphs[pi].diagram_url = url; return s; });
 
   // ── Check questions load ──────────────────────────────────────────────────────
 
@@ -279,6 +285,11 @@ export default function AdminLearningContent() {
   };
 
   if (!authChecked || !authed) return null;
+
+  const selectedSubtopicObj = subtopics.find(s => s.slug === selectedSlug) ?? null;
+  const subtopicInfo: SubtopicInfo | null = selectedSubtopicObj
+    ? { subject: selectedSubtopicObj.subject, topic: selectedSubtopicObj.topic, slug: selectedSubtopicObj.slug }
+    : null;
 
   const bySubject = subtopics.reduce<Record<string, Subtopic[]>>((acc, s) => {
     (acc[s.subject] ??= []).push(s);
@@ -379,9 +390,11 @@ export default function AdminLearningContent() {
               <SectionCard key={si}
                 section={section} sectionIndex={si} total={working.length}
                 allSections={working}
+                subtopicInfo={subtopicInfo}
                 onUpdateHeading={v => updateHeading(si, v)}
                 onUpdateParaText={(pi, v) => updateParaText(si, pi, v)}
                 onUpdateParaStyle={(pi, v) => updateParaStyle(si, pi, v)}
+                onUpdateDiagramUrl={(pi, url) => updateDiagramUrl(si, pi, url)}
                 onAddParagraph={() => addParagraph(si)}
                 onDeleteParagraph={pi => deleteParagraph(si, pi)}
                 onDelete={() => deleteSection(si)}
@@ -564,9 +577,11 @@ function CheckQuestionForm({ draft, onChange, onSave, onCancel, saving, label }:
 interface SectionCardProps {
   section: Section; sectionIndex: number; total: number;
   allSections: Section[];
+  subtopicInfo: SubtopicInfo | null;
   onUpdateHeading: (v: string) => void;
   onUpdateParaText: (pi: number, v: string) => void;
   onUpdateParaStyle: (pi: number, v: string) => void;
+  onUpdateDiagramUrl: (pi: number, url: string | null) => void;
   onAddParagraph: () => void;
   onDeleteParagraph: (pi: number) => void;
   onDelete: () => void; onMoveUp: () => void; onMoveDown: () => void;
@@ -578,7 +593,8 @@ interface SectionCardProps {
 
 function SectionCard({
   section, sectionIndex, total, allSections,
-  onUpdateHeading, onUpdateParaText, onUpdateParaStyle,
+  subtopicInfo,
+  onUpdateHeading, onUpdateParaText, onUpdateParaStyle, onUpdateDiagramUrl,
   onAddParagraph, onDeleteParagraph, onDelete, onMoveUp, onMoveDown,
   onAddIndexItem, onDeleteIndexItem, onUpdateIndexLabel, onUpdateIndexTarget,
 }: SectionCardProps) {
@@ -631,9 +647,11 @@ function SectionCard({
       {!collapsed && !isIndex && (
         <div className="p-4 space-y-3">
           {(section.paragraphs ?? []).map((para, pi) => (
-            <ParagraphRow key={pi} para={para} paraIndex={pi}
+            <ParagraphRow key={pi} para={para} paraIndex={pi} sectionIndex={sectionIndex}
+              subtopicInfo={subtopicInfo}
               onUpdateText={v => onUpdateParaText(pi, v)}
               onUpdateStyle={v => onUpdateParaStyle(pi, v)}
+              onUpdateDiagramUrl={url => onUpdateDiagramUrl(pi, url)}
               onDelete={() => onDeleteParagraph(pi)}
             />
           ))}
@@ -650,28 +668,97 @@ function SectionCard({
 // ─── ParagraphRow ─────────────────────────────────────────────────────────────
 
 interface ParagraphRowProps {
-  para: Paragraph; paraIndex: number;
+  para: Paragraph; paraIndex: number; sectionIndex: number;
+  subtopicInfo: SubtopicInfo | null;
   onUpdateText: (v: string) => void;
   onUpdateStyle: (v: string) => void;
+  onUpdateDiagramUrl: (url: string | null) => void;
   onDelete: () => void;
 }
 
-function ParagraphRow({ para, onUpdateText, onUpdateStyle, onDelete }: ParagraphRowProps) {
+function ParagraphRow({ para, paraIndex, sectionIndex, subtopicInfo, onUpdateText, onUpdateStyle, onUpdateDiagramUrl, onDelete }: ParagraphRowProps) {
   const sv = styleValue(para);
   const colour = STYLE_COLOURS[sv] ?? 'transparent';
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'error'>('idle');
+  const [uploadErrMsg, setUploadErrMsg] = useState('');
+
+  async function handleUpload(file: File) {
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      setUploadStatus('error');
+      setUploadErrMsg('File must be SVG, PNG, or JPG.');
+      return;
+    }
+    if (!subtopicInfo) return;
+    setUploadStatus('uploading');
+    const subject = subtopicInfo.subject.toLowerCase().replace(/\s+/g, '-');
+    const topic = subtopicInfo.topic.toLowerCase().replace(/\s+/g, '-');
+    const ext = file.name.split('.').pop();
+    const filename = `para-${sectionIndex}-${paraIndex}-${Date.now()}.${ext}`;
+    const storagePath = `diagrams/${subject}/${topic}/${subtopicInfo.slug}/${filename}`;
+    const { error: storageError } = await supabase.storage.from('diagrams').upload(storagePath, file, { upsert: true });
+    if (storageError) {
+      setUploadStatus('error');
+      setUploadErrMsg(storageError.message);
+      return;
+    }
+    const { data: urlData } = supabase.storage.from('diagrams').getPublicUrl(storagePath);
+    onUpdateDiagramUrl(urlData.publicUrl);
+    setUploadStatus('idle');
+  }
 
   return (
     <div className="flex gap-2 items-start">
       <div className="w-1 rounded-full mt-2 flex-shrink-0 self-stretch min-h-[2.5rem]"
         style={{ background: colour === 'transparent' ? '#e5e7eb' : colour, opacity: colour === 'transparent' ? 0.3 : 1 }} />
-      <div className="flex-1">
+      <div className="flex-1 space-y-1.5">
         <textarea value={para.text} onChange={e => onUpdateText(e.target.value)} rows={3}
           className="w-full text-sm text-gray-700 border rounded-lg px-3 py-2 resize-y focus:outline-none focus:ring-2 transition"
           style={{ borderColor: 'rgba(0,0,0,0.10)' }}
           placeholder="Paragraph text… (use $…$ for inline LaTeX, $$…$$ for display)" />
-        {para.diagram_url && (
-          <p className="text-[11px] text-gray-400 mt-0.5">📎 Has diagram — edit in Diagram CMS</p>
+
+        {para.diagram_url ? (
+          <div className="flex items-center gap-3 p-2.5 rounded-lg bg-gray-50 border border-gray-100">
+            <img src={para.diagram_url} alt="Diagram" className="w-16 h-12 object-contain rounded border border-gray-200 bg-white flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1 mb-1">
+                <CheckCircle2 size={11} className="text-green-500 flex-shrink-0" />
+                <span className="text-[11px] font-medium text-green-700">Diagram attached</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button onClick={() => fileInputRef.current?.click()} disabled={uploadStatus === 'uploading'}
+                  className="text-[11px] text-amber-600 hover:text-amber-700 font-medium flex items-center gap-1 transition-colors disabled:opacity-50">
+                  {uploadStatus === 'uploading' ? <Loader2 size={10} className="animate-spin" /> : <Upload size={10} />}
+                  {uploadStatus === 'uploading' ? 'Uploading…' : 'Replace'}
+                </button>
+                <span className="text-gray-200">|</span>
+                <button onClick={() => onUpdateDiagramUrl(null)}
+                  className="text-[11px] text-red-400 hover:text-red-600 font-medium flex items-center gap-1 transition-colors">
+                  <Trash2 size={10} /> Remove
+                </button>
+              </div>
+              {uploadStatus === 'error' && (
+                <p className="text-[10px] text-red-400 mt-1 flex items-center gap-1"><AlertTriangle size={10} />{uploadErrMsg}</p>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div>
+            <button onClick={() => { setUploadStatus('idle'); fileInputRef.current?.click(); }}
+              disabled={uploadStatus === 'uploading'}
+              className="flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1.5 rounded-lg border border-dashed transition-colors disabled:opacity-40"
+              style={{ borderColor: uploadStatus === 'error' ? '#ef4444' : '#d1d5db', color: uploadStatus === 'error' ? '#ef4444' : '#9ca3af' }}>
+              {uploadStatus === 'uploading' ? <Loader2 size={11} className="animate-spin" /> : <ImagePlus size={11} />}
+              {uploadStatus === 'uploading' ? 'Uploading…' : 'Add diagram'}
+            </button>
+            {uploadStatus === 'error' && (
+              <p className="text-[10px] text-red-400 mt-0.5 flex items-center gap-1"><AlertTriangle size={10} />{uploadErrMsg}</p>
+            )}
+          </div>
         )}
+
+        <input type="file" ref={fileInputRef} accept={ALLOWED_EXTENSIONS} className="hidden"
+          onChange={e => { const f = e.target.files?.[0]; if (f) handleUpload(f); e.target.value = ''; }} />
       </div>
       <div className="flex flex-col gap-1.5 flex-shrink-0 pt-1">
         <select value={sv} onChange={e => onUpdateStyle(e.target.value)}
