@@ -70,6 +70,22 @@ ON storage.objects FOR ALL TO authenticated
 USING (bucket_id = 'diagrams')
 WITH CHECK (bucket_id = 'diagrams');
 ```
+
+### Table RLS — admin write policies
+`announcements` and `livestream_links` have RLS enabled. Admin write access uses `auth.email()`:
+```sql
+CREATE POLICY "Admin can manage livestream_links"
+  ON public.livestream_links FOR ALL TO authenticated
+  USING (auth.email() = 'johnmorrice2022@gmail.com')
+  WITH CHECK (auth.email() = 'johnmorrice2022@gmail.com');
+
+CREATE POLICY "Admin can manage announcements"
+  ON public.announcements FOR ALL TO authenticated
+  USING (auth.email() = 'johnmorrice2022@gmail.com')
+  WITH CHECK (auth.email() = 'johnmorrice2022@gmail.com');
+```
+If these tables are ever recreated, re-run these policies or writes will silently fail.
+
 **Region:** West Europe (London) — eu-west-2
 
 ---
@@ -91,7 +107,7 @@ WITH CHECK (bucket_id = 'diagrams');
 | `session_results` | Progress tracking — one row per completed session |
 | `subscriptions` | Stripe subscription per user |
 | `livestream_links` | Weekly YouTube stream links per subject |
-| `announcements` | Admin announcements visible to all subscribers |
+| `announcements` | Admin announcements visible to all subscribers — optional `link_url` and `link_image_url` columns for blog post previews |
 
 ### Key subtopic fields
 - `subject` — Maths or Physics
@@ -244,6 +260,7 @@ The `system_prompt` in `prompt_config` is injected into the paper prompt builder
 ### AuthContext pattern
 `src/contexts/AuthContext.tsx` — key design decisions:
 - `fetchUserData` takes an `initialLoad` flag — loading states only toggled on first load, never on `refreshProfile()` calls. Without this, silent refreshes cause redirect guard flicker.
+- `initialLoadDoneRef` (useRef) tracks whether the first load has run. Subsequent session changes (e.g. `TOKEN_REFRESHED` when switching tabs) call `fetchUserData` with `initialLoad: false`, so `ProtectedRoute` never sees a loading state and never unmounts the page. Without this, switching browser tabs would remount pages and clear all form state.
 - Both `subscriptions` and `profiles` fetched in parallel via `Promise.all`
 - `.maybeSingle()` used throughout — eliminates 406 errors for users with no row
 - Daily reset logic: if `questions_used_date` is not today, `questionsUsed` is treated as 0
