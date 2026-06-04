@@ -271,7 +271,11 @@ Mirrors UK GCSE textbook convention: Foundation students see everything; Higher 
 
 ### Admin CMS architecture
 
-Single entry point: `/admin` (AdminHub) → cards link to all tools.
+Single entry point: `/admin` (AdminHub) → three labelled sections:
+
+**Content Tools:** Content Pipeline, Review Queue, Members Area, Question Feedback.
+**Maths Tools:** Probability Questions (live) + coming soon authoring cards (Trig, Vector, Higher Probability, Frequency Trees & Venn).
+**Physics Tools:** placeholder section — ready for physics-specific authoring tools as they are built.
 
 **Content Pipeline** (`/admin/content-pipeline`) is the primary workflow entry point for new subtopics:
 - Create subtopic rows (subject, topic, name, slug, tier — exam_board auto-set from subject)
@@ -325,7 +329,6 @@ src/
       AdminLearningContent.tsx    -- 4 tabs: Learning Content (with inline diagram upload), Check Questions, Live Seeded, Live AI; ?subtopicId= param
       AdminReviewQueue.tsx        -- Maths/Physics toggle; ?subject=&subtopicId= URL params for pre-filtering
       AdminProbabilityQuestions.tsx
-      AdminDiagrams.tsx           -- works for all subjects
       AdminMembers.tsx
       AdminFeedback.tsx           -- review flagged questions
       LiveQuestionsTab.tsx        -- shared component for Live Seeded + Live AI tabs
