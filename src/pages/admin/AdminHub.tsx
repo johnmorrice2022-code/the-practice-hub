@@ -128,97 +128,110 @@ export default function AdminHub() {
       </div>
 
       {/* ── Body ── */}
-      <div className="max-w-4xl mx-auto px-6 py-10">
-        {/* Section label */}
-        <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 mb-4">
-          Content tools
-        </p>
+      <div className="max-w-4xl mx-auto px-6 py-10 space-y-10">
 
-        {/* ── Live tools ── */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-10">
-          {/* Content Pipeline */}
-          <ToolCard
-            icon={<Layers size={18} color="white" />}
-            iconBg="#E23D28"
-            title="Content Pipeline"
-            description="Create subtopics, manage prompt config, track content status and go live."
-            stat={null}
-            statLabel=""
-            statsLoaded={true}
-            onClick={() => navigate('/admin/content-pipeline')}
-          />
+        {/* ── Content Tools ── */}
+        <section>
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 mb-4">
+            Content tools
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <ToolCard
+              icon={<Layers size={18} color="white" />}
+              iconBg="#E23D28"
+              title="Content Pipeline"
+              description="Create subtopics, manage prompt config, track content status and go live."
+              stat={null}
+              statLabel=""
+              statsLoaded={true}
+              onClick={() => navigate('/admin/content-pipeline')}
+            />
+            <ToolCard
+              icon={<Check size={18} color="white" />}
+              iconBg="#22c55e"
+              title="Review Queue"
+              description="Generate, review and publish AI questions for any subtopic."
+              stat={null}
+              statLabel=""
+              statsLoaded={true}
+              onClick={() => navigate('/admin/review-queue')}
+            />
+            <ToolCard
+              icon={<Megaphone size={18} color="white" />}
+              iconBg="#E23D28"
+              title="Members Area"
+              description="Post announcements and manage livestream links for subscribers."
+              stat={null}
+              statLabel=""
+              statsLoaded={true}
+              onClick={() => navigate('/admin/members')}
+            />
+            <ToolCard
+              icon={<Flag size={18} color="white" />}
+              iconBg="#E23D28"
+              title="Question Feedback"
+              description="Review flagged questions where students felt marking was wrong or unclear."
+              stat={stats.feedbackCount}
+              statLabel="flags to review"
+              statsLoaded={stats.feedbackCount !== null}
+              onClick={() => navigate('/admin/feedback')}
+            />
+          </div>
+        </section>
 
-          {/* Probability Questions */}
-          <ToolCard
-            icon={<GitBranch size={18} color="white" />}
-            iconBg="#E23D28"
-            title="Probability Questions"
-            description="Author probability tree questions for Foundation students."
-            stat={stats.probabilityQuestions}
-            statLabel="questions authored"
-            statsLoaded={statsLoaded}
-            onClick={() => navigate('/admin/probability-questions')}
-          />
-          {/* Review Queue */}
-          <ToolCard
-            icon={<Check size={18} color="white" />}
-            iconBg="#22c55e"
-            title="Review Queue"
-            description="Generate, review and publish AI questions for Maths subtopics."
-            stat={null}
-            statLabel="questions pending"
-            statsLoaded={true}
-            onClick={() => navigate('/admin/review-queue')}
-          />
+        {/* ── Maths Tools ── */}
+        <section>
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 mb-4">
+            Maths tools
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <ToolCard
+              icon={<GitBranch size={18} color="white" />}
+              iconBg="#E23D28"
+              title="Probability Questions"
+              description="Author probability tree questions for Foundation students."
+              stat={stats.probabilityQuestions}
+              statLabel="questions authored"
+              statsLoaded={statsLoaded}
+              onClick={() => navigate('/admin/probability-questions')}
+            />
+            <ComingSoonCard
+              icon={<Triangle size={16} color="#9ca3af" />}
+              title="Trig Questions"
+              description="Author trigonometry diagram questions."
+            />
+            <ComingSoonCard
+              icon={<ArrowRight size={16} color="#9ca3af" />}
+              title="Vector Questions"
+              description="Author vector diagram questions."
+            />
+            <ComingSoonCard
+              icon={<GitBranch size={16} color="#9ca3af" />}
+              title="Higher Probability"
+              description="Extend probability authoring to Higher tier subtopics."
+            />
+            <ComingSoonCard
+              icon={<LayoutDashboard size={16} color="#9ca3af" />}
+              title="Frequency Trees & Venn"
+              description="Author frequency tree and Venn diagram questions."
+            />
+          </div>
+        </section>
 
-          {/* Members Area */}
-          <ToolCard
-            icon={<Megaphone size={18} color="white" />}
-            iconBg="#E23D28"
-            title="Members Area"
-            description="Post announcements and manage livestream links for subscribers."
-            stat={null}
-            statLabel=""
-            statsLoaded={true}
-            onClick={() => navigate('/admin/members')}
-          />
+        {/* ── Physics Tools ── */}
+        <section>
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 mb-4">
+            Physics tools
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <ComingSoonCard
+              icon={<LayoutDashboard size={16} color="#9ca3af" />}
+              title="Physics Authoring"
+              description="Physics-specific question authoring tools coming soon."
+            />
+          </div>
+        </section>
 
-          {/*{/* Question Feedback */}
-          <ToolCard
-            icon={<Flag size={18} color="white" />}
-            iconBg="#E23D28"
-            title="Question Feedback"
-            description="Review flagged questions where students felt marking was wrong or questions were unclear."
-            stat={stats.feedbackCount}
-            statLabel="flags to review"
-            statsLoaded={stats.feedbackCount !== null}
-            onClick={() => navigate('/admin/feedback')}
-          />
-        </div>
-
-        {/* ── Coming soon ── */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <ComingSoonCard
-            icon={<Triangle size={16} color="#9ca3af" />}
-            title="Trig Questions"
-            description="Author trigonometry diagram questions."
-          />
-          <ComingSoonCard
-            icon={<ArrowRight size={16} color="#9ca3af" />}
-            title="Vector Questions"
-            description="Author vector diagram questions."
-          />
-          <ComingSoonCard
-            icon={<GitBranch size={16} color="#9ca3af" />}
-            title="Higher Probability"
-            description="Extend probability authoring to Higher tier subtopics."
-          />
-          <ComingSoonCard
-            icon={<LayoutDashboard size={16} color="#9ca3af" />}
-            title="Frequency Trees & Venn"
-            description="Author frequency tree and Venn diagram questions."
-          />
-        </div>
       </div>
     </div>
   );
