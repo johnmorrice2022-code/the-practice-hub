@@ -282,13 +282,15 @@ Single entry point: `/admin` (AdminHub) → cards link to all tools.
 - Deep links into Learning Content Editor and Review Queue, pre-filtered to that subtopic via URL params
 
 **Learning Content Editor** (`/admin/learning-content`) has 4 tabs per subtopic:
-1. **Learning Content** — sections and styled paragraphs
+1. **Learning Content** — sections and styled paragraphs; each paragraph has inline diagram upload (SVG/PNG/JPG → `diagrams/` Storage bucket). Upload, replace, and remove without leaving the editor. Diagram URL is saved with the normal "Save changes" button.
 2. **Check Questions** — up to 5 MCQ comprehension checks (full CRUD)
 3. **Live Seeded** — all seeded practice questions; inline edit + delete
 4. **Live AI** — all approved AI practice questions; inline edit + delete
 
 Accepts `?subtopicId=UUID` to pre-select the subtopic (used by Content Pipeline deep links).
 Accepts `?tab=checks` to jump directly to the Check Questions tab.
+
+**Diagram upload flow (inline):** file → Supabase Storage (`diagrams/{subject}/{topic}/{slug}/para-{si}-{pi}-{ts}.{ext}`) → public URL stored in `working[section][para].diagram_url` → saved on "Save changes". Orphaned storage files can occur if the editor is closed before saving — acceptable trade-off.
 
 **Review Queue** (`/admin/review-queue`) accepts `?subject=Physics&subtopicId=UUID` for pre-filtering from Content Pipeline.
 
@@ -320,7 +322,7 @@ src/
     admin/
       AdminHub.tsx
       AdminContentPipeline.tsx    -- create subtopics, edit prompt_config, toggle active, status view, deep links
-      AdminLearningContent.tsx    -- 4 tabs: Learning Content, Check Questions, Live Seeded, Live AI; ?subtopicId= param
+      AdminLearningContent.tsx    -- 4 tabs: Learning Content (with inline diagram upload), Check Questions, Live Seeded, Live AI; ?subtopicId= param
       AdminReviewQueue.tsx        -- Maths/Physics toggle; ?subject=&subtopicId= URL params for pre-filtering
       AdminProbabilityQuestions.tsx
       AdminDiagrams.tsx           -- works for all subjects
@@ -445,7 +447,7 @@ See [SECURITY_AUDIT.md](SECURITY_AUDIT.md) — living checklist of all known sec
 
 ---
 
-## Current Priorities (as of 01/06/2026)
+## Current Priorities (as of 04/06/2026)
 
 ### Immediate next session
 - [ ] Activate Specific Heat Capacity subtopic end-to-end (AQA doc already uploaded this session)
