@@ -153,6 +153,8 @@ function ProTip({ text }: { text: string }) {
 
 function WorkedExample({ text }: { text: string }) {
   const lines = text.split('\n').filter(l => l.trim() !== '');
+  // First line is treated as the problem statement when it doesn't begin with a step marker
+  const firstIsQuestion = lines.length > 1 && !/^Step \d/i.test(lines[0].trim());
   return (
     <div
       className="rounded-lg px-5 py-4"
@@ -173,7 +175,10 @@ function WorkedExample({ text }: { text: string }) {
         {lines.map((line, i) => (
           <div
             key={i}
-            className="text-[14.5px] leading-[1.85] text-foreground question-text"
+            className={`text-[14.5px] leading-[1.85] text-foreground question-text${
+              firstIsQuestion && i === 0 ? ' font-medium pb-2 mb-1' : ''
+            }`}
+            style={firstIsQuestion && i === 0 ? { borderBottom: '1px solid #BFDBFE' } : undefined}
             dangerouslySetInnerHTML={{ __html: renderMath(line) }}
           />
         ))}
