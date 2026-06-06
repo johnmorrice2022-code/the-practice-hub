@@ -151,10 +151,50 @@ function ProTip({ text }: { text: string }) {
   );
 }
 
+// Groups consecutive equation + continuation lines into a KaTeX aligned block so
+// all = signs sit on the same column (standard mathematical typesetting convention).
+function alignEquationLines(lines: string[]): string[] {
+  const result: string[] = [];
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i].trim();
+    // A "pure equation line" starts and ends with $ with no $ inside, and contains =
+    const isPureEq =
+      line.startsWith('$') && line.endsWith('$') &&
+      !line.slice(1, -1).includes('$') &&
+      line.slice(1, -1).includes('=');
+    const nextIsCont = i + 1 < lines.length && lines[i + 1].trim().startsWith('$=');
+
+    if (isPureEq && nextIsCont) {
+      const group = [line];
+      let j = i + 1;
+      while (j < lines.length && lines[j].trim().startsWith('$=')) {
+        group.push(lines[j].trim());
+        j++;
+      }
+      // Build $$\begin{aligned}...\end{aligned}$$ with & before each =
+      const parts = group.map((gl, idx) => {
+        const inner = gl.slice(1, -1); // strip outer $
+        if (idx === 0) {
+          const eqIdx = inner.indexOf('=');
+          return `${inner.slice(0, eqIdx).trimEnd()} &= ${inner.slice(eqIdx + 1).trimStart()}`;
+        }
+        return `&= ${inner.slice(inner.indexOf('=') + 1).trimStart()}`;
+      });
+      result.push(`$$\\begin{aligned}${parts.join(' \\\\ ')}\\end{aligned}$$`);
+      i = j;
+    } else {
+      result.push(line);
+      i++;
+    }
+  }
+  return result;
+}
+
 function WorkedExample({ text }: { text: string }) {
-  const lines = text.split('\n').filter(l => l.trim() !== '');
-  // First line is treated as the problem statement when it doesn't begin with a step marker
-  const firstIsQuestion = lines.length > 1 && !/^Step \d/i.test(lines[0].trim());
+  const rawLines = text.split('\n').filter(l => l.trim() !== '');
+  const firstIsQuestion = rawLines.length > 1 && !/^Step \d/i.test(rawLines[0].trim());
+  const lines = alignEquationLines(rawLines);
   return (
     <div
       className="rounded-lg px-5 py-4"
