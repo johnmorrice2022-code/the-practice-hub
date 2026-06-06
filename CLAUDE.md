@@ -280,7 +280,8 @@ Stored in `sections[].paragraphs[].style` (or `is_non_example: true` for legacy 
 | _(none)_ | Plain body text |
 | `key-point` | Amber left-border block |
 | `exam-tip` | Green bordered block with "Exam tip" label |
-| `watch-out` | Red bordered block with "Watch out" label |
+| `watch-out` | Green bordered block with "Pro tip" label (data value unchanged for backward compat; legacy `is_non_example: true` also maps here) |
+| `worked-example` | Light blue block with "Worked example" label — text split on `\n`, each line rendered as a separate row |
 | `subheading` | Bold inline subheading |
 | `higher-only` | Purple block with "Higher ▲" label — visible to all tiers, signals Higher content |
 

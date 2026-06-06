@@ -4,9 +4,8 @@ import {
   ChevronRight,
   ChevronLeft,
   X,
-  AlertTriangle,
   CheckCircle2,
-  BookOpen,
+  Lightbulb,
 } from 'lucide-react';
 import InteractiveSection from '@/components/learn/InteractiveSection';
 
@@ -14,7 +13,7 @@ interface Paragraph {
   text: string;
   diagram_url?: string | null;
   is_non_example?: boolean;
-  style?: 'key-point' | 'exam-tip' | 'watch-out' | 'subheading' | 'higher-only';
+  style?: 'key-point' | 'exam-tip' | 'watch-out' | 'subheading' | 'higher-only' | 'worked-example';
 }
 
 interface IndexItem {
@@ -126,28 +125,59 @@ function ExamTip({ text }: { text: string }) {
   );
 }
 
-function WatchOut({ text }: { text: string }) {
+function ProTip({ text }: { text: string }) {
   return (
     <div
       className="rounded-lg px-5 py-4"
       style={{
-        background: '#FDF5F3',
-        border: '1px solid #EAC9C1',
+        background: '#F0FAF4',
+        border: '1px solid #A8D5B8',
       }}
     >
       <div className="flex items-center gap-1.5 mb-2">
-        <AlertTriangle size={13} style={{ color: '#B5564D' }} />
+        <Lightbulb size={13} style={{ color: '#2D7A4F' }} />
         <span
           className="text-[11px] font-semibold uppercase tracking-wide"
-          style={{ color: '#B5564D' }}
+          style={{ color: '#2D7A4F' }}
         >
-          Watch out
+          Pro tip
         </span>
       </div>
       <div
         className="text-[14.5px] leading-[1.85] text-foreground m-0 question-text"
         dangerouslySetInnerHTML={{ __html: renderMath(text) }}
       />
+    </div>
+  );
+}
+
+function WorkedExample({ text }: { text: string }) {
+  const lines = text.split('\n').filter(l => l.trim() !== '');
+  return (
+    <div
+      className="rounded-lg px-5 py-4"
+      style={{
+        background: '#EFF6FF',
+        border: '1px solid #BFDBFE',
+      }}
+    >
+      <div className="flex items-center gap-1.5 mb-3">
+        <span
+          className="text-[11px] font-semibold uppercase tracking-wide"
+          style={{ color: '#2563EB' }}
+        >
+          Worked example
+        </span>
+      </div>
+      <div className="space-y-2">
+        {lines.map((line, i) => (
+          <div
+            key={i}
+            className="text-[14.5px] leading-[1.85] text-foreground question-text"
+            dangerouslySetInnerHTML={{ __html: renderMath(line) }}
+          />
+        ))}
+      </div>
     </div>
   );
 }
@@ -213,7 +243,9 @@ function StyledParagraph({ para }: { para: Paragraph }) {
       case 'exam-tip':
         return <ExamTip text={para.text} />;
       case 'watch-out':
-        return <WatchOut text={para.text} />;
+        return <ProTip text={para.text} />;
+      case 'worked-example':
+        return <WorkedExample text={para.text} />;
       case 'subheading':
         return <Subheading text={para.text} />;
       case 'higher-only':

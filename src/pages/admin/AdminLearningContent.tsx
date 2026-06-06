@@ -14,7 +14,7 @@ interface Paragraph {
   text: string;
   diagram_url?: string | null;
   is_non_example?: boolean;
-  style?: 'key-point' | 'exam-tip' | 'watch-out' | 'subheading' | 'higher-only';
+  style?: 'key-point' | 'exam-tip' | 'watch-out' | 'subheading' | 'higher-only' | 'worked-example';
 }
 interface IndexItem {
   label: string;
@@ -40,21 +40,23 @@ interface LearningRow {
 }
 
 const STYLES = [
-  { value: 'normal',      label: 'Normal' },
-  { value: 'key-point',   label: 'Key point' },
-  { value: 'exam-tip',    label: 'Exam tip' },
-  { value: 'watch-out',   label: 'Watch out' },
-  { value: 'subheading',  label: 'Subheading' },
-  { value: 'higher-only', label: 'Higher only' },
+  { value: 'normal',          label: 'Normal' },
+  { value: 'key-point',       label: 'Key point' },
+  { value: 'exam-tip',        label: 'Exam tip' },
+  { value: 'watch-out',       label: 'Pro tip' },
+  { value: 'worked-example',  label: 'Worked example' },
+  { value: 'subheading',      label: 'Subheading' },
+  { value: 'higher-only',     label: 'Higher only' },
 ] as const;
 
 const STYLE_COLOURS: Record<string, string> = {
-  'normal':      'transparent',
-  'key-point':   '#E23D28',
-  'exam-tip':    '#2D9A5F',
-  'watch-out':   '#F5A623',
-  'subheading':  '#6366f1',
-  'higher-only': '#7C3AED',
+  'normal':         'transparent',
+  'key-point':      '#E23D28',
+  'exam-tip':       '#2D9A5F',
+  'watch-out':      '#2D7A4F',
+  'worked-example': '#2563EB',
+  'subheading':     '#6366f1',
+  'higher-only':    '#7C3AED',
 };
 
 interface SubtopicInfo { subject: string; topic: string; slug: string; }
