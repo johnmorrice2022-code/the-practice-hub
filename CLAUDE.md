@@ -281,7 +281,7 @@ Stored in `sections[].paragraphs[].style` (or `is_non_example: true` for legacy 
 | `key-point` | Amber left-border block |
 | `exam-tip` | Green bordered block with "Exam tip" label |
 | `watch-out` | Green bordered block with "Pro tip" label (data value unchanged for backward compat; legacy `is_non_example: true` also maps here) |
-| `worked-example` | Light blue block with "Worked example" label — text split on `\n`, each line rendered as a separate row |
+| `worked-example` | Light blue block with "Worked example" label — text split on `\n`, each line rendered as a separate row. First line (when it doesn't start with "Step N:") is styled as the problem statement (medium weight, divider below). Consecutive pure-equation lines (`$...$`) followed by continuation lines (`$= ...`) are auto-grouped into a KaTeX `aligned` block so all `=` signs align on the same column. |
 | `subheading` | Bold inline subheading |
 | `higher-only` | Purple block with "Higher ▲" label — visible to all tiers, signals Higher content |
 
@@ -297,6 +297,7 @@ Single entry point: `/admin` (AdminHub) → three labelled sections:
 
 **Content Pipeline** (`/admin/content-pipeline`) is the primary workflow entry point for new subtopics:
 - Create subtopic rows (subject, topic, name, slug, tier — exam_board auto-set from subject)
+- **Edit subtopic name** inline — text input with Save button in the expanded panel
 - Edit `prompt_config` (system_prompt + marking_guidance) inline — no SQL needed
 - Toggle `active` (Draft / Live) with one tap — no SQL needed
 - Copy UUID — eliminates Supabase dashboard hunting
@@ -456,19 +457,29 @@ Every feature must pass this test: if a Year 10 Foundation student who is alread
   - Built from lesson PowerPoint (06/06/2026) — activate when ready
 
 ### Factory process for each new Physics subtopic
-1. Upload AQA source document to session (for style and spec reference)
+1. Share AQA source document — upload to session OR read from Google Drive (Drive MCP available: `johnmorrice2022@gmail.com`)
 2. Create subtopic in **Content Pipeline** (or confirm it already exists) — copy UUID
 3. Set `system_prompt` + `marking_guidance` in **Content Pipeline** prompt config editor
-4. Claude writes learning content + 5 check questions in session → produces SQL
-5. Run SQL — use direct `'[...]'::jsonb` cast (see SQL Patterns above)
-6. Verify with `jsonb_typeof` / `jsonb_array_length`
-7. Edit/tweak in **Learning Content Editor** (Learning Content + Check Questions tabs)
-8. Generate 20 questions in **Review Queue** (pre-filtered via Content Pipeline link) → review and publish
-9. Add diagrams via **Diagram CMS** over time
-10. Set `active = true` via **Content Pipeline** toggle
+4. Claude writes learning content + 5 check questions in session → inserts directly via Supabase service role (Node.js script to `/tmp/`) — no SQL paste needed
+5. Verify in **Learning Content Editor** and tweak as needed
+6. Generate 20 questions in **Review Queue** (pre-filtered via Content Pipeline link) → review and publish
+7. Add diagrams via **Diagram CMS** over time
+8. Set `active = true` via **Content Pipeline** toggle
 
 ### Known Physics issue (to fix)
 Physics questions show "No calculator" label — all AQA Physics papers allow calculators. Fix needed in `PracticeRoom.tsx` (calculator mode default for Physics) and `generate-questions` output (`calculator_allowed: true` for Physics).
+
+---
+
+## Database Scripting Pattern
+Claude can update the database directly from VS Code using the Supabase JS client with the service role key. This is used for bulk data operations (content inserts, migrations, style updates) that would be impractical via the Supabase dashboard.
+
+**Pattern:** Write a Node.js ESM script to `/tmp/script.mjs`, run with `SUPA_SERVICE_KEY=... node --input-type=module < /tmp/script.mjs`. The service role key bypasses RLS — never commit it to code.
+
+**Service role key retrieval:** `npx supabase projects api-keys --project-ref wgcxwtgspmfnzugszhdc` (requires Supabase CLI login).
+
+## Google Drive Access
+Claude has MCP access to John's Google Drive (`johnmorrice2022@gmail.com`) within VS Code sessions. Use `mcp__claude_ai_Google_Drive__read_file_content` to read lesson materials (PowerPoints, PDFs) for content authoring. Tool schema must be loaded via `ToolSearch` before first use each session.
 
 ---
 
@@ -477,12 +488,20 @@ See [SECURITY_AUDIT.md](SECURITY_AUDIT.md) — living checklist of all known sec
 
 ---
 
-## Current Priorities (as of 04/06/2026)
+## Current Priorities (as of 06/06/2026)
 
-### Immediate next session
-- [ ] Activate Specific Heat Capacity subtopic end-to-end (AQA doc already uploaded this session)
-- [ ] Fix Physics "No calculator" label
+### Immediate next session — Security (do before any marketing)
+Security audit sessions planned (see SECURITY_AUDIT.md for full detail):
+- **Session 1 — Critical:** CRIT-3 (re-enable JWT on edge functions), CRIT-1 (hardcoded anon key), CRIT-4 (server-side question limit), CRIT-2 (RLS on admin tables), MED-1 (XSS in renderMath), MED-5 (cap count param)
+- **Session 2 — Quick wins + fragile:** MAINT-1/2/3, LOW-1, MAINT-6, MED-2/3, FRAG-1/2/5
+- **Session 3 — Refactor:** DUP-2 (extract prompt builders to _shared), DUP-1 (centralise renderMath), FRAG-3
+
+### Content
+- [ ] Activate Specific Latent Heat subtopic (content present, needs review questions + activation)
+- [ ] Activate Specific Heat Capacity subtopic (content + checks complete, needs review questions + activation)
+- [ ] Fix Physics "No calculator" label — `PracticeRoom.tsx` + `generate-questions`
 - [ ] Extend seeded question authoring form for Physics
+- [ ] Delete exposed Stripe test key from Google Doc ("Untitled document" in Drive)
 
 ### Before marketing
 - [ ] ICO registration (ico.org.uk, £40/year)
@@ -494,6 +513,7 @@ See [SECURITY_AUDIT.md](SECURITY_AUDIT.md) — living checklist of all known sec
 ### Before Stripe goes live
 - [ ] Create live mode Stripe products and payment links
 - [ ] Update 4 payment links in `PracticeRoom.tsx`
+- [ ] Update 4 payment links in `PricingCards.tsx`
 - [ ] Update Manage subscription portal link in `Members.tsx`
 - [ ] Set live `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` in Supabase secrets
 - [ ] Create live mode webhook destination in Stripe
