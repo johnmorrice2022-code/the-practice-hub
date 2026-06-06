@@ -443,8 +443,12 @@ Every feature must pass this test: if a Year 10 Foundation student who is alread
 ## Physics Content Pipeline
 
 ### Live Physics subtopics
-- **Internal Energy and Specific Latent Heat** (`internal-energy-specific-latent-heat`) — LIVE ✅
+- **Internal Energy and Changes of State** (`internal-energy-changes-of-state`) — LIVE ✅
   - ID: `5f604bc6-d7b1-45f5-ac28-c27bab593aec`
+  - Sections: What is Internal Energy?, Changes of State, Why Temp Stays Constant, Specific Heat Capacity, Evaporation
+- **Specific Latent Heat** (`specific-latent-heat`) — DRAFT (content present, needs activation)
+  - ID: `eae3af22-a15f-4c2c-b223-cbe39b6abbaa`
+  - Sections: Specific Latent Heat (split from the above on 06/06/2026)
 
 ### Factory process for each new Physics subtopic
 1. Upload AQA source document to session (for style and spec reference)
