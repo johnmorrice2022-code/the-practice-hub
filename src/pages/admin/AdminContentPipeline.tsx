@@ -77,6 +77,9 @@ export default function AdminContentPipeline() {
   const [promptDrafts, setPromptDrafts] = useState<Record<string, PromptDraft>>({});
   const [savingPrompt, setSavingPrompt] = useState<Set<string>>(new Set());
   const [savedPrompt, setSavedPrompt] = useState<Set<string>>(new Set());
+  const [nameDrafts, setNameDrafts] = useState<Record<string, string>>({});
+  const [savingName, setSavingName] = useState<Set<string>>(new Set());
+  const [savedName, setSavedName] = useState<Set<string>>(new Set());
   const [togglingActive, setTogglingActive] = useState<Set<string>>(new Set());
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
@@ -137,18 +140,22 @@ export default function AdminContentPipeline() {
 
   useEffect(() => {
     if (!expandedId) return;
-    if (promptDrafts[expandedId]) return;
     const row = rows.find(r => r.id === expandedId);
     if (!row) return;
-    const pc = row.prompt_config ?? {};
-    setPromptDrafts(prev => ({
-      ...prev,
-      [expandedId]: {
-        system_prompt: pc.system_prompt ?? '',
-        marking_guidance: pc.marking_guidance ?? '',
-      },
-    }));
-  }, [expandedId, rows, promptDrafts]);
+    if (!promptDrafts[expandedId]) {
+      const pc = row.prompt_config ?? {};
+      setPromptDrafts(prev => ({
+        ...prev,
+        [expandedId]: {
+          system_prompt: pc.system_prompt ?? '',
+          marking_guidance: pc.marking_guidance ?? '',
+        },
+      }));
+    }
+    if (nameDrafts[expandedId] === undefined) {
+      setNameDrafts(prev => ({ ...prev, [expandedId]: row.subtopic_name }));
+    }
+  }, [expandedId, rows, promptDrafts, nameDrafts]);
 
   function updateDraft(id: string, field: keyof PromptDraft, value: string) {
     setPromptDrafts(prev => ({ ...prev, [id]: { ...prev[id], [field]: value } }));
@@ -167,6 +174,21 @@ export default function AdminContentPipeline() {
       setRows(prev => prev.map(r => r.id === row.id ? { ...r, prompt_config: merged } : r));
       setSavedPrompt(prev => new Set([...prev, row.id]));
       setTimeout(() => setSavedPrompt(prev => { const s = new Set(prev); s.delete(row.id); return s; }), 2000);
+    }
+  }
+
+  // ── Save subtopic name ────────────────────────────────────────────────────
+
+  async function saveSubtopicName(row: SubtopicRow) {
+    const name = nameDrafts[row.id]?.trim();
+    if (!name || name === row.subtopic_name) return;
+    setSavingName(prev => new Set([...prev, row.id]));
+    const { error } = await supabase.from('subtopics').update({ subtopic_name: name }).eq('id', row.id);
+    setSavingName(prev => { const s = new Set(prev); s.delete(row.id); return s; });
+    if (!error) {
+      setRows(prev => prev.map(r => r.id === row.id ? { ...r, subtopic_name: name } : r));
+      setSavedName(prev => new Set([...prev, row.id]));
+      setTimeout(() => setSavedName(prev => { const s = new Set(prev); s.delete(row.id); return s; }), 2000);
     }
   }
 
@@ -382,6 +404,11 @@ export default function AdminContentPipeline() {
                       onSavePrompt={() => savePromptConfig(row)}
                       savingPrompt={savingPrompt.has(row.id)}
                       savedPrompt={savedPrompt.has(row.id)}
+                      nameDraft={nameDrafts[row.id] ?? ''}
+                      onUpdateName={v => setNameDrafts(prev => ({ ...prev, [row.id]: v }))}
+                      onSaveName={() => saveSubtopicName(row)}
+                      savingName={savingName.has(row.id)}
+                      savedName={savedName.has(row.id)}
                       copiedId={copiedId}
                       onCopy={() => copyId(row.id)}
                       onEditContent={() => navigate(`/admin/learning-content?subtopicId=${row.id}`)}
@@ -411,6 +438,11 @@ interface SubtopicCardProps {
   onSavePrompt: () => void;
   savingPrompt: boolean;
   savedPrompt: boolean;
+  nameDraft: string;
+  onUpdateName: (v: string) => void;
+  onSaveName: () => void;
+  savingName: boolean;
+  savedName: boolean;
   copiedId: string | null;
   onCopy: () => void;
   onEditContent: () => void;
@@ -420,6 +452,7 @@ interface SubtopicCardProps {
 function SubtopicCard({
   row, expanded, onToggleExpand, onToggleActive, toggling,
   promptDraft, onUpdateDraft, onSavePrompt, savingPrompt, savedPrompt,
+  nameDraft, onUpdateName, onSaveName, savingName, savedName,
   copiedId, onCopy, onEditContent, onReviewQueue,
 }: SubtopicCardProps) {
   const hasPrompt = !!(row.prompt_config?.system_prompt?.trim());
@@ -490,6 +523,28 @@ function SubtopicCard({
               {copiedId === row.id ? <Check size={11} /> : <Copy size={11} />}
               {copiedId === row.id ? 'Copied' : 'Copy'}
             </button>
+          </div>
+
+          {/* Subtopic name */}
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-gray-600">Subtopic name</p>
+            <div className="flex gap-2">
+              <input
+                className="flex-1 border rounded-lg px-3 h-9 text-sm"
+                style={{ borderColor: 'rgba(0,0,0,0.12)' }}
+                value={nameDraft}
+                onChange={e => onUpdateName(e.target.value)}
+              />
+              <button
+                onClick={onSaveName}
+                disabled={savingName || !nameDraft.trim() || nameDraft.trim() === row.subtopic_name}
+                className="flex items-center gap-1.5 px-3 h-9 rounded-lg text-xs font-medium text-white disabled:opacity-40 transition-all"
+                style={{ background: savedName ? '#16a34a' : '#E23D28' }}
+              >
+                {savingName ? <Loader2 size={12} className="animate-spin" /> : savedName ? <Check size={12} /> : <Save size={12} />}
+                {savedName ? 'Saved' : 'Save'}
+              </button>
+            </div>
           </div>
 
           {/* Prompt config */}
