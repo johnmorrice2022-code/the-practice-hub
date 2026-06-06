@@ -449,6 +449,11 @@ Every feature must pass this test: if a Year 10 Foundation student who is alread
 - **Specific Latent Heat** (`specific-latent-heat`) — DRAFT (content present, needs activation)
   - ID: `eae3af22-a15f-4c2c-b223-cbe39b6abbaa`
   - Sections: Specific Latent Heat (split from the above on 06/06/2026)
+- **Specific Heat Capacity** (`specific-heat-capacity`) — DRAFT (content + 5 check Qs + prompt config complete)
+  - ID: `ef243d86-3744-477b-a39d-7c60a37d114c`
+  - Topic: Energy | Tier: Both | Exam board: AQA
+  - Sections: What is SHC?, The Equation, Using the Equation, Rearranging, Using It in an Exam
+  - Built from lesson PowerPoint (06/06/2026) — activate when ready
 
 ### Factory process for each new Physics subtopic
 1. Upload AQA source document to session (for style and spec reference)
