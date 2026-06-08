@@ -305,7 +305,7 @@ Single entry point: `/admin` (AdminHub) → three labelled sections:
 - Deep links into Learning Content Editor and Review Queue, pre-filtered to that subtopic via URL params
 
 **Learning Content Editor** (`/admin/learning-content`) has 4 tabs per subtopic:
-1. **Learning Content** — sections and styled paragraphs; each paragraph has inline diagram upload (SVG/PNG/JPG → `diagrams/` Storage bucket). Upload, replace, and remove without leaving the editor. Diagram URL is saved with the normal "Save changes" button.
+1. **Learning Content** — sections and styled paragraphs; each paragraph has inline diagram upload (SVG/PNG/JPG → `diagrams/` Storage bucket). Upload, replace, and remove without leaving the editor. Diagram URL is saved with the normal "Save changes" button. Paragraphs can be reordered with ▲▼ buttons next to the style dropdown (added 08/06/2026, mirrors the section ▲▼ pattern) — **known bug:** John reports the swap doesn't behave as a true up/down move when diagrams or subheadings are involved (suspects the embedded image is the cause); needs reproduction and fix before relying on it.
 2. **Check Questions** — up to 5 MCQ comprehension checks (full CRUD)
 3. **Live Seeded** — all seeded practice questions; inline edit + delete
 4. **Live AI** — all approved AI practice questions; inline edit + delete
@@ -488,7 +488,10 @@ See [SECURITY_AUDIT.md](SECURITY_AUDIT.md) — living checklist of all known sec
 
 ---
 
-## Current Priorities (as of 06/06/2026)
+## Current Priorities (as of 08/06/2026)
+
+### Immediate next session — Bug fix
+- [ ] **Fix paragraph reorder bug in Learning Content Editor** — ▲▼ buttons added 08/06/2026 to move paragraphs within a section don't produce a true up/down swap; John reports it behaves more like swapping sections, particularly when a paragraph has an embedded diagram or is a subheading. Reproduce in browser (need test admin credentials) and trace through `moveParagraphUp`/`moveParagraphDown` in `AdminLearningContent.tsx` — possible `key={pi}` reconciliation issue with `ParagraphRow`'s internal upload state.
 
 ### Immediate next session — Security (do before any marketing)
 Security audit sessions planned (see SECURITY_AUDIT.md for full detail):
