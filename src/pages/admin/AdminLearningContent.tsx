@@ -190,6 +190,8 @@ export default function AdminLearningContent() {
   });
   const addParagraph      = (si: number)                      => mutate(s => { s[si].paragraphs.push({ text: '' }); return s; });
   const deleteParagraph   = (si: number, pi: number)          => mutate(s => { s[si].paragraphs.splice(pi, 1); return s; });
+  const moveParagraphUp   = (si: number, pi: number)          => mutate(s => { const ps = s[si].paragraphs; if (pi > 0) [ps[pi-1], ps[pi]] = [ps[pi], ps[pi-1]]; return s; });
+  const moveParagraphDown = (si: number, pi: number)          => mutate(s => { const ps = s[si].paragraphs; if (pi < ps.length - 1) [ps[pi], ps[pi+1]] = [ps[pi+1], ps[pi]]; return s; });
   const addSection        = ()                                 => mutate(s => { s.push({ heading: 'New section', paragraphs: [{ text: '' }] }); return s; });
   const addIndexItem      = (si: number)                      => mutate(s => { (s[si].items ??= []).push({ label: '', section_index: 0 }); return s; });
   const deleteIndexItem   = (si: number, ii: number)          => mutate(s => { s[si].items?.splice(ii, 1); return s; });
@@ -399,6 +401,8 @@ export default function AdminLearningContent() {
                 onUpdateDiagramUrl={(pi, url) => updateDiagramUrl(si, pi, url)}
                 onAddParagraph={() => addParagraph(si)}
                 onDeleteParagraph={pi => deleteParagraph(si, pi)}
+                onMoveParagraphUp={pi => moveParagraphUp(si, pi)}
+                onMoveParagraphDown={pi => moveParagraphDown(si, pi)}
                 onDelete={() => deleteSection(si)}
                 onMoveUp={() => moveSectionUp(si)}
                 onMoveDown={() => moveSectionDown(si)}
@@ -586,6 +590,8 @@ interface SectionCardProps {
   onUpdateDiagramUrl: (pi: number, url: string | null) => void;
   onAddParagraph: () => void;
   onDeleteParagraph: (pi: number) => void;
+  onMoveParagraphUp: (pi: number) => void;
+  onMoveParagraphDown: (pi: number) => void;
   onDelete: () => void; onMoveUp: () => void; onMoveDown: () => void;
   onAddIndexItem: () => void;
   onDeleteIndexItem: (ii: number) => void;
@@ -597,7 +603,7 @@ function SectionCard({
   section, sectionIndex, total, allSections,
   subtopicInfo,
   onUpdateHeading, onUpdateParaText, onUpdateParaStyle, onUpdateDiagramUrl,
-  onAddParagraph, onDeleteParagraph, onDelete, onMoveUp, onMoveDown,
+  onAddParagraph, onDeleteParagraph, onMoveParagraphUp, onMoveParagraphDown, onDelete, onMoveUp, onMoveDown,
   onAddIndexItem, onDeleteIndexItem, onUpdateIndexLabel, onUpdateIndexTarget,
 }: SectionCardProps) {
   const [collapsed, setCollapsed] = useState(false);
@@ -648,12 +654,14 @@ function SectionCard({
 
       {!collapsed && !isIndex && (
         <div className="p-4 space-y-3">
-          {(section.paragraphs ?? []).map((para, pi) => (
-            <ParagraphRow key={pi} para={para} paraIndex={pi} sectionIndex={sectionIndex}
+          {(section.paragraphs ?? []).map((para, pi, paras) => (
+            <ParagraphRow key={pi} para={para} paraIndex={pi} sectionIndex={sectionIndex} total={paras.length}
               subtopicInfo={subtopicInfo}
               onUpdateText={v => onUpdateParaText(pi, v)}
               onUpdateStyle={v => onUpdateParaStyle(pi, v)}
               onUpdateDiagramUrl={url => onUpdateDiagramUrl(pi, url)}
+              onMoveUp={() => onMoveParagraphUp(pi)}
+              onMoveDown={() => onMoveParagraphDown(pi)}
               onDelete={() => onDeleteParagraph(pi)}
             />
           ))}
@@ -670,15 +678,17 @@ function SectionCard({
 // ─── ParagraphRow ─────────────────────────────────────────────────────────────
 
 interface ParagraphRowProps {
-  para: Paragraph; paraIndex: number; sectionIndex: number;
+  para: Paragraph; paraIndex: number; sectionIndex: number; total: number;
   subtopicInfo: SubtopicInfo | null;
   onUpdateText: (v: string) => void;
   onUpdateStyle: (v: string) => void;
   onUpdateDiagramUrl: (url: string | null) => void;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
   onDelete: () => void;
 }
 
-function ParagraphRow({ para, paraIndex, sectionIndex, subtopicInfo, onUpdateText, onUpdateStyle, onUpdateDiagramUrl, onDelete }: ParagraphRowProps) {
+function ParagraphRow({ para, paraIndex, sectionIndex, total, subtopicInfo, onUpdateText, onUpdateStyle, onUpdateDiagramUrl, onMoveUp, onMoveDown, onDelete }: ParagraphRowProps) {
   const sv = styleValue(para);
   const colour = STYLE_COLOURS[sv] ?? 'transparent';
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -768,10 +778,20 @@ function ParagraphRow({ para, paraIndex, sectionIndex, subtopicInfo, onUpdateTex
           style={{ borderColor: 'rgba(0,0,0,0.10)' }}>
           {STYLES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
         </select>
-        <button onClick={onDelete} title="Delete paragraph"
-          className="p-1 text-gray-200 hover:text-red-400 transition-colors self-end">
-          <Trash2 size={12} />
-        </button>
+        <div className="flex items-center justify-end gap-0.5">
+          <button onClick={onMoveUp} disabled={paraIndex === 0} title="Move paragraph up"
+            className="p-1 text-gray-300 hover:text-gray-500 disabled:opacity-30 transition-colors">
+            <ChevronUp size={12} />
+          </button>
+          <button onClick={onMoveDown} disabled={paraIndex === total - 1} title="Move paragraph down"
+            className="p-1 text-gray-300 hover:text-gray-500 disabled:opacity-30 transition-colors">
+            <ChevronDown size={12} />
+          </button>
+          <button onClick={onDelete} title="Delete paragraph"
+            className="p-1 text-gray-200 hover:text-red-400 transition-colors">
+            <Trash2 size={12} />
+          </button>
+        </div>
       </div>
     </div>
   );
