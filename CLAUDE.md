@@ -251,9 +251,11 @@ Each diagram type gets:
 - An authoring form at `/admin/[type]-questions`
 - `diagram_component` + `diagram_params` fields in the question record
 
-Established diagram types: `ProbabilityTree`, `InteractiveProbabilityTree`, `CirclePartsToggle`, `MeckGentToggle`, `CircleTheoremDiagram`, `QuadraticInequalityGraph`.
+Established diagram types: `ProbabilityTree`, `InteractiveProbabilityTree`, `CirclePartsToggle`, `MeckGentToggle`, `CircleTheoremDiagram`, `QuadraticInequalityGraph`, `CompletingTheSquareAreaModel`.
 
 **Worked-solution-only diagrams:** `QuadraticInequalityGraph` (registry key `quadratic-inequality-graph`) sketches a parabola with the inequality solution region highlighted — it reveals the answer, so it must only render in `FeedbackCard` (worked solution), never in `QuestionCard`. `QuestionCard.tsx` explicitly excludes this key from its registry lookup. Params: `{ roots: [number, number]; a?: number; inequality?: '<' | '>' | '<=' | '>=' }`. For Higher Inequalities, `generate-pending-questions`'s `HIGHER_OUTPUT_FORMAT` documents this as an optional field pair Claude should populate for quadratic inequality questions, and the `inequalities-higher` subtopic's `system_prompt` instructs it to do so.
+
+**`CompletingTheSquareAreaModel`** (registry key `completing-the-square-area-model`, added 10/06/2026) — original area-model diagram for $x^2+bx$: an $x \times x$ square plus two $\frac{b}{2} \times x$ strips, with the missing $(\frac{b}{2})^2$ corner square highlighted. Params: `{ b: number }` (positive, ideally even for clean labels). Safe for both `QuestionCard` and `FeedbackCard` — it illustrates the method, not the answer. Used twice in the new `completing-the-square` learning content (b=6, b=8); `prompt_config.system_prompt` for `completing-the-square` instructs the AI to optionally attach this diagram to "write in completed square form" questions where b is positive.
 
 ### prompt_config — system_prompt field rules
 The `system_prompt` in `prompt_config` is injected into the paper prompt builder. The builders already handle question format, mark scheme structure, LaTeX rules, and forbidden question types.
@@ -512,6 +514,7 @@ See [SECURITY_AUDIT.md](SECURITY_AUDIT.md) — living checklist of all known sec
 - Rewrote Inequalities-Higher `prompt_config` to mandate the sketch-the-curve method for quadratic inequalities (was deviating into trial-and-error)
 - Added `diagram_component`/`diagram_params` to `pending_questions`/`questions`; quadratic inequality questions now carry a `quadratic-inequality-graph` worked-solution diagram through generation → review → publish → FeedbackCard
 - Both edge functions redeployed with `--no-verify-jwt` (Verify JWT confirmed OFF — see CRIT-3 below for the longer-term tension between this dev convenience and re-enabling JWT)
+- Built out `completing-the-square` subtopic from scratch (had no prompt config or learning content): new original `CompletingTheSquareAreaModel` diagram (registry key `completing-the-square-area-model`), 6-section learning content, 5 check questions, and `prompt_config` updated with `marking_guidance` + 3 few-shot worked examples (halve-and-adjust method). Informed by a copyrighted goteachmaths.co.uk presentation John shared — used only as a method/sequence reference, all wording/examples/diagrams original.
 
 ### Immediate next session — Bug fix
 - [ ] **Fix paragraph reorder bug in Learning Content Editor** — ▲▼ buttons added 08/06/2026 to move paragraphs within a section don't produce a true up/down swap; John reports it behaves more like swapping sections, particularly when a paragraph has an embedded diagram or is a subheading. Reproduce in browser (need test admin credentials) and trace through `moveParagraphUp`/`moveParagraphDown` in `AdminLearningContent.tsx` — possible `key={pi}` reconciliation issue with `ParagraphRow`'s internal upload state.
@@ -523,6 +526,8 @@ Security audit sessions planned (see SECURITY_AUDIT.md for full detail):
 - **Session 3 — Refactor:** DUP-2 (extract prompt builders to _shared), DUP-1 (centralise renderMath), FRAG-3
 
 ### Content
+- [ ] **Completing the Square — more diagrams.** John reviewed the new learning content and feels it needs more diagrams to make the explanation clear (beyond the single area-model diagram used twice). Next session: review the 6 sections in `learning_content` for `completing-the-square` (id `f215bc4f-cf60-4dac-a9a2-09a924815e67`) and identify where additional original diagrams would help — likely candidates: a worked-example variant of the area model for the x²+bx+c case (showing the constant separately), and/or a simple parabola/turning-point sketch for the "Finding the Minimum Point" section (could reuse/adapt `QuadraticInequalityGraph`'s style, vertex-only, no inequality shading).
+- [ ] Generate review-queue questions for `completing-the-square` (prompt_config now has marking_guidance + few-shot examples, ready for Content Pipeline → Review Queue)
 - [ ] Activate Specific Latent Heat subtopic (content present, needs review questions + activation)
 - [ ] Activate Specific Heat Capacity subtopic (content + checks complete, needs review questions + activation)
 - [ ] Fix Physics "No calculator" label — `PracticeRoom.tsx` + `generate-questions`
