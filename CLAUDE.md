@@ -186,6 +186,8 @@ VALUES (
 - **AI-generated questions** — for algebra, calculations, standard questions. Generated on demand or in batches via AdminReviewQueue.
 - **Seeded questions** — John's hand-authored questions, stored in `seeded_questions`. LaTeX supported via `$...$` (inline) and `$$...$$` (display).
 
+`pending_questions` and `questions` both have `diagram_component`/`diagram_params` columns (added 10/06/2026, mirroring `seeded_questions`). `AdminReviewQueue.handlePublish` copies these from `pending_questions` to `questions` — if `AdminReviewQueue.tsx` is changed, remember it must be **pushed and deployed to Netlify** before the next "approve & publish" run, or the new field won't be carried through (already-published rows can be backfilled from their matching `pending_questions` row by `question_text`).
+
 ### Seeded question mark scheme format (critical)
 Use flat Edexcel M1/A1 format with a `criterion` string per mark. **Never use nested objects, `methods` arrays, or `requirement`/`reason` fields** — these confuse the marking AI and produce broken step_breakdown output.
 
@@ -249,13 +251,17 @@ Each diagram type gets:
 - An authoring form at `/admin/[type]-questions`
 - `diagram_component` + `diagram_params` fields in the question record
 
-Established diagram types: `ProbabilityTree`, `InteractiveProbabilityTree`, `CirclePartsToggle`, `MeckGentToggle`, `CircleTheoremDiagram`.
+Established diagram types: `ProbabilityTree`, `InteractiveProbabilityTree`, `CirclePartsToggle`, `MeckGentToggle`, `CircleTheoremDiagram`, `QuadraticInequalityGraph`.
+
+**Worked-solution-only diagrams:** `QuadraticInequalityGraph` (registry key `quadratic-inequality-graph`) sketches a parabola with the inequality solution region highlighted — it reveals the answer, so it must only render in `FeedbackCard` (worked solution), never in `QuestionCard`. `QuestionCard.tsx` explicitly excludes this key from its registry lookup. Params: `{ roots: [number, number]; a?: number; inequality?: '<' | '>' | '<=' | '>=' }`. For Higher Inequalities, `generate-pending-questions`'s `HIGHER_OUTPUT_FORMAT` documents this as an optional field pair Claude should populate for quadratic inequality questions, and the `inequalities-higher` subtopic's `system_prompt` instructs it to do so.
 
 ### prompt_config — system_prompt field rules
 The `system_prompt` in `prompt_config` is injected into the paper prompt builder. The builders already handle question format, mark scheme structure, LaTeX rules, and forbidden question types.
 
 **system_prompt must contain:** spec statements, key vocabulary, specific constraints, exam-board specific details.
 **system_prompt must NOT contain:** question format instructions, mark scheme format, LaTeX rules, generic exam technique advice.
+
+**`marking_guidance` injection (fixed 10/06/2026):** `prompt_config.marking_guidance` is injected as a "SUBTOPIC-SPECIFIC MARKING GUIDANCE" block into all Maths Foundation/Higher P1/P2/P3 builders in both `generate-questions/index.ts` and `generate-pending-questions/index.ts`, plus the Physics builder. If adding a new builder/paper variant, copy this block too — it was previously Physics-only, which silently meant any `marking_guidance` written for a Maths subtopic was never sent to Claude.
 
 ### AuthContext pattern
 `src/contexts/AuthContext.tsx` — key design decisions:
@@ -500,6 +506,12 @@ See [SECURITY_AUDIT.md](SECURITY_AUDIT.md) — living checklist of all known sec
 ---
 
 ## Current Priorities (as of 10/06/2026)
+
+### Recently completed (10/06/2026)
+- Fixed `marking_guidance` not being injected into Maths prompt builders (Foundation/Higher, both edge functions) — was Physics-only
+- Rewrote Inequalities-Higher `prompt_config` to mandate the sketch-the-curve method for quadratic inequalities (was deviating into trial-and-error)
+- Added `diagram_component`/`diagram_params` to `pending_questions`/`questions`; quadratic inequality questions now carry a `quadratic-inequality-graph` worked-solution diagram through generation → review → publish → FeedbackCard
+- Both edge functions redeployed with `--no-verify-jwt` (Verify JWT confirmed OFF — see CRIT-3 below for the longer-term tension between this dev convenience and re-enabling JWT)
 
 ### Immediate next session — Bug fix
 - [ ] **Fix paragraph reorder bug in Learning Content Editor** — ▲▼ buttons added 08/06/2026 to move paragraphs within a section don't produce a true up/down swap; John reports it behaves more like swapping sections, particularly when a paragraph has an embedded diagram or is a subheading. Reproduce in browser (need test admin credentials) and trace through `moveParagraphUp`/`moveParagraphDown` in `AdminLearningContent.tsx` — possible `key={pi}` reconciliation issue with `ParagraphRow`'s internal upload state.
