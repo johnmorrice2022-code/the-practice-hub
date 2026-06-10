@@ -105,13 +105,13 @@ export function CompletingTheSquareAreaModel({
             x
           </text>
           <text x={margin + X_SIZE + stripSize / 2} y={margin - 12} {...LABEL_FONT} fontSize="13">
-            ᵇ⁄₂
+            {halfLabel}
           </text>
           <text x={margin - 14} y={margin + X_SIZE / 2 + 5} {...LABEL_FONT} fontSize="14" transform={`rotate(-90 ${margin - 14} ${margin + X_SIZE / 2 + 5})`}>
             x
           </text>
           <text x={margin - 14} y={margin + X_SIZE + stripSize / 2 + 5} {...LABEL_FONT} fontSize="12" transform={`rotate(-90 ${margin - 14} ${margin + X_SIZE + stripSize / 2 + 5})`}>
-            ᵇ⁄₂
+            {halfLabel}
           </text>
 
           {/* area labels inside strips */}

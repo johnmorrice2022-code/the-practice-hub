@@ -17,6 +17,7 @@ import React from 'react';
 import { ProbabilityTree } from './ProbabilityTree';
 import { QuadraticInequalityGraph } from './QuadraticInequalityGraph';
 import { CompletingTheSquareAreaModel } from './CompletingTheSquareAreaModel';
+import { ParabolaVertexGraph } from './ParabolaVertexGraph';
 
 // Each registered component receives `params: any` (the JSONB from
 // diagram_params). The component is responsible for validating the shape
@@ -36,6 +37,10 @@ const CompletingTheSquareAreaModelWrapper: QuestionDiagramComponent = ({ params 
   <CompletingTheSquareAreaModel params={params} />
 );
 
+const ParabolaVertexGraphWrapper: QuestionDiagramComponent = ({ params }) => (
+  <ParabolaVertexGraph params={params} />
+);
+
 export const QUESTION_DIAGRAM_REGISTRY: Record<
   string,
   QuestionDiagramComponent
@@ -43,6 +48,7 @@ export const QUESTION_DIAGRAM_REGISTRY: Record<
   'probability-tree': ProbabilityTreeWrapper,
   'quadratic-inequality-graph': QuadraticInequalityGraphWrapper,
   'completing-the-square-area-model': CompletingTheSquareAreaModelWrapper,
+  'parabola-vertex-graph': ParabolaVertexGraphWrapper,
   // Future entries: 'venn-diagram', 'two-way-table', 'frequency-tree', etc.
 };
 
