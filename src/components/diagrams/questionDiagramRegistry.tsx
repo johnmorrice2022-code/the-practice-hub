@@ -15,6 +15,7 @@
 
 import React from 'react';
 import { ProbabilityTree } from './ProbabilityTree';
+import { QuadraticInequalityGraph } from './QuadraticInequalityGraph';
 
 // Each registered component receives `params: any` (the JSONB from
 // diagram_params). The component is responsible for validating the shape
@@ -26,11 +27,16 @@ const ProbabilityTreeWrapper: QuestionDiagramComponent = ({ params }) => (
   <ProbabilityTree config={params} />
 );
 
+const QuadraticInequalityGraphWrapper: QuestionDiagramComponent = ({ params }) => (
+  <QuadraticInequalityGraph params={params} />
+);
+
 export const QUESTION_DIAGRAM_REGISTRY: Record<
   string,
   QuestionDiagramComponent
 > = {
   'probability-tree': ProbabilityTreeWrapper,
+  'quadratic-inequality-graph': QuadraticInequalityGraphWrapper,
   // Future entries: 'venn-diagram', 'two-way-table', 'frequency-tree', etc.
 };
 

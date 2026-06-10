@@ -8,10 +8,13 @@ import {
   Lightbulb,
 } from 'lucide-react';
 import InteractiveSection from '@/components/learn/InteractiveSection';
+import { getQuestionDiagram } from '@/components/diagrams/questionDiagramRegistry';
 
 interface Paragraph {
   text: string;
   diagram_url?: string | null;
+  diagram_component?: string | null;
+  diagram_params?: Record<string, unknown> | null;
   is_non_example?: boolean;
   style?: 'key-point' | 'exam-tip' | 'watch-out' | 'subheading' | 'higher-only' | 'worked-example';
 }
@@ -261,8 +264,13 @@ function Subheading({ text }: { text: string }) {
 /* ------------------------------------------------------------------ */
 
 function StyledParagraph({ para }: { para: Paragraph }) {
-  // Diagram (rendered before text, regardless of style)
-  const diagram = para.diagram_url ? (
+  // Diagram (rendered before text, regardless of style).
+  // A registered component (diagram_component + diagram_params) takes
+  // precedence over a static diagram_url image.
+  const DiagramComponent = getQuestionDiagram(para.diagram_component);
+  const diagram = DiagramComponent ? (
+    <DiagramComponent params={para.diagram_params} />
+  ) : para.diagram_url ? (
     <div className="flex justify-center py-2">
       <div
         className="bg-[#FAF7F2] border border-border/40 rounded-lg p-4 w-full"
