@@ -340,7 +340,7 @@ src/
     Login.tsx                     -- consumes sessionStorage pendingPlanUrl after login
     ResetPassword.tsx
     Members.tsx                   -- manage subscription link at bottom
-    JamSessions.tsx               -- public curriculum/livestream page
+    JamSessions.tsx               -- public curriculum/livestream page; tracks object holds Sept-May per-track session schedule
     Practice.tsx                  -- page wrapper: setup → learning → check → practice flow
     admin/
       AdminHub.tsx
@@ -488,7 +488,18 @@ See [SECURITY_AUDIT.md](SECURITY_AUDIT.md) — living checklist of all known sec
 
 ---
 
-## Current Priorities (as of 08/06/2026)
+## Jam Sessions Curriculum (school-year structure)
+
+`JamSessions.tsx` schedules now follow the UK school year rather than a generic rolling cycle:
+- **September–February** — new topic coverage, 6 monthly focuses per track (FM/HM/FP/HP), unchanged content from the original 6-month cycle, just relabelled with real months
+- **March–May** — exam revision: March = Paper 1 topics, April = Paper 2/3 topics, May = mixed past-paper practice and exam technique
+- A note under the curriculum disclaimer states livestreams run during UK school term times
+
+**Use as content roadmap:** the Sept–Feb topic list per track is a build order for `subtopics` — as each month's livestream topic comes round, prioritise that subtopic for learning content + question generation in Content Pipeline so the practice platform stays roughly in step with what's being taught. The March–May revision rows are cross-topic/exam-technique sessions, not new subtopics — they map more naturally onto a "revision pack" or mixed-topic practice set using existing content.
+
+---
+
+## Current Priorities (as of 10/06/2026)
 
 ### Immediate next session — Bug fix
 - [ ] **Fix paragraph reorder bug in Learning Content Editor** — ▲▼ buttons added 08/06/2026 to move paragraphs within a section don't produce a true up/down swap; John reports it behaves more like swapping sections, particularly when a paragraph has an embedded diagram or is a subheading. Reproduce in browser (need test admin credentials) and trace through `moveParagraphUp`/`moveParagraphDown` in `AdminLearningContent.tsx` — possible `key={pi}` reconciliation issue with `ParagraphRow`'s internal upload state.
