@@ -1099,6 +1099,8 @@ export default function AdminReviewQueue() {
       worked_solution: q.worked_solution ?? '',
       parts: q.parts ?? [],
       calculator_allowed: q.calculator_allowed,
+      diagram_component: q.diagram_component ?? null,
+      diagram_params: q.diagram_params ?? null,
       source: 'reviewed',
     }));
 

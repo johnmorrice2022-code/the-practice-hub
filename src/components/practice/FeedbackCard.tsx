@@ -1,6 +1,7 @@
 import { FlagFeedback } from './FlagFeedback';
 import { useEffect, useRef } from 'react';
 import katex from 'katex';
+import { getQuestionDiagram } from '@/components/diagrams/questionDiagramRegistry';
 import {
   CheckCircle2,
   Circle,
@@ -35,6 +36,8 @@ interface FeedbackCardProps {
   subtopicId?: string;
   questionText?: string;
   studentAnswer?: string;
+  diagramComponent?: string | null;
+  diagramParams?: Record<string, unknown> | null;
 }
 
 function renderMath(text: string): string {
@@ -148,11 +151,14 @@ export function FeedbackCard({
   subtopicId,
   questionText,
   studentAnswer,
+  diagramComponent,
+  diagramParams,
 }: FeedbackCardProps) {
   const percentage = Math.round(
     (feedback.marks_awarded / feedback.marks_available) * 100
   );
   const tier = getScoreTier(feedback.marks_awarded, feedback.marks_available);
+  const RegisteredDiagram = getQuestionDiagram(diagramComponent);
 
   return (
     <div className="space-y-8">
@@ -261,6 +267,11 @@ export function FeedbackCard({
               />
             ))}
         </div>
+        {RegisteredDiagram && diagramParams && (
+          <div className="rounded-lg border border-border/50 p-4 flex justify-center bg-card">
+            <RegisteredDiagram params={diagramParams} />
+          </div>
+        )}
       </div>
 
       {/* Revision focus */}

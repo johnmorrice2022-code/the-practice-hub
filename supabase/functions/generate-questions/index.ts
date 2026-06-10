@@ -250,6 +250,7 @@ NON-CALCULATOR NUMBER RULES
 TOPICS IN SCOPE FOR THIS SUBTOPIC
 ${promptConfig.system_prompt || `Topic: ${subtopic.subtopic_name}. Generate questions that directly test this topic at Foundation tier grade band ${subtopic.grade_band}.`}
 
+${promptConfig.marking_guidance ? `SUBTOPIC-SPECIFIC MARKING GUIDANCE — apply this when writing the mark scheme and worked solution, highest priority:\n${promptConfig.marking_guidance}\n` : ''}
 REAL-WORLD CONTEXT OVERRIDE
 If the TOPICS IN SCOPE section above specifies that questions should be pure algebraic tasks with no real-world context, that instruction overrides the general real-world context rule above. Always follow the subtopic-specific instruction.
 
@@ -355,6 +356,7 @@ For comparison/decision questions: always include a C1 mark for the correct conc
 TOPICS IN SCOPE FOR THIS SUBTOPIC
 ${promptConfig.system_prompt || `Topic: ${subtopic.subtopic_name}. Generate questions that directly test this topic at Foundation tier grade band ${subtopic.grade_band}.`}
 
+${promptConfig.marking_guidance ? `SUBTOPIC-SPECIFIC MARKING GUIDANCE — apply this when writing the mark scheme and worked solution, highest priority:\n${promptConfig.marking_guidance}\n` : ''}
 REAL-WORLD CONTEXT OVERRIDE
 If the TOPICS IN SCOPE section above specifies that questions should be pure algebraic tasks with no real-world context, that instruction overrides the general real-world context rule above. Always follow the subtopic-specific instruction.
 
@@ -454,6 +456,7 @@ For "Compare the distribution" questions: award one mark for comparing an averag
 TOPICS IN SCOPE FOR THIS SUBTOPIC
 ${promptConfig.system_prompt || `Topic: ${subtopic.subtopic_name}. Generate questions that directly test this topic at Foundation tier grade band ${subtopic.grade_band}.`}
 
+${promptConfig.marking_guidance ? `SUBTOPIC-SPECIFIC MARKING GUIDANCE — apply this when writing the mark scheme and worked solution, highest priority:\n${promptConfig.marking_guidance}\n` : ''}
 REAL-WORLD CONTEXT OVERRIDE
 If the TOPICS IN SCOPE section above specifies that questions should be pure algebraic tasks with no real-world context, that instruction overrides the general real-world context rule above. Always follow the subtopic-specific instruction.
 
@@ -578,6 +581,7 @@ ECF: note explicitly where error carried forward applies.
 TOPICS IN SCOPE FOR THIS SUBTOPIC
 ${promptConfig.system_prompt || `Topic: ${subtopic.subtopic_name}. Generate questions that directly test this topic at Higher tier grade band ${subtopic.grade_band}.`}
 
+${promptConfig.marking_guidance ? `SUBTOPIC-SPECIFIC MARKING GUIDANCE — apply this when writing the mark scheme and worked solution, highest priority:\n${promptConfig.marking_guidance}\n` : ''}
 REAL-WORLD CONTEXT OVERRIDE
 If the TOPICS IN SCOPE section above specifies that questions should be pure algebraic tasks with no real-world context, that instruction overrides the general real-world context rule above. Always follow the subtopic-specific instruction.
 
@@ -692,6 +696,7 @@ For comparison/decision questions: always include a C1 mark for the correct conc
 TOPICS IN SCOPE FOR THIS SUBTOPIC
 ${promptConfig.system_prompt || `Topic: ${subtopic.subtopic_name}. Generate questions that directly test this topic at Higher tier grade band ${subtopic.grade_band}.`}
 
+${promptConfig.marking_guidance ? `SUBTOPIC-SPECIFIC MARKING GUIDANCE — apply this when writing the mark scheme and worked solution, highest priority:\n${promptConfig.marking_guidance}\n` : ''}
 REAL-WORLD CONTEXT OVERRIDE
 If the TOPICS IN SCOPE section above specifies that questions should be pure algebraic tasks with no real-world context, that instruction overrides the general real-world context rule above. Always follow the subtopic-specific instruction.
 
@@ -808,6 +813,7 @@ For non-linear simultaneous equations: M1 correct substitution, M1 forming quadr
 TOPICS IN SCOPE FOR THIS SUBTOPIC
 ${promptConfig.system_prompt || `Topic: ${subtopic.subtopic_name}. Generate questions that directly test this topic at Higher tier grade band ${subtopic.grade_band}.`}
 
+${promptConfig.marking_guidance ? `SUBTOPIC-SPECIFIC MARKING GUIDANCE — apply this when writing the mark scheme and worked solution, highest priority:\n${promptConfig.marking_guidance}\n` : ''}
 REAL-WORLD CONTEXT OVERRIDE
 If the TOPICS IN SCOPE section above specifies that questions should be pure algebraic tasks with no real-world context, that instruction overrides the general real-world context rule above. Always follow the subtopic-specific instruction.
 

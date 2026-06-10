@@ -207,7 +207,7 @@ export function PracticeRoom({
         supabase
           .from('questions')
           .select(
-            'id, question_text, marks, mark_scheme, worked_solution, parts, calculator_allowed'
+            'id, question_text, marks, mark_scheme, worked_solution, parts, calculator_allowed, diagram_component, diagram_params'
           )
           .eq('subtopic_id', config.subtopicId),
         supabase
@@ -240,9 +240,9 @@ export function PracticeRoom({
         question_order: i + 1,
         parts: q.parts || [],
         diagram_type: null,
-        diagram_params: null,
+        diagram_params: (q as any).diagram_params || null,
         diagram_url: null,
-        diagram_component: null,
+        diagram_component: (q as any).diagram_component || null,
       }));
 
       const combined = [...seededNormalised, ...reviewedNormalised];
@@ -787,6 +787,8 @@ export function PracticeRoom({
                 subtopicId={config.subtopicId}
                 questionText={currentQuestion?.question_text}
                 studentAnswer={buildAnswerForMarking(currentQuestion)}
+                diagramComponent={currentQuestion?.diagram_component}
+                diagramParams={currentQuestion?.diagram_params}
               />
             ) : phase === 'marking' && isMarking ? (
               <div className="flex flex-col items-center justify-center py-16 gap-3">
@@ -882,6 +884,8 @@ export function PracticeRoom({
                         subtopicId={config.subtopicId}
                         questionText={currentQuestion.question_text}
                         studentAnswer={buildAnswerForMarking(currentQuestion)}
+                        diagramComponent={currentQuestion.diagram_component}
+                        diagramParams={currentQuestion.diagram_params}
                       />
                     </div>
                   )}

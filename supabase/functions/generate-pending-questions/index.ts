@@ -61,7 +61,24 @@ For multi-part questions:
 {"question_text":"shared stem only","marks":5,"parts":[{"part_label":"a","part_text":"...","marks":2,"mark_scheme":[...],"worked_solution":"..."},{"part_label":"b","part_text":"...","marks":3,"mark_scheme":[...],"worked_solution":"..."}],"mark_scheme":[],"worked_solution":""}
 `;
 
-const HIGHER_OUTPUT_FORMAT = FOUNDATION_OUTPUT_FORMAT;
+const HIGHER_OUTPUT_FORMAT = `
+OUTPUT FORMAT — CRITICAL:
+Output exactly {COUNT} JSON objects, one per line, no wrapping array, no markdown, no preamble.
+
+Each JSON object must follow this exact structure:
+{"question_text":"...","marks":2,"parts":[],"mark_scheme":[{"mark_type":"M","criterion":"...","marks":1},{"mark_type":"A","criterion":"...","marks":1},{"mark_type":"TOTAL","criterion":"TOTAL","marks":2}],"worked_solution":"..."}
+
+For multi-part questions:
+{"question_text":"shared stem only","marks":5,"parts":[{"part_label":"a","part_text":"...","marks":2,"mark_scheme":[...],"worked_solution":"..."},{"part_label":"b","part_text":"...","marks":3,"mark_scheme":[...],"worked_solution":"..."}],"mark_scheme":[],"worked_solution":""}
+
+OPTIONAL DIAGRAM FIELDS:
+For a quadratic inequality question whose worked solution uses the sketch-the-curve method, add two extra top-level fields so the platform can render the sketch alongside the worked solution:
+"diagram_component":"quadratic-inequality-graph","diagram_params":{"roots":[r1,r2],"a":1,"inequality":"<"}
+- "roots": the two critical values (x-intercepts) as numbers, smaller value first
+- "a": the leading coefficient of the quadratic (e.g. 1 or -1), determines whether the parabola opens upwards or downwards
+- "inequality": one of "<", ">", "<=", ">=" — the direction of the original inequality after rearranging so one side is zero
+Omit both fields entirely for any question that is not a quadratic inequality solved by sketching a parabola.
+`;`
 
 const PHYSICS_OUTPUT_FORMAT = `
 OUTPUT FORMAT — CRITICAL:
@@ -91,6 +108,7 @@ Subtopic: ${subtopic.subtopic_name}
 TOPICS IN SCOPE FOR THIS SUBTOPIC
 ${promptConfig.system_prompt || `Topic: ${subtopic.subtopic_name}. Generate questions that directly test this topic at Foundation tier grade band ${subtopic.grade_band}.`}
 
+${promptConfig.marking_guidance ? `SUBTOPIC-SPECIFIC MARKING GUIDANCE — apply this when writing the mark scheme and worked solution, highest priority:\n${promptConfig.marking_guidance}\n` : ''}
 ${FOUNDATION_SHARED_LATEX_RULES}
 ${FOUNDATION_OUTPUT_FORMAT.replace('{COUNT}', String(count))}`;
 }
@@ -108,6 +126,7 @@ Subtopic: ${subtopic.subtopic_name}
 TOPICS IN SCOPE FOR THIS SUBTOPIC
 ${promptConfig.system_prompt || `Topic: ${subtopic.subtopic_name}. Generate questions that directly test this topic at Foundation tier grade band ${subtopic.grade_band}.`}
 
+${promptConfig.marking_guidance ? `SUBTOPIC-SPECIFIC MARKING GUIDANCE — apply this when writing the mark scheme and worked solution, highest priority:\n${promptConfig.marking_guidance}\n` : ''}
 ${FOUNDATION_SHARED_LATEX_RULES}
 ${FOUNDATION_OUTPUT_FORMAT.replace('{COUNT}', String(count))}`;
 }
@@ -125,6 +144,7 @@ Subtopic: ${subtopic.subtopic_name}
 TOPICS IN SCOPE FOR THIS SUBTOPIC
 ${promptConfig.system_prompt || `Topic: ${subtopic.subtopic_name}. Generate questions that directly test this topic at Foundation tier grade band ${subtopic.grade_band}.`}
 
+${promptConfig.marking_guidance ? `SUBTOPIC-SPECIFIC MARKING GUIDANCE — apply this when writing the mark scheme and worked solution, highest priority:\n${promptConfig.marking_guidance}\n` : ''}
 ${FOUNDATION_SHARED_LATEX_RULES}
 ${FOUNDATION_OUTPUT_FORMAT.replace('{COUNT}', String(count))}`;
 }
@@ -142,6 +162,7 @@ Subtopic: ${subtopic.subtopic_name}
 TOPICS IN SCOPE FOR THIS SUBTOPIC
 ${promptConfig.system_prompt || `Topic: ${subtopic.subtopic_name}. Generate questions that directly test this topic at Higher tier grade band ${subtopic.grade_band}.`}
 
+${promptConfig.marking_guidance ? `SUBTOPIC-SPECIFIC MARKING GUIDANCE — apply this when writing the mark scheme and worked solution, highest priority:\n${promptConfig.marking_guidance}\n` : ''}
 ${HIGHER_SHARED_LATEX_RULES}
 ${HIGHER_OUTPUT_FORMAT.replace('{COUNT}', String(count))}`;
 }
@@ -159,6 +180,7 @@ Subtopic: ${subtopic.subtopic_name}
 TOPICS IN SCOPE FOR THIS SUBTOPIC
 ${promptConfig.system_prompt || `Topic: ${subtopic.subtopic_name}. Generate questions that directly test this topic at Higher tier grade band ${subtopic.grade_band}.`}
 
+${promptConfig.marking_guidance ? `SUBTOPIC-SPECIFIC MARKING GUIDANCE — apply this when writing the mark scheme and worked solution, highest priority:\n${promptConfig.marking_guidance}\n` : ''}
 ${HIGHER_SHARED_LATEX_RULES}
 ${HIGHER_OUTPUT_FORMAT.replace('{COUNT}', String(count))}`;
 }
@@ -176,6 +198,7 @@ Subtopic: ${subtopic.subtopic_name}
 TOPICS IN SCOPE FOR THIS SUBTOPIC
 ${promptConfig.system_prompt || `Topic: ${subtopic.subtopic_name}. Generate questions that directly test this topic at Higher tier grade band ${subtopic.grade_band}.`}
 
+${promptConfig.marking_guidance ? `SUBTOPIC-SPECIFIC MARKING GUIDANCE — apply this when writing the mark scheme and worked solution, highest priority:\n${promptConfig.marking_guidance}\n` : ''}
 ${HIGHER_SHARED_LATEX_RULES}
 ${HIGHER_OUTPUT_FORMAT.replace('{COUNT}', String(count))}`;
 }
@@ -480,6 +503,8 @@ serve(async (req) => {
       worked_solution: q.worked_solution ?? '',
       parts: q.parts ?? [],
       calculator_allowed: q.calculator_allowed ?? null,
+      diagram_component: q.diagram_component ?? null,
+      diagram_params: q.diagram_params ?? null,
       status: 'pending',
       prompt_version: promptVersion,
     }));

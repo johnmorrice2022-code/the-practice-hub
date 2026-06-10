@@ -93,14 +93,22 @@ export function QuestionCard({
       }
     })();
 
+  // 'quadratic-inequality-graph' is a worked-solution diagram (it shows the
+  // highlighted answer region), so it must never be shown on the question
+  // itself before marking — only in FeedbackCard.
+  const isWorkedSolutionOnlyDiagram =
+    diagramComponent === 'quadratic-inequality-graph';
+
   // For non-interactive probability trees (no hidden branches), fall through
   // to the registry path as before.
   const RegisteredDiagram =
-    isProbabilityTree && !hasHiddenBranches
-      ? getQuestionDiagram(diagramComponent)
-      : !isProbabilityTree
+    isWorkedSolutionOnlyDiagram
+      ? null
+      : isProbabilityTree && !hasHiddenBranches
         ? getQuestionDiagram(diagramComponent)
-        : null;
+        : !isProbabilityTree
+          ? getQuestionDiagram(diagramComponent)
+          : null;
 
   return (
     <div className="space-y-8">
