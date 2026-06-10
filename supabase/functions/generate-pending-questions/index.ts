@@ -78,7 +78,7 @@ For a quadratic inequality question whose worked solution uses the sketch-the-cu
 - "a": the leading coefficient of the quadratic (e.g. 1 or -1), determines whether the parabola opens upwards or downwards
 - "inequality": one of "<", ">", "<=", ">=" — the direction of the original inequality after rearranging so one side is zero
 Omit both fields entirely for any question that is not a quadratic inequality solved by sketching a parabola.
-`;`
+`;
 
 const PHYSICS_OUTPUT_FORMAT = `
 OUTPUT FORMAT — CRITICAL:
