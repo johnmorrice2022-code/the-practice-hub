@@ -31,6 +31,7 @@ import { CompletingTheSquareAreaModel } from './CompletingTheSquareAreaModel';
 import { ParabolaVertexGraph } from './ParabolaVertexGraph';
 import { FreeBodyDiagram } from './FreeBodyDiagram';
 import { VectorDiagram } from './VectorDiagram';
+import { WaveDiagram } from './WaveDiagram';
 
 export type DiagramMode = 'question' | 'feedback';
 
@@ -75,6 +76,10 @@ const VectorDiagramWrapper: QuestionDiagramComponent = ({ params, mode }) => (
   <VectorDiagram params={params} mode={mode} />
 );
 
+const WaveDiagramWrapper: QuestionDiagramComponent = ({ params, mode }) => (
+  <WaveDiagram params={params} mode={mode} />
+);
+
 export const QUESTION_DIAGRAM_REGISTRY: Record<
   string,
   QuestionDiagramRegistryEntry
@@ -110,8 +115,14 @@ export const QUESTION_DIAGRAM_REGISTRY: Record<
     component: VectorDiagramWrapper,
     questionSafe: true,
   },
-  // Future entries (DIAGRAMS.md): 'wave-diagram', 'histogram',
-  // 'vector-geometry-diagram', 'circuit-diagram'.
+  // AQA Physics waves. `answerLabels` is a feedback-only layer gated by
+  // `mode` ("label the wavelength" questions), so the diagram is question-safe.
+  'wave-diagram': {
+    component: WaveDiagramWrapper,
+    questionSafe: true,
+  },
+  // Future entries (DIAGRAMS.md): 'histogram', 'vector-geometry-diagram',
+  // 'circuit-diagram'.
 };
 
 /**

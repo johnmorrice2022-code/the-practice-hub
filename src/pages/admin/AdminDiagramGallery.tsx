@@ -130,6 +130,47 @@ const GALLERY_METADATA: Record<string, GalleryMetadata> = {
       },
     ],
   },
+  'wave-diagram': {
+    name: 'Wave Diagram',
+    description:
+      'Transverse sine wave or longitudinal line bands. answerLabels only render in Worked solution view — for "label the wavelength" questions.',
+    presets: [
+      {
+        label: 'Label amplitude + wavelength (answer)',
+        params: {
+          type: 'transverse',
+          cycles: 3,
+          answerLabels: ['amplitude', 'wavelength'],
+        },
+      },
+      {
+        label: 'Longitudinal, labelled',
+        params: {
+          type: 'longitudinal',
+          cycles: 3,
+          labels: ['compression', 'rarefaction', 'wavelength'],
+        },
+      },
+      {
+        label: 'Compare frequencies (two waves)',
+        params: {
+          type: 'transverse',
+          cycles: 2,
+          mainWaveLabel: 'Wave A',
+          secondWave: { wavelengthRatio: 0.5, label: 'Wave B' },
+        },
+      },
+      {
+        label: 'Crest, trough + axes',
+        params: {
+          type: 'transverse',
+          cycles: 3,
+          labels: ['crest', 'trough'],
+          axisLabels: { x: 'Distance (m)', y: 'Displacement (cm)' },
+        },
+      },
+    ],
+  },
   'probability-tree': {
     name: 'Probability Tree',
     description:

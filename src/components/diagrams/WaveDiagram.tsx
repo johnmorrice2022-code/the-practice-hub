@@ -1,0 +1,468 @@
+// WaveDiagram.tsx
+// AQA Physics wave diagrams: transverse (smooth sine curve with axis) and
+// longitudinal (vertical line bands showing compressions and rarefactions).
+//
+// Schema and conventions: DIAGRAMS.md Section 5.
+// - `labels` are always shown (learning content, or labels given in the
+//   question); `answerLabels` only render in feedback mode — used when the
+//   label IS the answer ("On the diagram, label the wavelength").
+// - `secondWave` draws a comparison wave below the first (transverse only).
+//   `phaseShift` is a fraction of one wavelength (0.5 = antiphase).
+
+export type WaveLabel =
+  | 'amplitude'
+  | 'wavelength'
+  | 'crest'
+  | 'trough'
+  | 'compression'
+  | 'rarefaction';
+
+export interface WaveDiagramParams {
+  type: 'transverse' | 'longitudinal';
+  cycles?: number; // default 3, clamped 1–6
+  amplitude?: number; // relative 0.2–1, default 1 (transverse only)
+  labels?: WaveLabel[];
+  answerLabels?: WaveLabel[]; // feedback-only
+  axisLabels?: { x?: string; y?: string }; // transverse only
+  mainWaveLabel?: string;
+  secondWave?: {
+    amplitudeRatio?: number; // default 1
+    wavelengthRatio?: number; // default 1
+    phaseShift?: number; // fraction of one wavelength, 0–1
+    label?: string;
+  };
+}
+
+const W = 380;
+const PLOT_R = 364;
+const MAX_AMP = 42;
+
+const STROKE = '#1C1917';
+const AXIS_COLOR = '#78716C';
+const LABEL_COLOR = '#1C1917';
+const POINTER_COLOR = '#78716C';
+
+const FONT = {
+  fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif",
+  fontSize: '12.5',
+  fontWeight: 600 as const,
+  fill: LABEL_COLOR,
+};
+
+const TRANSVERSE_LABELS: WaveLabel[] = ['amplitude', 'wavelength', 'crest', 'trough'];
+const LONGITUDINAL_LABELS: WaveLabel[] = ['compression', 'rarefaction', 'wavelength'];
+
+function clamp(n: number, lo: number, hi: number): number {
+  return Math.min(hi, Math.max(lo, n));
+}
+
+function f(n: number): string {
+  return Number(n.toFixed(2)).toString();
+}
+
+/** Arrowhead polygon with tip at (x, y) pointing along (ux, uy). */
+function head(x: number, y: number, ux: number, uy: number): string {
+  const bx = x - ux * 8;
+  const by = y - uy * 8;
+  const px = -uy;
+  const py = ux;
+  return [
+    `${f(x)},${f(y)}`,
+    `${f(bx + px * 3.8)},${f(by + py * 3.8)}`,
+    `${f(bx - px * 3.8)},${f(by - py * 3.8)}`,
+  ].join(' ');
+}
+
+/** Double-headed measurement arrow between two points. */
+function DoubleArrow({
+  x1,
+  y1,
+  x2,
+  y2,
+}: {
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+}) {
+  const len = Math.hypot(x2 - x1, y2 - y1);
+  if (len < 2) return null;
+  const ux = (x2 - x1) / len;
+  const uy = (y2 - y1) / len;
+  return (
+    <g>
+      <line
+        x1={f(x1 + ux * 8)}
+        y1={f(y1 + uy * 8)}
+        x2={f(x2 - ux * 8)}
+        y2={f(y2 - uy * 8)}
+        stroke={POINTER_COLOR}
+        strokeWidth="1.4"
+      />
+      <polygon points={head(x1, y1, -ux, -uy)} fill={POINTER_COLOR} />
+      <polygon points={head(x2, y2, ux, uy)} fill={POINTER_COLOR} />
+    </g>
+  );
+}
+
+export function WaveDiagram({
+  params,
+  mode = 'question',
+}: {
+  params: WaveDiagramParams;
+  mode?: 'question' | 'feedback';
+}) {
+  if (!params || (params.type !== 'transverse' && params.type !== 'longitudinal')) {
+    console.warn('[WaveDiagram] invalid params', params);
+    return null;
+  }
+
+  const isTransverse = params.type === 'transverse';
+  const allowed = isTransverse ? TRANSVERSE_LABELS : LONGITUDINAL_LABELS;
+
+  const collect = (list: unknown): WaveLabel[] => {
+    if (!Array.isArray(list)) return [];
+    return list.filter((l): l is WaveLabel => {
+      if (allowed.includes(l as WaveLabel)) return true;
+      console.warn(`[WaveDiagram] ignoring label "${l}" — not valid for ${params.type}`);
+      return false;
+    });
+  };
+
+  const shown = new Set<WaveLabel>([
+    ...collect(params.labels),
+    ...(mode === 'feedback' ? collect(params.answerLabels) : []),
+  ]);
+
+  let cycles = clamp(
+    typeof params.cycles === 'number' && Number.isFinite(params.cycles)
+      ? Math.round(params.cycles)
+      : 3,
+    1,
+    6
+  );
+  // Crest-to-crest / compression-to-compression brackets need 2 full cycles.
+  if (shown.has('wavelength') && cycles < 2) cycles = 2;
+
+  const secondWave = isTransverse ? params.secondWave : undefined;
+  if (params.secondWave && !isTransverse) {
+    console.warn('[WaveDiagram] secondWave ignored for longitudinal waves');
+  }
+
+  const plotL = isTransverse && params.axisLabels?.y ? 54 : 26;
+  const plotW = PLOT_R - plotL;
+  const lam = plotW / cycles;
+
+  // ── Transverse rendering ──────────────────────────────────────────────────
+
+  const renderTransverse = (
+    midY: number,
+    ampPx: number,
+    lamPx: number,
+    phasePx: number,
+    caption: string | undefined,
+    withLabels: boolean
+  ) => {
+    const samples = Math.max(60, Math.round(plotW / 3));
+    const path = Array.from({ length: samples + 1 }, (_, i) => {
+      const x = plotL + (i / samples) * plotW;
+      const y = midY - ampPx * Math.sin((2 * Math.PI * (x - plotL - phasePx)) / lamPx);
+      return `${i === 0 ? 'M' : 'L'} ${f(x)} ${f(y)}`;
+    }).join(' ');
+
+    const crestX = (k: number) => plotL + phasePx + lamPx / 4 + k * lamPx;
+    const troughX = (k: number) => plotL + phasePx + (3 * lamPx) / 4 + k * lamPx;
+    const lastVisible = (xOf: (k: number) => number) => {
+      let k = 0;
+      while (xOf(k + 1) < PLOT_R - 6) k++;
+      return xOf(k);
+    };
+
+    return (
+      <g>
+        {caption && (
+          <text {...FONT} x={plotL} y={midY - ampPx - 26} textAnchor="start">
+            {caption}
+          </text>
+        )}
+
+        {/* equilibrium axis */}
+        <line
+          x1={plotL}
+          y1={f(midY)}
+          x2={PLOT_R}
+          y2={f(midY)}
+          stroke={AXIS_COLOR}
+          strokeWidth="1.2"
+        />
+
+        {/* curve */}
+        <path d={path} fill="none" stroke={STROKE} strokeWidth="2" />
+
+        {withLabels && shown.has('amplitude') && (
+          <g>
+            <DoubleArrow x1={crestX(0)} y1={midY} x2={crestX(0)} y2={midY - ampPx} />
+            <text
+              {...FONT}
+              x={f(crestX(0) + 7)}
+              y={f(midY - ampPx / 2 + 4)}
+              textAnchor="start"
+            >
+              amplitude
+            </text>
+          </g>
+        )}
+
+        {withLabels && shown.has('wavelength') && (
+          <g>
+            <line
+              x1={f(crestX(0))}
+              y1={f(midY - ampPx)}
+              x2={f(crestX(0))}
+              y2={f(midY - ampPx - 16)}
+              stroke={POINTER_COLOR}
+              strokeWidth="1"
+              strokeDasharray="2,2"
+            />
+            <line
+              x1={f(crestX(1))}
+              y1={f(midY - ampPx)}
+              x2={f(crestX(1))}
+              y2={f(midY - ampPx - 16)}
+              stroke={POINTER_COLOR}
+              strokeWidth="1"
+              strokeDasharray="2,2"
+            />
+            <DoubleArrow
+              x1={crestX(0)}
+              y1={midY - ampPx - 12}
+              x2={crestX(1)}
+              y2={midY - ampPx - 12}
+            />
+            <text
+              {...FONT}
+              x={f((crestX(0) + crestX(1)) / 2)}
+              y={f(midY - ampPx - 18)}
+              textAnchor="middle"
+            >
+              wavelength
+            </text>
+          </g>
+        )}
+
+        {withLabels && shown.has('crest') && (
+          <text
+            {...FONT}
+            x={f(lastVisible(crestX))}
+            y={f(midY - ampPx - 8)}
+            textAnchor="middle"
+          >
+            crest
+          </text>
+        )}
+
+        {withLabels && shown.has('trough') && (
+          <text
+            {...FONT}
+            x={f(lastVisible(troughX))}
+            y={f(midY + ampPx + 16)}
+            textAnchor="middle"
+          >
+            trough
+          </text>
+        )}
+      </g>
+    );
+  };
+
+  // ── Longitudinal rendering ────────────────────────────────────────────────
+
+  const renderLongitudinal = (topY: number, bandH: number) => {
+    const linesPerCycle = 12;
+    const count = cycles * linesPerCycle;
+    const shift = lam * 0.14;
+    const lines: number[] = [];
+    for (let i = 0; i <= count; i++) {
+      const x0 = (i / count) * plotW;
+      const x = plotL + x0 + shift * Math.sin((2 * Math.PI * x0) / lam);
+      lines.push(x);
+    }
+    // Particles bunch at x = λ/2 + kλ (compressions); spread at x = kλ.
+    const compressionX = (k: number) => plotL + lam / 2 + k * lam;
+    const rarefactionX = (k: number) => plotL + lam * (k + 1);
+    const bottom = topY + bandH;
+
+    return (
+      <g>
+        {lines.map((x, i) => (
+          <line
+            key={i}
+            x1={f(x)}
+            y1={f(topY)}
+            x2={f(x)}
+            y2={f(bottom)}
+            stroke={STROKE}
+            strokeWidth="1.5"
+          />
+        ))}
+
+        {shown.has('wavelength') && (
+          <g>
+            <DoubleArrow
+              x1={compressionX(0)}
+              y1={topY - 14}
+              x2={compressionX(1)}
+              y2={topY - 14}
+            />
+            <text
+              {...FONT}
+              x={f((compressionX(0) + compressionX(1)) / 2)}
+              y={f(topY - 20)}
+              textAnchor="middle"
+            >
+              wavelength
+            </text>
+          </g>
+        )}
+
+        {shown.has('compression') && (
+          <g>
+            <line
+              x1={f(compressionX(0))}
+              y1={f(bottom + 4)}
+              x2={f(compressionX(0))}
+              y2={f(bottom + 18)}
+              stroke={POINTER_COLOR}
+              strokeWidth="1.2"
+            />
+            <text {...FONT} x={f(compressionX(0))} y={f(bottom + 32)} textAnchor="middle">
+              compression
+            </text>
+          </g>
+        )}
+
+        {shown.has('rarefaction') && (
+          <g>
+            <line
+              x1={f(rarefactionX(0))}
+              y1={f(bottom + 4)}
+              x2={f(rarefactionX(0))}
+              y2={f(bottom + 18)}
+              stroke={POINTER_COLOR}
+              strokeWidth="1.2"
+            />
+            <text {...FONT} x={f(rarefactionX(0))} y={f(bottom + 32)} textAnchor="middle">
+              rarefaction
+            </text>
+          </g>
+        )}
+      </g>
+    );
+  };
+
+  // ── Layout ────────────────────────────────────────────────────────────────
+
+  const ampRel = clamp(
+    typeof params.amplitude === 'number' ? params.amplitude : 1,
+    0.2,
+    1
+  );
+  const ampPx = ampRel * MAX_AMP;
+
+  const blockH = isTransverse ? 2 * MAX_AMP + 64 : 150;
+  const waveCount = isTransverse && secondWave ? 2 : 1;
+  const xCaptionH = isTransverse && params.axisLabels?.x ? 22 : 0;
+  const H = blockH * waveCount + xCaptionH + 8;
+
+  // Second wave geometry
+  const amp2 = secondWave
+    ? clamp(ampRel * clamp(secondWave.amplitudeRatio ?? 1, 0.2, 1.5), 0.15, 1) * MAX_AMP
+    : 0;
+  const lam2 = secondWave ? lam * clamp(secondWave.wavelengthRatio ?? 1, 0.25, 3) : lam;
+  const phase2 = secondWave ? clamp(secondWave.phaseShift ?? 0, 0, 1) * lam2 : 0;
+
+  const mid1 = blockH / 2 + 14;
+  const mid2 = blockH + blockH / 2 + 14;
+
+  const labelList = Array.from(shown);
+  const desc = isTransverse
+    ? `Transverse wave with ${cycles} cycles` +
+      (labelList.length ? `, labelled: ${labelList.join(', ')}` : '') +
+      (secondWave
+        ? `; second wave for comparison${secondWave.label ? ` (${secondWave.label})` : ''}`
+        : '') +
+      '.'
+    : `Longitudinal wave with ${cycles} cycles shown as vertical line bands` +
+      (labelList.length ? `, labelled: ${labelList.join(', ')}` : '') +
+      '.';
+
+  return (
+    <div className="flex justify-center py-4 px-2">
+      <div
+        className="bg-[#FAF7F2] border border-border/40 rounded-lg p-4 w-full"
+        style={{ maxWidth: 400 }}
+      >
+        <svg
+          viewBox={`0 0 ${W} ${f(H)}`}
+          width="100%"
+          style={{ maxWidth: 360, display: 'block', margin: '0 auto' }}
+          xmlns="http://www.w3.org/2000/svg"
+          role="img"
+        >
+          <title>{isTransverse ? 'Transverse wave diagram' : 'Longitudinal wave diagram'}</title>
+          <desc>{desc}</desc>
+
+          {isTransverse ? (
+            <g>
+              {/* y-axis */}
+              {params.axisLabels?.y && (
+                <g>
+                  <line
+                    x1={plotL}
+                    y1={f(mid1 - ampPx - 8)}
+                    x2={plotL}
+                    y2={f(mid1 + ampPx + 8)}
+                    stroke={AXIS_COLOR}
+                    strokeWidth="1.2"
+                  />
+                  <text
+                    {...FONT}
+                    fontSize="11"
+                    fontWeight={400}
+                    fill={AXIS_COLOR}
+                    textAnchor="middle"
+                    transform={`rotate(-90 ${plotL - 10} ${f(mid1)})`}
+                    x={plotL - 10}
+                    y={f(mid1)}
+                  >
+                    {params.axisLabels.y}
+                  </text>
+                </g>
+              )}
+
+              {renderTransverse(mid1, ampPx, lam, 0, params.mainWaveLabel, true)}
+              {secondWave &&
+                renderTransverse(mid2, amp2, lam2, phase2, secondWave.label, false)}
+
+              {params.axisLabels?.x && (
+                <text
+                  {...FONT}
+                  fontSize="11"
+                  fontWeight={400}
+                  fill={AXIS_COLOR}
+                  x={f((plotL + PLOT_R) / 2)}
+                  y={f(H - 6)}
+                  textAnchor="middle"
+                >
+                  {params.axisLabels.x}
+                </text>
+              )}
+            </g>
+          ) : (
+            renderLongitudinal(44, 80)
+          )}
+        </svg>
+      </div>
+    </div>
+  );
+}
