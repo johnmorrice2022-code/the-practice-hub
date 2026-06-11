@@ -268,8 +268,10 @@ function StyledParagraph({ para }: { para: Paragraph }) {
   // A registered component (diagram_component + diagram_params) takes
   // precedence over a static diagram_url image.
   const DiagramComponent = getQuestionDiagram(para.diagram_component);
+  // Learning content is a teaching context — render full diagrams including
+  // any feedback-only layers (answer labels, resultants), like FeedbackCard.
   const diagram = DiagramComponent ? (
-    <DiagramComponent params={para.diagram_params} />
+    <DiagramComponent params={para.diagram_params} mode="feedback" />
   ) : para.diagram_url ? (
     <div className="flex justify-center py-2">
       <div

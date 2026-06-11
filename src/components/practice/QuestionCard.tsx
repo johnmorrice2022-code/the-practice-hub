@@ -3,7 +3,10 @@ import {
   TheoremType,
   DiagramParams,
 } from '@/components/diagrams';
-import { getQuestionDiagram } from '@/components/diagrams/questionDiagramRegistry';
+import {
+  getQuestionDiagram,
+  isQuestionSafe,
+} from '@/components/diagrams/questionDiagramRegistry';
 import {
   InteractiveProbabilityTree,
   TreeAnswers,
@@ -93,16 +96,15 @@ export function QuestionCard({
       }
     })();
 
-  // 'quadratic-inequality-graph' is a worked-solution diagram (it shows the
-  // highlighted answer region), so it must never be shown on the question
-  // itself before marking — only in FeedbackCard.
-  const isWorkedSolutionOnlyDiagram =
-    diagramComponent === 'quadratic-inequality-graph';
+  // Worked-solution-only diagrams (questionSafe: false in the registry, e.g.
+  // 'quadratic-inequality-graph') must never be shown on the question itself
+  // before marking — only in FeedbackCard.
+  const questionSafe = isQuestionSafe(diagramComponent, diagramParams);
 
   // For non-interactive probability trees (no hidden branches), fall through
   // to the registry path as before.
   const RegisteredDiagram =
-    isWorkedSolutionOnlyDiagram
+    !questionSafe
       ? null
       : isProbabilityTree && !hasHiddenBranches
         ? getQuestionDiagram(diagramComponent)
@@ -176,7 +178,7 @@ export function QuestionCard({
             className="bg-[#FAF7F2] border border-border/40 rounded-xl p-5 w-full"
             style={{ maxWidth: 680, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}
           >
-            <RegisteredDiagram params={diagramParams} />
+            <RegisteredDiagram params={diagramParams} mode="question" />
           </div>
         </div>
       )}

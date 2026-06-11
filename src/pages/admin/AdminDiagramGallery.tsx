@@ -21,7 +21,11 @@ import {
   Play,
   AlertCircle,
 } from 'lucide-react';
-import { QUESTION_DIAGRAM_REGISTRY } from '@/components/diagrams/questionDiagramRegistry';
+import {
+  QUESTION_DIAGRAM_REGISTRY,
+  isQuestionSafe,
+  type DiagramMode,
+} from '@/components/diagrams/questionDiagramRegistry';
 
 const ADMIN_EMAIL = 'johnmorrice2022@gmail.com';
 
@@ -226,6 +230,7 @@ export default function AdminDiagramGallery() {
     initialParams
   );
   const [parseError, setParseError] = useState<string | null>(null);
+  const [mode, setMode] = useState<DiagramMode>('feedback');
 
   const previewRef = useRef<HTMLDivElement>(null);
 
@@ -288,7 +293,8 @@ export default function AdminDiagramGallery() {
 
   if (!authChecked || !authed) return null;
 
-  const Diagram = QUESTION_DIAGRAM_REGISTRY[selectedKey];
+  const Diagram = QUESTION_DIAGRAM_REGISTRY[selectedKey]?.component;
+  const questionSafe = isQuestionSafe(selectedKey, appliedParams);
 
   return (
     <div className="min-h-screen" style={{ background: '#f9f3eb' }}>
@@ -359,6 +365,42 @@ export default function AdminDiagramGallery() {
             </p>
           )}
 
+          {/* Render mode + question-safety status */}
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div
+              className="inline-flex rounded-lg border bg-white p-0.5"
+              style={{ borderColor: 'rgba(0,0,0,0.1)' }}
+            >
+              {(['question', 'feedback'] as DiagramMode[]).map((m) => (
+                <button
+                  key={m}
+                  onClick={() => setMode(m)}
+                  className="text-xs px-3 py-1.5 rounded-md transition-colors"
+                  style={{
+                    background: mode === m ? '#E23D28' : 'transparent',
+                    color: mode === m ? 'white' : '#6b7280',
+                    fontWeight: mode === m ? 600 : 400,
+                  }}
+                >
+                  {m === 'question' ? 'Question view' : 'Worked solution view'}
+                </button>
+              ))}
+            </div>
+            <span
+              className="text-[11px] font-medium px-2 py-1 rounded-full"
+              style={{
+                background: questionSafe
+                  ? 'rgba(45,154,95,0.1)'
+                  : 'rgba(226,61,40,0.08)',
+                color: questionSafe ? '#2D9A5F' : '#E23D28',
+              }}
+            >
+              {questionSafe
+                ? 'Question-safe — shown in QuestionCard'
+                : 'Worked-solution only — hidden from QuestionCard'}
+            </span>
+          </div>
+
           {/* Live rendering */}
           <div
             ref={previewRef}
@@ -366,10 +408,10 @@ export default function AdminDiagramGallery() {
             style={{ borderColor: 'rgba(0,0,0,0.08)' }}
           >
             <DiagramErrorBoundary
-              key={`${selectedKey}:${JSON.stringify(appliedParams)}`}
+              key={`${selectedKey}:${mode}:${JSON.stringify(appliedParams)}`}
             >
               {Diagram ? (
-                <Diagram params={appliedParams} />
+                <Diagram params={appliedParams} mode={mode} />
               ) : (
                 <p className="text-sm text-gray-400 text-center py-8">
                   Component not found in registry.

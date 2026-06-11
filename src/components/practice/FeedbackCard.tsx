@@ -269,7 +269,7 @@ export function FeedbackCard({
         </div>
         {RegisteredDiagram && diagramParams && (
           <div className="rounded-lg border border-border/50 p-4 flex justify-center bg-card">
-            <RegisteredDiagram params={diagramParams} />
+            <RegisteredDiagram params={diagramParams} mode="feedback" />
           </div>
         )}
       </div>
