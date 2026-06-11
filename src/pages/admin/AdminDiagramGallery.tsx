@@ -43,6 +43,53 @@ interface GalleryMetadata {
 }
 
 const GALLERY_METADATA: Record<string, GalleryMetadata> = {
+  'free-body-diagram': {
+    name: 'Free Body Diagram',
+    description:
+      'AQA force diagram — arrows from the centre of the object outward. The resultant arrow only renders in Worked solution view.',
+    presets: [
+      {
+        label: 'Skydiver at terminal velocity',
+        params: {
+          object: 'dot',
+          objectLabel: 'skydiver',
+          balanced: true,
+          forces: [
+            { label: 'weight', angle: 'down', magnitude: 700 },
+            { label: 'air resistance', angle: 'up', magnitude: 700 },
+          ],
+        },
+      },
+      {
+        label: 'Car accelerating',
+        params: {
+          object: 'box',
+          objectLabel: 'car',
+          forces: [
+            { label: 'driving force', angle: 'right', magnitude: 2000 },
+            { label: 'friction', angle: 'left', magnitude: 500 },
+            { label: 'weight', angle: 'down', magnitude: 12000, relativeLength: 0.8 },
+            { label: 'normal contact force', angle: 'up', magnitude: 12000, relativeLength: 0.8 },
+          ],
+        },
+      },
+      {
+        label: 'Rocket with resultant',
+        params: {
+          object: 'box',
+          forces: [
+            { label: 'thrust', angle: 'up', magnitude: 8000 },
+            { label: 'weight', angle: 'down', magnitude: 6000 },
+          ],
+          showResultant: {
+            angle: 'up',
+            label: 'resultant force 2000 N',
+            magnitude: 2000,
+          },
+        },
+      },
+    ],
+  },
   'probability-tree': {
     name: 'Probability Tree',
     description:

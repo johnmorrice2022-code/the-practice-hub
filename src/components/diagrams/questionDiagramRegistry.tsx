@@ -29,6 +29,7 @@ import { ProbabilityTree } from './ProbabilityTree';
 import { QuadraticInequalityGraph } from './QuadraticInequalityGraph';
 import { CompletingTheSquareAreaModel } from './CompletingTheSquareAreaModel';
 import { ParabolaVertexGraph } from './ParabolaVertexGraph';
+import { FreeBodyDiagram } from './FreeBodyDiagram';
 
 export type DiagramMode = 'question' | 'feedback';
 
@@ -65,6 +66,10 @@ const ParabolaVertexGraphWrapper: QuestionDiagramComponent = ({ params }) => (
   <ParabolaVertexGraph params={params} />
 );
 
+const FreeBodyDiagramWrapper: QuestionDiagramComponent = ({ params, mode }) => (
+  <FreeBodyDiagram params={params} mode={mode} />
+);
+
 export const QUESTION_DIAGRAM_REGISTRY: Record<
   string,
   QuestionDiagramRegistryEntry
@@ -88,8 +93,14 @@ export const QUESTION_DIAGRAM_REGISTRY: Record<
     component: ParabolaVertexGraphWrapper,
     questionSafe: false,
   },
-  // Future entries (DIAGRAMS.md): 'free-body-diagram', 'vector-diagram',
-  // 'wave-diagram', 'histogram', 'vector-geometry-diagram', 'circuit-diagram'.
+  // AQA Physics force diagram. The resultant arrow is a feedback-only layer
+  // gated by `mode`, so the diagram itself is question-safe.
+  'free-body-diagram': {
+    component: FreeBodyDiagramWrapper,
+    questionSafe: true,
+  },
+  // Future entries (DIAGRAMS.md): 'vector-diagram', 'wave-diagram',
+  // 'histogram', 'vector-geometry-diagram', 'circuit-diagram'.
 };
 
 /**
