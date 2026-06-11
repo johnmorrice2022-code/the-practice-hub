@@ -30,6 +30,7 @@ import { QuadraticInequalityGraph } from './QuadraticInequalityGraph';
 import { CompletingTheSquareAreaModel } from './CompletingTheSquareAreaModel';
 import { ParabolaVertexGraph } from './ParabolaVertexGraph';
 import { FreeBodyDiagram } from './FreeBodyDiagram';
+import { VectorDiagram } from './VectorDiagram';
 
 export type DiagramMode = 'question' | 'feedback';
 
@@ -70,6 +71,10 @@ const FreeBodyDiagramWrapper: QuestionDiagramComponent = ({ params, mode }) => (
   <FreeBodyDiagram params={params} mode={mode} />
 );
 
+const VectorDiagramWrapper: QuestionDiagramComponent = ({ params, mode }) => (
+  <VectorDiagram params={params} mode={mode} />
+);
+
 export const QUESTION_DIAGRAM_REGISTRY: Record<
   string,
   QuestionDiagramRegistryEntry
@@ -99,8 +104,14 @@ export const QUESTION_DIAGRAM_REGISTRY: Record<
     component: FreeBodyDiagramWrapper,
     questionSafe: true,
   },
-  // Future entries (DIAGRAMS.md): 'vector-diagram', 'wave-diagram',
-  // 'histogram', 'vector-geometry-diagram', 'circuit-diagram'.
+  // Physics scale drawings + Edexcel column vectors. The resultant is a
+  // feedback-only layer gated by `mode`, so the diagram is question-safe.
+  'vector-diagram': {
+    component: VectorDiagramWrapper,
+    questionSafe: true,
+  },
+  // Future entries (DIAGRAMS.md): 'wave-diagram', 'histogram',
+  // 'vector-geometry-diagram', 'circuit-diagram'.
 };
 
 /**

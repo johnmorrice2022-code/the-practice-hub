@@ -89,6 +89,47 @@ const GALLERY_METADATA: Record<string, GalleryMetadata> = {
       },
     ],
   },
+  'vector-diagram': {
+    name: 'Vector Diagram',
+    description:
+      'Grid-based vectors for column vector questions and physics scale drawings. The dashed red resultant only renders in Worked solution view.',
+    presets: [
+      {
+        label: 'Column vector addition a + b',
+        params: {
+          grid: true,
+          tipToTail: true,
+          vectors: [
+            { from: [1, 1], dx: 3, dy: 2, label: 'a' },
+            { from: [0, 0], dx: 1, dy: -4, label: 'b' },
+          ],
+          showResultant: true,
+          resultantLabel: 'a + b',
+        },
+      },
+      {
+        label: 'Scale drawing 40 N + 30 N',
+        params: {
+          grid: true,
+          tipToTail: true,
+          vectors: [
+            { from: [1, 1], dx: 8, dy: 0, label: '40 N' },
+            { from: [0, 0], dx: 0, dy: 6, label: '30 N' },
+          ],
+          showResultant: true,
+          resultantLabel: 'resultant 50 N',
+        },
+      },
+      {
+        label: 'Single column vector with axes',
+        params: {
+          grid: true,
+          axes: true,
+          vectors: [{ from: [0, 0], dx: 4, dy: -3, label: 'v' }],
+        },
+      },
+    ],
+  },
   'probability-tree': {
     name: 'Probability Tree',
     description:
