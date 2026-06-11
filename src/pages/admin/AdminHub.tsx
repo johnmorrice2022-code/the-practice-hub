@@ -21,6 +21,7 @@ import {
   Megaphone,
   Flag,
   Layers,
+  Shapes,
 } from 'lucide-react';
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -175,6 +176,16 @@ export default function AdminHub() {
               statLabel="flags to review"
               statsLoaded={stats.feedbackCount !== null}
               onClick={() => navigate('/admin/feedback')}
+            />
+            <ToolCard
+              icon={<Shapes size={18} color="white" />}
+              iconBg="#F5A623"
+              title="Diagram Gallery"
+              description="Preview every parametric diagram component, test params and download standalone SVGs."
+              stat={null}
+              statLabel=""
+              statsLoaded={true}
+              onClick={() => navigate('/admin/diagram-gallery')}
             />
           </div>
         </section>
