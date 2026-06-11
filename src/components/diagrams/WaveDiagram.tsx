@@ -149,7 +149,12 @@ export function WaveDiagram({
     console.warn('[WaveDiagram] secondWave ignored for longitudinal waves');
   }
 
-  const plotL = isTransverse && params.axisLabels?.y ? 54 : 26;
+  // Reserve a left annotation column when the amplitude measurement is shown:
+  // the arrow + "amplitude" text live entirely in this margin (connected to
+  // the first crest by a dashed guide line) so they never cross the curve.
+  let plotL = 26;
+  if (isTransverse && params.axisLabels?.y) plotL = 54;
+  if (isTransverse && shown.has('amplitude')) plotL = Math.max(plotL, 92);
   const plotW = PLOT_R - plotL;
   const lam = plotW / cycles;
 
@@ -201,12 +206,36 @@ export function WaveDiagram({
 
         {withLabels && shown.has('amplitude') && (
           <g>
-            <DoubleArrow x1={crestX(0)} y1={midY} x2={crestX(0)} y2={midY - ampPx} />
+            {/* dashed guides from the first crest / axis into the margin */}
+            <line
+              x1={f(crestX(0))}
+              y1={f(midY - ampPx)}
+              x2={f(plotL - 18)}
+              y2={f(midY - ampPx)}
+              stroke={POINTER_COLOR}
+              strokeWidth="1"
+              strokeDasharray="3,3"
+            />
+            <line
+              x1={f(plotL)}
+              y1={f(midY)}
+              x2={f(plotL - 18)}
+              y2={f(midY)}
+              stroke={POINTER_COLOR}
+              strokeWidth="1"
+              strokeDasharray="3,3"
+            />
+            <DoubleArrow
+              x1={plotL - 18}
+              y1={midY}
+              x2={plotL - 18}
+              y2={midY - ampPx}
+            />
             <text
               {...FONT}
-              x={f(crestX(0) + 7)}
+              x={f(plotL - 26)}
               y={f(midY - ampPx / 2 + 4)}
-              textAnchor="start"
+              textAnchor="end"
             >
               amplitude
             </text>
@@ -290,6 +319,9 @@ export function WaveDiagram({
     // Particles bunch at x = λ/2 + kλ (compressions); spread at x = kλ.
     const compressionX = (k: number) => plotL + lam / 2 + k * lam;
     const rarefactionX = (k: number) => plotL + lam * (k + 1);
+    // Label the FIRST compression but a LATER rarefaction so the two text
+    // labels are far apart and can never collide.
+    const rarefactionK = Math.max(0, cycles - 2);
     const bottom = topY + bandH;
 
     return (
@@ -344,14 +376,19 @@ export function WaveDiagram({
         {shown.has('rarefaction') && (
           <g>
             <line
-              x1={f(rarefactionX(0))}
+              x1={f(rarefactionX(rarefactionK))}
               y1={f(bottom + 4)}
-              x2={f(rarefactionX(0))}
+              x2={f(rarefactionX(rarefactionK))}
               y2={f(bottom + 18)}
               stroke={POINTER_COLOR}
               strokeWidth="1.2"
             />
-            <text {...FONT} x={f(rarefactionX(0))} y={f(bottom + 32)} textAnchor="middle">
+            <text
+              {...FONT}
+              x={f(rarefactionX(rarefactionK))}
+              y={f(bottom + 32)}
+              textAnchor="middle"
+            >
               rarefaction
             </text>
           </g>
