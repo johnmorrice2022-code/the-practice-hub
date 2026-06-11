@@ -1,23 +1,31 @@
 // FreeBodyDiagram.tsx
-// AQA Physics free body diagram: an object (box or dot) with force arrows
-// drawn from the centre of the object outward (AQA convention).
+// AQA Physics free body diagram: an object (box, dot, or a simple recognisable
+// car/rocket drawing) with force arrows acting along lines through the centre
+// of the object.
 //
 // Schema and conventions: DIAGRAMS.md Section 3.
 // - Angle convention: degrees anticlockwise from "right" (0 = right, 90 = up),
 //   or the named directions 'up' | 'down' | 'left' | 'right'.
-// - Arrow lengths scale with magnitude (equal magnitudes always render equal
-//   lengths); `balanced: true` forces all arrows to equal length.
+// - Arrows start just outside the object's edge (so they never cross the
+//   drawing) and their SHAFT length carries the magnitude information.
+//   Magnitudes are normalised per axis (horizontal forces against each other,
+//   vertical against each other) so opposing pairs compare correctly: equal
+//   magnitudes always render equal shafts, and a small friction force stays
+//   visibly smaller than a large driving force.
+// - `balanced: true` forces all shafts to equal length.
 // - `showResultant` is a feedback-only layer — never rendered in question mode.
 
 export interface FreeBodyForce {
   label: string;
   angle: number | 'up' | 'down' | 'left' | 'right';
   magnitude?: number;
-  relativeLength?: number; // 0.3–1.5, overrides magnitude scaling
+  relativeLength?: number; // 0.3–1.3, overrides magnitude scaling
 }
 
+export type FreeBodyObject = 'box' | 'dot' | 'car' | 'rocket';
+
 export interface FreeBodyDiagramParams {
-  object?: 'box' | 'dot';
+  object?: FreeBodyObject;
   objectLabel?: string;
   forces: FreeBodyForce[]; // 1–6
   showResultant?: {
@@ -28,12 +36,13 @@ export interface FreeBodyDiagramParams {
   balanced?: boolean;
 }
 
-const VIEW = 340;
+const VIEW = 400;
 const CX = VIEW / 2;
 const CY = VIEW / 2;
-const MAX_LEN = 95;
-const BOX_W = 70;
-const BOX_H = 50;
+const SHAFT_BASE = 25; // minimum visible shaft
+const SHAFT_SCALE = 80; // shaft length added at relative length 1
+const EDGE_GAP = 6; // gap between object edge and arrow start
+const MAX_TIP = 178; // keep tips + labels inside the viewBox
 
 const STROKE = '#1C1917';
 const RESULTANT_COLOR = '#E23D28';
@@ -43,6 +52,17 @@ const FONT = {
   fontSize: '13',
   fontWeight: 600 as const,
   fill: '#1C1917',
+};
+
+// Half-extents of each object shape from the centre, per direction.
+const SHAPE_EXTENTS: Record<
+  FreeBodyObject,
+  { left: number; right: number; up: number; down: number }
+> = {
+  box: { left: 35, right: 35, up: 25, down: 25 },
+  dot: { left: 8, right: 8, up: 8, down: 8 },
+  car: { left: 58, right: 58, up: 28, down: 29 },
+  rocket: { left: 32, right: 32, up: 64, down: 32 },
 };
 
 const NAMED_ANGLES: Record<string, number> = {
@@ -73,28 +93,57 @@ function directionWord(angle: number | string): string {
   return `at ${angle} degrees`;
 }
 
+// Magnitude normalisation groups: opposing pairs share an axis, and relative
+// length only needs to be truthful within an axis.
+function axisOf(deg: number): 'h' | 'v' | 'other' {
+  const d = ((deg % 360) + 360) % 360;
+  const near = (target: number) => Math.abs(d - target) <= 25;
+  if (near(0) || near(180) || near(360)) return 'h';
+  if (near(90) || near(270)) return 'v';
+  return 'other';
+}
+
+/** Extent of the object from its centre in the direction (ux, uySvg). */
+function extentIn(
+  shape: FreeBodyObject,
+  ux: number,
+  uySvg: number
+): number {
+  const e = SHAPE_EXTENTS[shape];
+  const h = ux > 0 ? e.right : e.left;
+  const v = uySvg < 0 ? e.up : e.down;
+  return Math.hypot(h * ux, v * uySvg);
+}
+
 interface ResolvedArrow {
   deg: number;
-  length: number; // px
+  startDist: number; // from centre to shaft start (object edge + gap)
+  tipDist: number; // from centre to arrowhead tip
   text: string;
 }
 
-/** Shaft, arrowhead and label geometry for one arrow from the centre. */
-function arrowParts(arrow: ResolvedArrow, color: string, dashed: boolean, key: string) {
+function renderArrow(
+  arrow: ResolvedArrow,
+  color: string,
+  resultant: boolean,
+  key: string
+) {
   const rad = (arrow.deg * Math.PI) / 180;
   // SVG y runs down; maths angle has y up.
   const ux = Math.cos(rad);
   const uy = -Math.sin(rad);
-  // Perpendicular (used to offset the dashed resultant off any force arrow
-  // pointing the same way).
   const px = -uy;
   const py = ux;
-  const offset = dashed ? 16 : 0;
-  const sx = CX + px * offset;
-  const sy = CY + py * offset;
+  // The dashed resultant is offset sideways so it never sits on top of a
+  // force arrow pointing the same way.
+  const off = resultant ? 20 : 0;
+  const ox = px * off;
+  const oy = py * off;
 
-  const tipX = sx + ux * arrow.length;
-  const tipY = sy + uy * arrow.length;
+  const sx = CX + ux * arrow.startDist + ox;
+  const sy = CY + uy * arrow.startDist + oy;
+  const tipX = CX + ux * arrow.tipDist + ox;
+  const tipY = CY + uy * arrow.tipDist + oy;
   const baseX = tipX - ux * 11;
   const baseY = tipY - uy * 11;
 
@@ -104,25 +153,35 @@ function arrowParts(arrow: ResolvedArrow, color: string, dashed: boolean, key: s
     `${f(baseX - px * 5.5)},${f(baseY - py * 5.5)}`,
   ].join(' ');
 
-  // Label placement: horizontal arrows get the label above the shaft (long
-  // labels would run off the edge if placed beyond the tip); vertical arrows
-  // get it beyond the tip, centred; diagonals beyond the tip, anchored by side.
   const isHorizontal = Math.abs(uy) <= 0.35;
   const isVertical = Math.abs(ux) <= 0.35;
+  const midDist = (arrow.startDist + arrow.tipDist) / 2;
+
   let labelX: number;
   let labelY: number;
   let anchor: 'start' | 'middle' | 'end';
-  if (isHorizontal) {
-    labelX = sx + ux * arrow.length * 0.65;
-    labelY = sy - 10;
+  if (resultant && isVertical) {
+    // Beside the offset shaft, on its outer side.
+    labelX = CX + ox + (ox >= 0 ? 10 : -10);
+    labelY = CY + uy * midDist + 4;
+    anchor = ox >= 0 ? 'start' : 'end';
+  } else if (resultant && isHorizontal) {
+    // Below/above the offset shaft (force labels take the near side).
+    labelX = CX + ux * midDist;
+    labelY = CY + oy + (oy >= 0 ? 20 : -12);
+    anchor = 'middle';
+  } else if (isHorizontal) {
+    // Above the visible shaft — beyond-the-tip labels would run off the edge.
+    labelX = CX + ux * midDist;
+    labelY = CY - 12;
     anchor = 'middle';
   } else if (isVertical) {
     labelX = tipX;
     labelY = uy < 0 ? tipY - 10 : tipY + 20;
     anchor = 'middle';
   } else {
-    labelX = sx + ux * (arrow.length + 14);
-    labelY = sy + uy * (arrow.length + 14) + 4;
+    labelX = CX + ux * (arrow.tipDist + 14) + ox;
+    labelY = CY + uy * (arrow.tipDist + 14) + oy + 4;
     anchor = ux > 0 ? 'start' : 'end';
   }
   labelY = clamp(labelY, 12, VIEW - 6);
@@ -136,7 +195,7 @@ function arrowParts(arrow: ResolvedArrow, color: string, dashed: boolean, key: s
         y2={f(baseY)}
         stroke={color}
         strokeWidth="2"
-        strokeDasharray={dashed ? '5,4' : undefined}
+        strokeDasharray={resultant ? '5,4' : undefined}
       />
       <polygon points={head} fill={color} />
       <text {...FONT} x={f(labelX)} y={f(labelY)} textAnchor={anchor} fill={color}>
@@ -145,6 +204,48 @@ function arrowParts(arrow: ResolvedArrow, color: string, dashed: boolean, key: s
     </g>
   );
 }
+
+// ─── Object drawings ──────────────────────────────────────────────────────────
+// Deliberately simple, single-stroke-weight line drawings: recognisable enough
+// to engage students, plain enough to still read as an exam diagram.
+
+function CarShape() {
+  return (
+    <g stroke={STROKE} strokeWidth="1.5" fill="#FFFFFF">
+      {/* cabin */}
+      <path
+        d={`M ${CX - 28} ${CY - 8} L ${CX - 20} ${CY - 26} L ${CX + 18} ${CY - 26} L ${CX + 28} ${CY - 8} Z`}
+      />
+      {/* body */}
+      <rect x={CX - 55} y={CY - 8} width="110" height="26" rx="6" />
+      {/* wheels */}
+      <circle cx={CX - 30} cy={CY + 18} r="9" />
+      <circle cx={CX + 30} cy={CY + 18} r="9" />
+      <circle cx={CX - 30} cy={CY + 18} r="2.5" fill={STROKE} />
+      <circle cx={CX + 30} cy={CY + 18} r="2.5" fill={STROKE} />
+    </g>
+  );
+}
+
+function RocketShape() {
+  return (
+    <g stroke={STROKE} strokeWidth="1.5" fill="#FFFFFF">
+      {/* fins */}
+      <path d={`M ${CX - 13} ${CY + 6} L ${CX - 30} ${CY + 30} L ${CX - 13} ${CY + 30} Z`} />
+      <path d={`M ${CX + 13} ${CY + 6} L ${CX + 30} ${CY + 30} L ${CX + 13} ${CY + 30} Z`} />
+      {/* body */}
+      <rect x={CX - 13} y={CY - 36} width="26" height="64" rx="8" />
+      {/* nose cone */}
+      <path
+        d={`M ${CX - 13} ${CY - 36} C ${CX - 6} ${CY - 60}, ${CX + 6} ${CY - 60}, ${CX + 13} ${CY - 36} Z`}
+      />
+      {/* window */}
+      <circle cx={CX} cy={CY - 22} r="5" />
+    </g>
+  );
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
 
 export function FreeBodyDiagram({
   params,
@@ -179,18 +280,26 @@ export function FreeBodyDiagram({
     return null;
   }
 
-  const magnitudes = resolved
-    .map(({ force }) => force.magnitude)
-    .filter((m): m is number => typeof m === 'number' && m > 0);
-  const maxMagnitude = magnitudes.length > 0 ? Math.max(...magnitudes) : 0;
+  const shape: FreeBodyObject =
+    params.object && params.object in SHAPE_EXTENTS ? params.object : 'box';
 
-  const relativeLength = (force: FreeBodyForce): number => {
+  // Per-axis maximum magnitudes for normalisation.
+  const axisMax: Record<'h' | 'v' | 'other', number> = { h: 0, v: 0, other: 0 };
+  for (const { force, deg } of resolved) {
+    if (typeof force.magnitude === 'number' && force.magnitude > 0) {
+      const axis = axisOf(deg);
+      axisMax[axis] = Math.max(axisMax[axis], force.magnitude);
+    }
+  }
+
+  const relativeLength = (force: FreeBodyForce, deg: number): number => {
     if (params.balanced) return 1;
     if (typeof force.relativeLength === 'number') {
-      return clamp(force.relativeLength, 0.3, 1.5);
+      return clamp(force.relativeLength, 0.3, 1.3);
     }
-    if (typeof force.magnitude === 'number' && force.magnitude > 0 && maxMagnitude > 0) {
-      return clamp(force.magnitude / maxMagnitude, 0.4, 1);
+    const max = axisMax[axisOf(deg)];
+    if (typeof force.magnitude === 'number' && force.magnitude > 0 && max > 0) {
+      return clamp(force.magnitude / max, 0.45, 1);
     }
     return 1;
   };
@@ -198,35 +307,41 @@ export function FreeBodyDiagram({
   const labelText = (label: string, magnitude?: number): string =>
     typeof magnitude === 'number' ? `${label} ${magnitude} N` : label;
 
-  const arrows: ResolvedArrow[] = resolved.map(({ force, deg }) => ({
-    deg,
-    length: MAX_LEN * relativeLength(force),
-    text: labelText(force.label, force.magnitude),
-  }));
+  const toArrow = (
+    deg: number,
+    rel: number,
+    text: string
+  ): ResolvedArrow => {
+    const rad = (deg * Math.PI) / 180;
+    const ux = Math.cos(rad);
+    const uy = -Math.sin(rad);
+    const startDist = extentIn(shape, ux, uy) + EDGE_GAP;
+    const tipDist = Math.min(startDist + SHAFT_BASE + rel * SHAFT_SCALE, MAX_TIP);
+    return { deg, startDist, tipDist, text };
+  };
+
+  const arrows = resolved.map(({ force, deg }) =>
+    toArrow(deg, relativeLength(force, deg), labelText(force.label, force.magnitude))
+  );
 
   // Resultant — feedback-only layer.
   const resultantDeg =
     mode === 'feedback' && params.showResultant
       ? resolveAngle(params.showResultant.angle)
       : null;
-  const resultant: ResolvedArrow | null =
-    resultantDeg !== null && params.showResultant
-      ? {
-          deg: resultantDeg,
-          length:
-            MAX_LEN *
-            (typeof params.showResultant.magnitude === 'number' &&
-            params.showResultant.magnitude > 0 &&
-            maxMagnitude > 0
-              ? clamp(params.showResultant.magnitude / maxMagnitude, 0.4, 1)
-              : 0.85),
-          text: params.showResultant.label,
-        }
-      : null;
+  let resultantArrow: ResolvedArrow | null = null;
+  if (resultantDeg !== null && params.showResultant) {
+    const max = axisMax[axisOf(resultantDeg)];
+    const mag = params.showResultant.magnitude;
+    const rel =
+      typeof mag === 'number' && mag > 0 && max > 0
+        ? clamp(mag / max, 0.4, 1)
+        : 0.85;
+    resultantArrow = toArrow(resultantDeg, rel, params.showResultant.label);
+  }
 
-  const object = params.object === 'dot' ? 'dot' : 'box';
   const desc =
-    `Free body diagram of a ${object}` +
+    `Free body diagram of a ${shape}` +
     (params.objectLabel ? ` representing ${params.objectLabel}` : '') +
     ` with ${resolved.length} force${resolved.length === 1 ? '' : 's'}: ` +
     resolved
@@ -235,7 +350,7 @@ export function FreeBodyDiagram({
           `${labelText(force.label, force.magnitude)} ${directionWord(force.angle)}`
       )
       .join('; ') +
-    (resultant ? `; resultant ${params.showResultant!.label}` : '') +
+    (resultantArrow ? `; resultant ${params.showResultant!.label}` : '') +
     '.';
 
   return (
@@ -255,53 +370,54 @@ export function FreeBodyDiagram({
           <desc>{desc}</desc>
 
           {/* object */}
-          {object === 'box' ? (
-            <>
-              <rect
-                x={CX - BOX_W / 2}
-                y={CY - BOX_H / 2}
-                width={BOX_W}
-                height={BOX_H}
-                fill="#FFFFFF"
-                stroke={STROKE}
-                strokeWidth="1.5"
-              />
-              {params.objectLabel && (
-                <text
-                  {...FONT}
-                  x={CX}
-                  y={CY + 4}
-                  textAnchor="middle"
-                  fontWeight={400}
-                  fontSize="12"
-                >
-                  {params.objectLabel}
-                </text>
-              )}
-            </>
+          {shape === 'car' ? (
+            <CarShape />
+          ) : shape === 'rocket' ? (
+            <RocketShape />
+          ) : shape === 'dot' ? (
+            <circle cx={CX} cy={CY} r="5" fill={STROKE} />
           ) : (
-            <>
-              <circle cx={CX} cy={CY} r="5" fill={STROKE} />
-              {params.objectLabel && (
-                <text
-                  {...FONT}
-                  x={CX + 12}
-                  y={CY + 18}
-                  textAnchor="start"
-                  fontWeight={400}
-                  fontSize="12"
-                >
-                  {params.objectLabel}
-                </text>
-              )}
-            </>
+            <rect
+              x={CX - 35}
+              y={CY - 25}
+              width="70"
+              height="50"
+              fill="#FFFFFF"
+              stroke={STROKE}
+              strokeWidth="1.5"
+            />
           )}
 
-          {/* force arrows from the centre outward */}
-          {arrows.map((arrow, i) => arrowParts(arrow, STROKE, false, `force-${i}`))}
+          {/* object label: inside the box, beside the dot, in the corner for
+              car/rocket (the drawing identifies itself) */}
+          {params.objectLabel &&
+            (shape === 'box' ? (
+              <text {...FONT} x={CX} y={CY + 4} textAnchor="middle" fontWeight={400} fontSize="12">
+                {params.objectLabel}
+              </text>
+            ) : shape === 'dot' ? (
+              <text {...FONT} x={CX + 12} y={CY + 18} textAnchor="start" fontWeight={400} fontSize="12">
+                {params.objectLabel}
+              </text>
+            ) : (
+              <text
+                {...FONT}
+                x={12}
+                y={VIEW - 10}
+                textAnchor="start"
+                fontWeight={400}
+                fontSize="12"
+                fill="#78716C"
+              >
+                {params.objectLabel}
+              </text>
+            ))}
+
+          {/* force arrows — start at the object edge, act through the centre */}
+          {arrows.map((arrow, i) => renderArrow(arrow, STROKE, false, `force-${i}`))}
 
           {/* resultant (worked solutions only) */}
-          {resultant && arrowParts(resultant, RESULTANT_COLOR, true, 'resultant')}
+          {resultantArrow && renderArrow(resultantArrow, RESULTANT_COLOR, true, 'resultant')}
         </svg>
       </div>
     </div>

@@ -148,9 +148,12 @@ interface FreeBodyForce {
 }
 
 interface FreeBodyDiagramParams {
-  /** Default 'box'. */
-  object?: 'box' | 'dot';
-  /** Optional label inside/under the object, e.g. "car", "skydiver". */
+  /** Default 'box'. 'car' and 'rocket' draw simple recognisable line-drawing
+      objects (wheels/nose cone etc.) for engagement — added 11/06/2026 at
+      John's request after the plain box proved unengaging. */
+  object?: 'box' | 'dot' | 'car' | 'rocket';
+  /** Optional label: inside the box, beside the dot, corner caption for
+      car/rocket (those shapes identify themselves). */
   objectLabel?: string;
   forces: FreeBodyForce[];           // 1–6 forces
   /** FEEDBACK-ONLY LAYER: resultant force arrow, drawn dashed in brand red.
@@ -166,14 +169,20 @@ interface FreeBodyDiagramParams {
 }
 ```
 
-### Arrow length rules (critical for AQA accuracy)
-- If any force carries `magnitude`, lengths scale linearly with magnitude across
-  the diagram (clamped to a 0.4–1.0 band of the maximum length so small forces
-  stay visible). **Equal magnitudes therefore always render equal lengths.**
-- Forces with neither `magnitude` nor `relativeLength` default to equal full length.
-- `balanced: true` forces all arrows to equal length, overriding magnitudes.
-- Arrowheads at the tip; label placed just beyond the tip, with collision nudging
-  for near-vertical/near-horizontal pairs.
+### Arrow length rules (critical for AQA accuracy — revised 11/06/2026)
+- Arrows start just outside the object's edge (never crossing the drawing) and
+  act along lines through the centre; the visible **shaft length** carries the
+  magnitude information.
+- Magnitudes are normalised **per axis** (horizontal forces against the largest
+  horizontal force, vertical against the largest vertical, clamped to a
+  0.45–1.0 band): opposing pairs — the comparison that matters on a free body
+  diagram — stay truthful, and a 12000 N weight doesn't crush a 2000 N driving
+  force into invisibility. **Equal magnitudes on an axis always render equal
+  shafts.**
+- Forces with neither `magnitude` nor `relativeLength` default to full length.
+- `balanced: true` forces all shafts to equal length, overriding magnitudes.
+- Labels: horizontal arrows are labelled above their shaft; vertical arrows
+  beyond the tip; diagonals beyond the tip anchored away from the diagram.
 
 ### Defaults & validation
 - `forces` missing/empty/not an array → render null + warn.
@@ -198,13 +207,12 @@ interface FreeBodyDiagramParams {
 **B. Car accelerating (unbalanced horizontal forces)**
 ```json
 {
-  "object": "box",
-  "objectLabel": "car",
+  "object": "car",
   "forces": [
     { "label": "driving force", "angle": "right", "magnitude": 2000 },
     { "label": "friction", "angle": "left", "magnitude": 500 },
-    { "label": "weight", "angle": "down", "magnitude": 12000, "relativeLength": 0.8 },
-    { "label": "normal contact force", "angle": "up", "magnitude": 12000, "relativeLength": 0.8 }
+    { "label": "weight", "angle": "down", "magnitude": 12000 },
+    { "label": "normal contact force", "angle": "up", "magnitude": 12000 }
   ]
 }
 ```
@@ -212,7 +220,7 @@ interface FreeBodyDiagramParams {
 **C. Worked solution with resultant (feedback layer)**
 ```json
 {
-  "object": "box",
+  "object": "rocket",
   "forces": [
     { "label": "thrust", "angle": "up", "magnitude": 8000 },
     { "label": "weight", "angle": "down", "magnitude": 6000 }

@@ -63,20 +63,19 @@ const GALLERY_METADATA: Record<string, GalleryMetadata> = {
       {
         label: 'Car accelerating',
         params: {
-          object: 'box',
-          objectLabel: 'car',
+          object: 'car',
           forces: [
             { label: 'driving force', angle: 'right', magnitude: 2000 },
             { label: 'friction', angle: 'left', magnitude: 500 },
-            { label: 'weight', angle: 'down', magnitude: 12000, relativeLength: 0.8 },
-            { label: 'normal contact force', angle: 'up', magnitude: 12000, relativeLength: 0.8 },
+            { label: 'weight', angle: 'down', magnitude: 12000 },
+            { label: 'normal contact force', angle: 'up', magnitude: 12000 },
           ],
         },
       },
       {
         label: 'Rocket with resultant',
         params: {
-          object: 'box',
+          object: 'rocket',
           forces: [
             { label: 'thrust', angle: 'up', magnitude: 8000 },
             { label: 'weight', angle: 'down', magnitude: 6000 },
