@@ -9,11 +9,23 @@
 //   2. Review mode — one question at a time, keyboard shortcuts A/E/R/←/→
 //   3. Publish view — approve → publish to live questions table
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import {
+  Component,
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  useLayoutEffect,
+  useMemo,
+} from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { QuestionCard } from '@/components/practice/QuestionCard';
 import { renderMathInText } from '@/lib/renderMathInText';
+import {
+  QUESTION_DIAGRAM_REGISTRY,
+  isQuestionSafe,
+} from '@/components/diagrams/questionDiagramRegistry';
 import {
   ArrowLeft,
   ArrowRight,
@@ -74,6 +86,8 @@ interface PendingQuestion {
   status: string;
   prompt_version: string;
   batch_id: string;
+  diagram_component: string | null;
+  diagram_params: unknown;
 }
 
 interface SeededQuestion {
@@ -127,6 +141,238 @@ function MathPreview({ text, label }: { text: string; label: string }) {
         className="text-sm text-gray-800 leading-relaxed question-text"
         dangerouslySetInnerHTML={{ __html: renderMathInText(text) }}
       />
+    </div>
+  );
+}
+
+// ─── Diagram review panel ─────────────────────────────────────────────────────
+//
+// Renders a pending question's parametric diagram through the registry so the
+// reviewer sees exactly what the student (question view) and the worked
+// solution (worked-solution view) will show — never raw JSON. This is the gate
+// for all AI diagram wiring: malformed or unknown params surface a clear
+// warning and must never crash the queue.
+
+function DiagramWarning({
+  tone = 'red',
+  title,
+  detail,
+}: {
+  tone?: 'red' | 'amber';
+  title: string;
+  detail?: string;
+}) {
+  const red = tone === 'red';
+  return (
+    <div
+      className="rounded-lg border p-3 flex items-start gap-2"
+      style={{
+        background: red ? '#FEF2F2' : '#FFFBEB',
+        borderColor: red ? '#FCA5A5' : '#FDE68A',
+      }}
+    >
+      <AlertTriangle
+        size={14}
+        className="mt-0.5 shrink-0"
+        style={{ color: red ? '#dc2626' : '#d97706' }}
+      />
+      <div>
+        <p
+          className="text-xs font-semibold"
+          style={{ color: red ? '#b91c1c' : '#92400e' }}
+        >
+          {title}
+        </p>
+        {detail && (
+          <p
+            className="text-[11px] mt-0.5 leading-snug"
+            style={{ color: red ? '#7f1d1d' : '#78350f' }}
+          >
+            {detail}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Catches a throwing diagram component so a malformed-params render can never
+// crash the review queue. Resets when resetKey changes (mode toggle).
+class DiagramErrorBoundary extends Component<
+  { resetKey: string; children: React.ReactNode },
+  { hasError: boolean; message: string }
+> {
+  constructor(props: { resetKey: string; children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false, message: '' };
+  }
+  static getDerivedStateFromError(err: Error) {
+    return { hasError: true, message: err?.message ?? 'Render error' };
+  }
+  componentDidUpdate(prev: { resetKey: string }) {
+    if (prev.resetKey !== this.props.resetKey && this.state.hasError) {
+      this.setState({ hasError: false, message: '' });
+    }
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <DiagramWarning
+          tone="red"
+          title="This diagram crashed while rendering."
+          detail={`${this.state.message} — do not approve until the params are fixed.`}
+        />
+      );
+    }
+    return this.props.children;
+  }
+}
+
+// Remount per question (keyed by question id in the parent) so the view toggle
+// always resets to the question view for each new question.
+function DiagramReviewPanel({
+  component,
+  params,
+}: {
+  component: string;
+  params: unknown;
+}) {
+  const [viewMode, setViewMode] = useState<'question' | 'feedback'>('question');
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [noRender, setNoRender] = useState(false);
+
+  // diagram_params is occasionally stored as a JSON string scalar — normalise.
+  const parsed = useMemo(() => {
+    if (typeof params === 'string') {
+      try {
+        return JSON.parse(params);
+      } catch {
+        return params;
+      }
+    }
+    return params;
+  }, [params]);
+
+  const entry = QUESTION_DIAGRAM_REGISTRY[component];
+  const RegisteredComponent = entry?.component ?? null;
+  const isObjectParams =
+    parsed != null && typeof parsed === 'object' && !Array.isArray(parsed);
+  const safe = isQuestionSafe(component, parsed);
+
+  // In question view a non-question-safe diagram deliberately shows nothing to
+  // the student, so don't run (or warn about) the empty-render check there.
+  const attemptingRender =
+    !!entry && isObjectParams && !(viewMode === 'question' && !safe);
+
+  // Detect a component that rendered nothing (malformed but non-throwing — our
+  // components warn + return null on bad params). The boundary renders children
+  // with no wrapper, so an empty container means the component produced no DOM.
+  useLayoutEffect(() => {
+    if (!attemptingRender) {
+      setNoRender(false);
+      return;
+    }
+    setNoRender((containerRef.current?.childElementCount ?? 0) === 0);
+  }, [attemptingRender, parsed, viewMode]);
+
+  return (
+    <div className="bg-white rounded-2xl border border-black/5 shadow-sm p-5 space-y-3">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-2">
+          <ImageIcon size={13} className="text-gray-400" />
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+            Diagram preview
+          </span>
+          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-purple-50 text-purple-500">
+            {component}
+          </span>
+        </div>
+        <div className="flex items-center rounded-lg border border-black/10 overflow-hidden">
+          <button
+            onClick={() => setViewMode('question')}
+            className="text-[10px] font-semibold px-2.5 py-1 uppercase tracking-wide transition-colors"
+            style={
+              viewMode === 'question'
+                ? { background: '#F5A623', color: 'white' }
+                : { background: 'transparent', color: '#9ca3af' }
+            }
+          >
+            Question view
+          </button>
+          <button
+            onClick={() => setViewMode('feedback')}
+            className="text-[10px] font-semibold px-2.5 py-1 uppercase tracking-wide transition-colors"
+            style={
+              viewMode === 'feedback'
+                ? { background: '#E23D28', color: 'white' }
+                : { background: 'transparent', color: '#9ca3af' }
+            }
+          >
+            Worked-solution view
+          </button>
+        </div>
+      </div>
+
+      {/* Warnings */}
+      {!entry && (
+        <DiagramWarning
+          tone="red"
+          title={`Unknown diagram component "${component}".`}
+          detail="Not in the registry — the student will see no diagram. Fix the component key before approving."
+        />
+      )}
+      {entry && !isObjectParams && (
+        <DiagramWarning
+          tone="red"
+          title="Diagram params are missing or malformed."
+          detail="diagram_params is not a JSON object, so nothing will render. Do not approve until this is fixed."
+        />
+      )}
+      {entry && isObjectParams && viewMode === 'question' && !safe && (
+        <DiagramWarning
+          tone="amber"
+          title="Worked-solution-only diagram."
+          detail="Not question-safe: the student sees no diagram on the question itself. Switch to Worked-solution view to check it."
+        />
+      )}
+      {attemptingRender && noRender && (
+        <DiagramWarning
+          tone="amber"
+          title="Nothing rendered for these params."
+          detail="The component rejected the params (see the browser console). Check the JSON below before approving."
+        />
+      )}
+
+      {/* Render */}
+      {entry && isObjectParams && (
+        <div
+          ref={containerRef}
+          className="rounded-xl border border-black/5"
+          style={{ background: '#FAF7F2' }}
+        >
+          {viewMode === 'question' && !safe ? (
+            <div className="py-8 text-center text-[11px] text-gray-400 italic">
+              No diagram shown to the student on the question.
+            </div>
+          ) : (
+            <DiagramErrorBoundary resetKey={viewMode}>
+              {RegisteredComponent && (
+                <RegisteredComponent params={parsed} mode={viewMode} />
+              )}
+            </DiagramErrorBoundary>
+          )}
+        </div>
+      )}
+
+      {/* Raw params for cross-checking */}
+      <details className="text-[11px]">
+        <summary className="cursor-pointer text-gray-400 hover:text-gray-600 select-none">
+          Raw diagram_params
+        </summary>
+        <pre className="mt-2 bg-gray-50 border border-gray-100 rounded p-2 overflow-x-auto font-mono text-[10px] text-gray-600">
+          {JSON.stringify(parsed, null, 2)}
+        </pre>
+      </details>
     </div>
   );
 }
@@ -1437,6 +1683,14 @@ export default function AdminReviewQueue() {
                 />
               </div>
             </div>
+          )}
+
+          {!editMode && currentQuestion.diagram_component && (
+            <DiagramReviewPanel
+              key={currentQuestion.id}
+              component={currentQuestion.diagram_component}
+              params={currentQuestion.diagram_params}
+            />
           )}
 
           {!editMode && currentQuestion.mark_scheme && (
