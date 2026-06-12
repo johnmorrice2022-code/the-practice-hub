@@ -265,7 +265,7 @@ Parametric SVG diagram library. **DIAGRAMS.md** (repo root) is the source of tru
 | `parabola-vertex-graph` | **false** | `{ p, q, a? }` — shows the vertex (flag added 11/06; was a leak risk) |
 | `free-body-diagram` | true | `{ object?: box\|dot\|car\|rocket, forces[], balanced? }`; feedback layer: `showResultant` |
 | `vector-diagram` | true | `{ vectors[], grid?, axes?, tipToTail? }`; feedback layer: `showResultant`+`resultantLabel` |
-| `wave-diagram` | true | `{ type: transverse\|longitudinal, cycles?, labels?, secondWave?, axisLabels? }`; feedback layer: `answerLabels` |
+| `wave-diagram` | true | `{ type: transverse\|longitudinal, cycles?, amplitude?, labels?, markers?, energyArrow?, secondWave?, axisLabels? }`; feedback layer: `answerLabels`. **`markers`** = lettered arrows (transverse) / section brackets (longitudinal) for "Which arrow/section shows…?" questions answered by a letter — the answerable replacement for the old "identify on a bare diagram" pattern (see DIAGRAMS.md §5). `energyArrow` (longitudinal) draws the direction-of-energy-transfer arrow. Has a composer `editor`. |
 
 Still to build (DIAGRAMS.md priority order): `histogram`, `vector-geometry-diagram`, `circuit-diagram`.
 
@@ -275,13 +275,13 @@ Still to build (DIAGRAMS.md priority order): `histogram`, `vector-geometry-diagr
 - `inequalities-higher` → `quadratic-inequality-graph` (pre-existing; also documented in `HIGHER_OUTPUT_FORMAT` in `generate-pending-questions`)
 - `wave-properties` → `wave-diagram` (11/06/2026; schema + rules + 2 few-shots in `system_prompt`. The Physics insert path passes `diagram_component`/`diagram_params` through generically, so no edge function change was needed)
 
-**Known data issue (found 11/06/2026):** `prompt_config` was stored as a JSON **string scalar** (not an object) on several Physics subtopics — the edge functions read `promptConfig.system_prompt` as `undefined`, so those configs were silently ignored at generation time. `wave-properties` was repaired during the wave wiring; **still broken: `sound-ultrasound-seismic`, `em-spectrum`, `light-reflection-refraction-colour`, `lenses-magnification`, `black-body-radiation`, and `conservation-dissipation-energy` (Energy)** — repair pattern: read, `JSON.parse`, write back as object (or SQL `(prompt_config #>> '{}')::jsonb`).
+**Known data issue (found 11/06/2026, RESOLVED 12/06/2026):** `prompt_config` was stored as a JSON **string scalar** (not an object) on several Physics subtopics — the edge functions read `promptConfig.system_prompt` as `undefined`, so those configs were silently ignored. All six (`sound-ultrasound-seismic`, `em-spectrum`, `light-reflection-refraction-colour`, `lenses-magnification`, `black-body-radiation`, `conservation-dissipation-energy`) were repaired 12/06/2026 (parse + write back as object) — alongside the earlier `wave-properties` fix. Repair pattern if it recurs: read, `JSON.parse`, write back as object (or SQL `(prompt_config #>> '{}')::jsonb`).
 
 **Diagram next steps:**
 1. **Circuit component** (`circuit-diagram`, DIAGRAMS.md Phase 5): symbol sub-library first, John signs off each AQA symbol in the gallery before layout work. NOTE: the close-out brief referenced a circuit reference prototype in `docs/reference/` to port from, but **no `docs/` directory exists in the repo** — locate/obtain this prototype from John before starting.
-2. **Seeded Question Composer** — touch-first admin authoring page following the `AdminProbabilityQuestions` pattern; first editor is Waves; registry entries to gain an `editor` field.
+2. **Seeded Question Composer** — DONE 12/06/2026 (`/admin/seeded-composer`, `AdminSeededComposer.tsx`). Shell + Waves editor + save flow built; awaiting John's iPad sign-off before adding free-body/vector editors or polish. Extend by adding an `editor` (+ `editorDefaults`/`label`) to a registry entry — the composer shell auto-discovers families with an editor. NEXT family editors: free-body, vector. Composer is single-part only so far (multi-part `parts` not yet supported).
 3. Remaining components in priority order: `histogram`, `vector-geometry-diagram`, then circuit.
-4. **Review Queue must render `diagram_params` visually** (reuse registry components) before any further subtopics get AI diagram wiring — reviewers currently can't see what the diagram will look like.
+4. **Review Queue renders `diagram_params` visually** — DONE 12/06/2026 (`DiagramReviewPanel` in `AdminReviewQueue.tsx`): question/worked-solution toggle, inline warnings for unknown/malformed params, error boundary; A/E/R shortcuts intact.
 
 ### prompt_config — system_prompt field rules
 The `system_prompt` in `prompt_config` is injected into the paper prompt builder. The builders already handle question format, mark scheme structure, LaTeX rules, and forbidden question types.
@@ -386,6 +386,8 @@ src/
       AdminMembers.tsx
       AdminFeedback.tsx           -- review flagged questions
       AdminDiagramGallery.tsx     -- diagram QA harness: preview, presets, JSON editor, SVG download
+      AdminReviewQueue.tsx        -- + DiagramReviewPanel: renders pending diagrams via registry (Q/solution toggle, warnings)
+      AdminSeededComposer.tsx     -- Seeded Question Composer; touch-first, registry editor field; first family Waves
       LiveQuestionsTab.tsx        -- shared component for Live Seeded + Live AI tabs
   components/
     Navbar.tsx                    -- Jam Sessions in both navLinks and appLinks
@@ -419,8 +421,10 @@ src/
       ParabolaVertexGraph.tsx
       FreeBodyDiagram.tsx          -- AQA forces; box/dot/car/rocket objects
       VectorDiagram.tsx            -- grid vectors, column vectors + scale drawings
-      WaveDiagram.tsx              -- transverse/longitudinal waves
-      questionDiagramRegistry.tsx  -- registry: { component, questionSafe }, mode prop
+      WaveDiagram.tsx              -- transverse/longitudinal waves; markers (lettered arrows/section brackets), energyArrow
+      questionDiagramRegistry.tsx  -- registry: { component, questionSafe, editor?, editorDefaults?, label? }, mode prop
+      editors/
+        WaveDiagramEditor.tsx      -- touch-first params editor for the composer (wave family)
 supabase/
   functions/
     generate-questions/
@@ -563,12 +567,18 @@ See [SECURITY_AUDIT.md](SECURITY_AUDIT.md) — living checklist of all known sec
 - Refined `completing-the-square` `prompt_config` for question generation (informed by a copyrighted PhysicsAndMathsTutor.com past paper John shared — used only for general phrasing patterns, not copied): removed all diagram instructions/examples from `system_prompt` (real Edexcel exam questions don't carry diagrams — area-model diagram stays in learning content only); added a "QUESTION PHRASING STYLE" section covering Edexcel structures ("for all values of x... find p and q", "Express... Hence", two-part minimum-point/solve follow-ons, standalone "by completing the square" questions) with an explicit copyright instruction not to copy the reference paper; added a "QUESTION VARIETY" block requiring a roughly even spread of question types and a=1/a>1 across each batch, and forbidding reuse of few-shot/canonical example numbers; expanded `command_words`.
 - Generated and reviewed a 17-question pending batch for `completing-the-square` under the new prompt — good mix of a=1/a>1, all three question types, varied phrasing, no diagrams. An earlier 20-question batch (generated before the diagram-removal fix, still carrying `completing-the-square-area-model`) was bulk-deleted from `pending_questions`.
 
+### Recently completed (12/06/2026 — wave questions + composer session)
+- **Repaired all six string-scalar `prompt_config` rows** (`sound-ultrasound-seismic`, `em-spectrum`, `light-reflection-refraction-colour`, `lenses-magnification`, `black-body-radiation`, `conservation-dissipation-energy`) — parse + write back as object; verified `system_prompt` now resolves.
+- **Review Queue renders diagrams** (`DiagramReviewPanel` in `AdminReviewQueue.tsx`) — question/worked-solution toggle, inline warnings for unknown/malformed params + error boundary, A/E/R shortcuts intact. The gate for all future AI diagram wiring.
+- **WaveDiagram `markers`** — the core fix for un-answerable wave questions. Lettered arrows (transverse: amplitude/wavelength/peak-to-trough/half-wavelength/point) and lettered horizontal **section brackets** (longitudinal: compression/rarefaction/wavelength) so "Which arrow/section shows…?" is answered by a LETTER. Plus `energyArrow` (longitudinal direction-of-energy-transfer arrow). Gallery presets added; both signed off by John. See DIAGRAMS.md §5 + [[feedback-questions-answerable-in-text-box]].
+- **`wave-properties` prompt rewritten** — mandates lettered-marker multi-part identification (answer = a letter, mark scheme names it), forbids "identify on a bare diagram", drops diagrams from calculations. Deleted 3 broken live + broken pending wave questions from the old batch.
+- **Seeded Question Composer built** (`/admin/seeded-composer`) — Task 3 phase 1: shell + Waves editor + save → `seeded_questions` → QuestionCard confirmation. **Awaiting John's iPad sign-off.**
+
 ### Immediate next session — Diagram library (see "Diagram next steps" in the diagram section)
 - [ ] Circuit component — **first locate the reference prototype** (`docs/reference/` referenced in close-out brief does not exist in the repo)
-- [ ] Seeded Question Composer (touch-first, Waves first, registry `editor` field)
-- [ ] `histogram` + `vector-geometry-diagram` components
-- [ ] Review Queue: render `diagram_params` visually before wiring more subtopics
-- [ ] Repair string-scalar `prompt_config` on the 5 remaining Waves subtopics + `conservation-dissipation-energy` (configs currently ignored by generation)
+- [ ] Seeded Composer: after iPad sign-off, add free-body + vector editors (registry `editor` field); consider multi-part `parts` support
+- [ ] `histogram` + `vector-geometry-diagram` components (note: histogram "complete the histogram" has the same answerability problem as waves — needs a letter/number answer, not a draw action)
+- [ ] Review + publish the good `markers` wave-properties pending questions; consider wiring markers generation into more Waves subtopics now their `prompt_config` is repaired
 
 ### Immediate next session — Bug fix
 - [ ] **Fix paragraph reorder bug in Learning Content Editor** — ▲▼ buttons added 08/06/2026 to move paragraphs within a section don't produce a true up/down swap; John reports it behaves more like swapping sections, particularly when a paragraph has an embedded diagram or is a subheading. Reproduce in browser (need test admin credentials) and trace through `moveParagraphUp`/`moveParagraphDown` in `AdminLearningContent.tsx` — possible `key={pi}` reconciliation issue with `ParagraphRow`'s internal upload state.
