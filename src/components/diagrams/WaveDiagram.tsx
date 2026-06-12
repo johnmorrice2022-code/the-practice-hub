@@ -435,10 +435,12 @@ export function WaveDiagram({
                   return (
                     <g key={`mk-${i}`}>
                       <DoubleArrow x1={x} y1={midY} x2={x} y2={midY - ampPx} />
+                      {/* Sit in the open pocket just right of the arrow, below
+                          the descending curve and clear of the axis. */}
                       <text
                         {...MARKER_FONT}
-                        x={f(x + 9)}
-                        y={f(midY - ampPx / 2 + 4)}
+                        x={f(x + 10)}
+                        y={f(midY - ampPx * 0.34)}
                         textAnchor="start"
                       >
                         {m.label}
@@ -457,11 +459,12 @@ export function WaveDiagram({
                         x2={x}
                         y2={midY + ampPx}
                       />
-                      {/* Label in the lower arm so it never sits on the axis */}
+                      {/* Upper arm, right of the arrow: the curve descends to
+                          the right here, so this pocket is clear. */}
                       <text
                         {...MARKER_FONT}
-                        x={f(x + 9)}
-                        y={f(midY + ampPx * 0.5 + 4)}
+                        x={f(x + 10)}
+                        y={f(midY - ampPx * 0.34)}
                         textAnchor="start"
                       >
                         {m.label}
