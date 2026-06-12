@@ -226,9 +226,16 @@ export function WaveDiagram({
   // Reserve a left annotation column when the amplitude measurement is shown:
   // the arrow + "amplitude" text live entirely in this margin (connected to
   // the first crest by a dashed guide line) so they never cross the curve.
+  const showYCap = isTransverse && !!params.axisLabels?.y;
+  const showAmpLabel = isTransverse && shown.has('amplitude');
   let plotL = 26;
-  if (isTransverse && params.axisLabels?.y) plotL = 54;
-  if (isTransverse && shown.has('amplitude')) plotL = Math.max(plotL, 92);
+  if (showYCap) plotL = 54;
+  if (showAmpLabel) plotL = Math.max(plotL, 92);
+  // When BOTH the y-axis caption and the amplitude annotation share the left
+  // margin they collide — widen the margin and push the caption to the far
+  // left, clear of the amplitude arrow + word.
+  if (showYCap && showAmpLabel) plotL = 116;
+  const yCapX = showAmpLabel ? 14 : plotL - 10;
   const plotW = PLOT_R - plotL;
   const lam = plotW / cycles;
 
@@ -821,8 +828,8 @@ export function WaveDiagram({
                     fontWeight={400}
                     fill={AXIS_COLOR}
                     textAnchor="middle"
-                    transform={`rotate(-90 ${plotL - 10} ${f(mid1)})`}
-                    x={plotL - 10}
+                    transform={`rotate(-90 ${yCapX} ${f(mid1)})`}
+                    x={yCapX}
                     y={f(mid1)}
                   >
                     {params.axisLabels.y}
