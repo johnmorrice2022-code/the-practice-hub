@@ -245,17 +245,43 @@ When the user inserts or taps a chip, an **edit panel renders below the contente
 ### All AI functions returning 500 simultaneously
 If `generate-questions`, `mark-answer`, and `jam-help` all fail at the same time, check the **Anthropic Console** first — quota exhausted or billing issue is the most likely cause. All five edge functions share the same `ANTHROPIC_API_KEY`. A code regression in one function would not cause all to fail simultaneously.
 
-### Diagram component pattern
-Each diagram type gets:
-- A renderer component in `src/components/diagrams/`
-- An authoring form at `/admin/[type]-questions`
-- `diagram_component` + `diagram_params` fields in the question record
+### Diagram component pattern (overhauled 11/06/2026 — see DIAGRAMS.md)
+Parametric SVG diagram library. **DIAGRAMS.md** (repo root) is the source of truth for all param schemas — read it before touching any diagram component. Each diagram family:
+- A pure renderer component in `src/components/diagrams/` (inline SVG, validates own params, renders null + `console.warn` on malformed params — never throws)
+- An entry in `QUESTION_DIAGRAM_REGISTRY` (`questionDiagramRegistry.tsx`): `{ component, questionSafe }`
+- `diagram_component` + `diagram_params` fields on the question record
 
-Established diagram types: `ProbabilityTree`, `InteractiveProbabilityTree`, `CirclePartsToggle`, `MeckGentToggle`, `CircleTheoremDiagram`, `QuadraticInequalityGraph`, `CompletingTheSquareAreaModel`.
+**Registry mechanics:**
+- Components receive `({ params, mode })` where `mode` is `'question' | 'feedback'` (default `'question'`). Feedback-only layers (resultants, answer labels, completed histogram bars) only render when `mode === 'feedback'`. QuestionCard passes `'question'`; FeedbackCard and LearningContent pass `'feedback'`.
+- `questionSafe: boolean | (params) => boolean` — whether the diagram may appear in QuestionCard at all. QuestionCard consults `isQuestionSafe(key, params)`; FeedbackCard renders everything. This replaced the old hardcoded `quadratic-inequality-graph` exclusion.
 
-**Worked-solution-only diagrams:** `QuadraticInequalityGraph` (registry key `quadratic-inequality-graph`) sketches a parabola with the inequality solution region highlighted — it reveals the answer, so it must only render in `FeedbackCard` (worked solution), never in `QuestionCard`. `QuestionCard.tsx` explicitly excludes this key from its registry lookup. Params: `{ roots: [number, number]; a?: number; inequality?: '<' | '>' | '<=' | '>=' }`. For Higher Inequalities, `generate-pending-questions`'s `HIGHER_OUTPUT_FORMAT` documents this as an optional field pair Claude should populate for quadratic inequality questions, and the `inequalities-higher` subtopic's `system_prompt` instructs it to do so.
+**Registry keys (all live):**
 
-**`CompletingTheSquareAreaModel`** (registry key `completing-the-square-area-model`, added 10/06/2026) — original area-model diagram for $x^2+bx$: an $x \times x$ square plus two $\frac{b}{2} \times x$ strips, with the missing $(\frac{b}{2})^2$ corner square highlighted. Params: `{ b: number }` (positive, ideally even for clean labels). Safe for both `QuestionCard` and `FeedbackCard` — it illustrates the method, not the answer. Used twice in the new `completing-the-square` learning content (b=6, b=8); `prompt_config.system_prompt` for `completing-the-square` instructs the AI to optionally attach this diagram to "write in completed square form" questions where b is positive.
+| Key | questionSafe | Params / feedback-only layer |
+|---|---|---|
+| `probability-tree` | true | 2-stage tree config; `hidden` branches make it interactive in QuestionCard |
+| `quadratic-inequality-graph` | **false** | `{ roots: [n,n], a?, inequality? }` — shows the answer region |
+| `completing-the-square-area-model` | true | `{ b: number }` |
+| `parabola-vertex-graph` | **false** | `{ p, q, a? }` — shows the vertex (flag added 11/06; was a leak risk) |
+| `free-body-diagram` | true | `{ object?: box\|dot\|car\|rocket, forces[], balanced? }`; feedback layer: `showResultant` |
+| `vector-diagram` | true | `{ vectors[], grid?, axes?, tipToTail? }`; feedback layer: `showResultant`+`resultantLabel` |
+| `wave-diagram` | true | `{ type: transverse\|longitudinal, cycles?, labels?, secondWave?, axisLabels? }`; feedback layer: `answerLabels` |
+
+Still to build (DIAGRAMS.md priority order): `histogram`, `vector-geometry-diagram`, `circuit-diagram`.
+
+**Diagram Gallery** (`/admin/diagram-gallery`, card in AdminHub → Content Tools) — developer QA harness. For every registry key: live preview, Question/Worked-solution mode toggle, question-safe badge, editable JSON params with apply, preset examples, and Download SVG (standalone file via XMLSerializer). New registry entries appear automatically; add presets to `GALLERY_METADATA` in `AdminDiagramGallery.tsx`.
+
+**AI diagram generation wired in prompt_config:**
+- `inequalities-higher` → `quadratic-inequality-graph` (pre-existing; also documented in `HIGHER_OUTPUT_FORMAT` in `generate-pending-questions`)
+- `wave-properties` → `wave-diagram` (11/06/2026; schema + rules + 2 few-shots in `system_prompt`. The Physics insert path passes `diagram_component`/`diagram_params` through generically, so no edge function change was needed)
+
+**Known data issue (found 11/06/2026):** `prompt_config` was stored as a JSON **string scalar** (not an object) on several Physics subtopics — the edge functions read `promptConfig.system_prompt` as `undefined`, so those configs were silently ignored at generation time. `wave-properties` was repaired during the wave wiring; **still broken: `sound-ultrasound-seismic`, `em-spectrum`, `light-reflection-refraction-colour`, `lenses-magnification`, `black-body-radiation`, and `conservation-dissipation-energy` (Energy)** — repair pattern: read, `JSON.parse`, write back as object (or SQL `(prompt_config #>> '{}')::jsonb`).
+
+**Diagram next steps:**
+1. **Circuit component** (`circuit-diagram`, DIAGRAMS.md Phase 5): symbol sub-library first, John signs off each AQA symbol in the gallery before layout work. NOTE: the close-out brief referenced a circuit reference prototype in `docs/reference/` to port from, but **no `docs/` directory exists in the repo** — locate/obtain this prototype from John before starting.
+2. **Seeded Question Composer** — touch-first admin authoring page following the `AdminProbabilityQuestions` pattern; first editor is Waves; registry entries to gain an `editor` field.
+3. Remaining components in priority order: `histogram`, `vector-geometry-diagram`, then circuit.
+4. **Review Queue must render `diagram_params` visually** (reuse registry components) before any further subtopics get AI diagram wiring — reviewers currently can't see what the diagram will look like.
 
 ### prompt_config — system_prompt field rules
 The `system_prompt` in `prompt_config` is injected into the paper prompt builder. The builders already handle question format, mark scheme structure, LaTeX rules, and forbidden question types.
@@ -339,6 +365,7 @@ When a logged-out user clicks a paid plan:
 ## File Structure (key files)
 
 ```
+DIAGRAMS.md                       -- param schema source of truth for all diagram components
 src/
   lib/
     renderMathInText.ts           -- shared KaTeX renderer ($...$ and $$...$$)
@@ -358,6 +385,7 @@ src/
       AdminProbabilityQuestions.tsx
       AdminMembers.tsx
       AdminFeedback.tsx           -- review flagged questions
+      AdminDiagramGallery.tsx     -- diagram QA harness: preview, presets, JSON editor, SVG download
       LiveQuestionsTab.tsx        -- shared component for Live Seeded + Live AI tabs
   components/
     Navbar.tsx                    -- Jam Sessions in both navLinks and appLinks
@@ -386,7 +414,13 @@ src/
       MeckGentToggle.tsx
       MeckGentCards.tsx
       CircleTheoremDiagram.tsx
-      questionDiagramRegistry.tsx
+      QuadraticInequalityGraph.tsx
+      CompletingTheSquareAreaModel.tsx
+      ParabolaVertexGraph.tsx
+      FreeBodyDiagram.tsx          -- AQA forces; box/dot/car/rocket objects
+      VectorDiagram.tsx            -- grid vectors, column vectors + scale drawings
+      WaveDiagram.tsx              -- transverse/longitudinal waves
+      questionDiagramRegistry.tsx  -- registry: { component, questionSafe }, mode prop
 supabase/
   functions/
     generate-questions/
@@ -507,7 +541,14 @@ See [SECURITY_AUDIT.md](SECURITY_AUDIT.md) — living checklist of all known sec
 
 ---
 
-## Current Priorities (as of 10/06/2026)
+## Current Priorities (as of 11/06/2026)
+
+### Recently completed (11/06/2026 — diagram library session)
+- **DIAGRAMS.md** created: approved param schemas for 6 diagram families (free body, vector, wave, histogram, vector geometry, circuit), shared conventions, question-safe rules. All schema decisions recorded in its Section 10.
+- **Diagram Gallery** built at `/admin/diagram-gallery` (AdminHub card under Content Tools): live preview per registry key, mode toggle, presets, JSON params editor, standalone SVG download. Replaces the GeoGebra/Concepts Pro workflow for one-off SVGs.
+- **Registry refactor**: `questionSafe` metadata + `mode: 'question' | 'feedback'` prop replace QuestionCard's hardcoded exclusion; `parabola-vertex-graph` now correctly excluded from questions.
+- **Built + visually signed off**: `free-body-diagram` (car/rocket drawings, per-axis magnitude scaling), `vector-diagram`, `wave-diagram` (amplitude annotation in reserved left margin; separated compression/rarefaction labels).
+- **Wave AI generation wired**: `wave-properties` `prompt_config.system_prompt` now carries the wave-diagram schema, attachment rules (answer labels → `answerLabels` only), and 2 few-shot examples; repaired its string-scalar `prompt_config` storage in the same update and removed a stale "Generate exactly 4 questions" instruction.
 
 ### Recently completed (10/06/2026)
 - Fixed `marking_guidance` not being injected into Maths prompt builders (Foundation/Higher, both edge functions) — was Physics-only
@@ -521,6 +562,13 @@ See [SECURITY_AUDIT.md](SECURITY_AUDIT.md) — living checklist of all known sec
 - Fixed `CompletingTheSquareAreaModel`: side labels were hardcoded to a generic "ᵇ⁄₂" symbol regardless of `b` — now show the actual computed half-value (e.g. b=6 → "3", b=8 → "4") to match the worked example text. Added new `ParabolaVertexGraph` (registry key `parabola-vertex-graph`) — sketches $y=(x+p)^2+q$ with vertex + axis guide lines; swapped in for the "Finding the Minimum Point" worked example (`{p:2, q:3}` → vertex (-2,3)). Both pushed (`6c757be`).
 - Refined `completing-the-square` `prompt_config` for question generation (informed by a copyrighted PhysicsAndMathsTutor.com past paper John shared — used only for general phrasing patterns, not copied): removed all diagram instructions/examples from `system_prompt` (real Edexcel exam questions don't carry diagrams — area-model diagram stays in learning content only); added a "QUESTION PHRASING STYLE" section covering Edexcel structures ("for all values of x... find p and q", "Express... Hence", two-part minimum-point/solve follow-ons, standalone "by completing the square" questions) with an explicit copyright instruction not to copy the reference paper; added a "QUESTION VARIETY" block requiring a roughly even spread of question types and a=1/a>1 across each batch, and forbidding reuse of few-shot/canonical example numbers; expanded `command_words`.
 - Generated and reviewed a 17-question pending batch for `completing-the-square` under the new prompt — good mix of a=1/a>1, all three question types, varied phrasing, no diagrams. An earlier 20-question batch (generated before the diagram-removal fix, still carrying `completing-the-square-area-model`) was bulk-deleted from `pending_questions`.
+
+### Immediate next session — Diagram library (see "Diagram next steps" in the diagram section)
+- [ ] Circuit component — **first locate the reference prototype** (`docs/reference/` referenced in close-out brief does not exist in the repo)
+- [ ] Seeded Question Composer (touch-first, Waves first, registry `editor` field)
+- [ ] `histogram` + `vector-geometry-diagram` components
+- [ ] Review Queue: render `diagram_params` visually before wiring more subtopics
+- [ ] Repair string-scalar `prompt_config` on the 5 remaining Waves subtopics + `conservation-dissipation-energy` (configs currently ignored by generation)
 
 ### Immediate next session — Bug fix
 - [ ] **Fix paragraph reorder bug in Learning Content Editor** — ▲▼ buttons added 08/06/2026 to move paragraphs within a section don't produce a true up/down swap; John reports it behaves more like swapping sections, particularly when a paragraph has an embedded diagram or is a subheading. Reproduce in browser (need test admin credentials) and trace through `moveParagraphUp`/`moveParagraphDown` in `AdminLearningContent.tsx` — possible `key={pi}` reconciliation issue with `ParagraphRow`'s internal upload state.
