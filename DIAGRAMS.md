@@ -386,12 +386,16 @@ type WaveMarkerFeature =
   | 'amplitude'       // vertical double-arrow, axis→crest
   | 'peak-to-trough'  // vertical double-arrow, crest→trough (2×amplitude) — distractor
   | 'point'           // single up-arrow at the equilibrium axis (Point P / Point Q)
-  // Longitudinal
-  | 'compression'     // arrow pointing down at a tight (bunched) band
-  | 'rarefaction';    // arrow pointing down at a sparse (spread) band
+  // Longitudinal (rendered as horizontal SECTION brackets over the bands)
+  | 'compression'     // bracket over a tight (bunched) band section
+  | 'rarefaction';    // bracket over a sparse (spread) band section
 // Valid features depend on wave type: transverse accepts wavelength,
 // half-wavelength, amplitude, peak-to-trough, point; longitudinal accepts
-// wavelength, compression, rarefaction, point. Wrong-type markers warn + skip.
+// compression, rarefaction, half-wavelength, wavelength. Wrong-type markers
+// warn + skip. Longitudinal markers are horizontal brackets (with end-guides
+// down to the band) so each letter marks a SECTION the student can identify —
+// not a single point — and each section should be a DISTINCT part of the wave
+// (no two letters on the same kind of region).
 
 interface WaveMarker {
   /** Letter (or short caption) drawn at the arrow, e.g. 'A', 'B', 'Point P'. */
@@ -466,24 +470,27 @@ mark scheme names the correct letter — here B = amplitude, A = wavelength.
 The same diagram is shown in both question and worked-solution modes; the
 worked solution **text** explains which letter is which.)*
 
-**E. "Which arrow shows the compression / rarefaction?" (longitudinal)**
+**E. "Which section shows the…?" (longitudinal, lettered sections)**
 ```json
 {
   "type": "longitudinal",
-  "cycles": 3,
+  "cycles": 4,
   "markers": [
     { "label": "A", "feature": "compression", "cycle": 0 },
     { "label": "B", "feature": "rarefaction", "cycle": 0 },
-    { "label": "C", "feature": "compression", "cycle": 1 },
-    { "label": "D", "feature": "rarefaction", "cycle": 1 }
+    { "label": "C", "feature": "half-wavelength", "cycle": 1 },
+    { "label": "D", "feature": "wavelength", "cycle": 2 }
   ]
 }
 ```
-*(Lettered arrows point down at bands. Same answer-by-letter mechanism as the
-transverse case — solves the "identify the compression/rarefaction" question
-type, which is otherwise un-answerable against a bare band diagram. Frame the
-question so the answer is unambiguous, e.g. "Which **two** letters show
-compressions?" → A and C.)*
+*(Each letter is a horizontal bracket over a **section** of the wave, and each
+section is a **distinct** part (A = compression, B = rarefaction, C = half a
+wavelength, D = one wavelength). The student reads the band density under a
+bracket and picks the letter — so any question has exactly one answer:
+"Which section shows a compression?" → A; "…one wavelength?" → D. Lay sections
+out left-to-right (A…D) over non-overlapping regions. Same answer-by-letter
+mechanism as the transverse case; solves the otherwise un-answerable "identify
+the compression/rarefaction" question.)*
 
 ### Question-safe vs answer-revealing
 - **Question-safe:** the wave itself, `labels`, `markers`, `secondWave`, axis captions.

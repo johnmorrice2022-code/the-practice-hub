@@ -92,9 +92,9 @@ const TRANSVERSE_MARKER_FEATURES: WaveMarkerFeature[] = [
 ];
 const LONGITUDINAL_MARKER_FEATURES: WaveMarkerFeature[] = [
   'wavelength',
+  'half-wavelength',
   'compression',
   'rarefaction',
-  'point',
 ];
 
 function clamp(n: number, lo: number, hi: number): number {
@@ -600,95 +600,87 @@ export function WaveDiagram({
           </g>
         )}
 
-        {/* Lettered arrows (AQA "which arrow shows the compression?" questions).
-            Each arrow points DOWN at a band from above; the letter sits above. */}
+        {/* Lettered SECTION brackets (AQA "which section shows the
+            compression / rarefaction / wavelength?" questions). Each marker is
+            a horizontal bracket over a region of the wave with end-guides down
+            to the band, and the letter above. The student reads the band
+            density under the bracket to identify the part. */}
         {markerList.length > 0 &&
           (() => {
             const clampK = (k: number, max: number) =>
               Math.min(max, Math.max(0, Math.round(k)));
             const maxCompK = Math.max(0, cycles - 1);
             const maxRareK = Math.max(0, cycles - 2);
-            let pi = 0;
-            const pointXs: number[] = (() => {
-              const n = markerList.filter((m) => m.feature === 'point').length;
-              if (n <= 1) return [plotL + (PLOT_R - plotL) / 2];
-              return [plotL + 4, PLOT_R - 4];
-            })();
+            const bracketY = topY - 16;
+            // Half-width of a compression / rarefaction section bracket.
+            const sectionHW = lam * 0.2;
 
-            const arrowDownAt = (x: number, label: string, key: string) => (
-              <g key={key}>
-                <line
-                  x1={f(x)}
-                  y1={f(topY - 22)}
-                  x2={f(x)}
-                  y2={f(topY - 3)}
-                  stroke={POINTER_COLOR}
-                  strokeWidth="1.4"
-                />
-                <polygon points={head(x, topY, 0, 1)} fill={STROKE} />
-                <text {...MARKER_FONT} x={f(x)} y={f(topY - 28)} textAnchor="middle">
-                  {label}
-                </text>
-              </g>
-            );
+            const sectionBracket = (
+              x1: number,
+              x2: number,
+              label: string,
+              key: string
+            ) => {
+              const lo = Math.max(plotL + 1, Math.min(x1, x2));
+              const hi = Math.min(PLOT_R - 1, Math.max(x1, x2));
+              return (
+                <g key={key}>
+                  {/* end guides from the bracket down to the band top */}
+                  <line
+                    x1={f(lo)}
+                    y1={f(bracketY)}
+                    x2={f(lo)}
+                    y2={f(topY - 2)}
+                    stroke={POINTER_COLOR}
+                    strokeWidth="1"
+                    strokeDasharray="2,2"
+                  />
+                  <line
+                    x1={f(hi)}
+                    y1={f(bracketY)}
+                    x2={f(hi)}
+                    y2={f(topY - 2)}
+                    stroke={POINTER_COLOR}
+                    strokeWidth="1"
+                    strokeDasharray="2,2"
+                  />
+                  <DoubleArrow x1={lo} y1={bracketY} x2={hi} y2={bracketY} />
+                  <text
+                    {...MARKER_FONT}
+                    x={f((lo + hi) / 2)}
+                    y={f(bracketY - 6)}
+                    textAnchor="middle"
+                  >
+                    {label}
+                  </text>
+                </g>
+              );
+            };
 
             return markerList.map((m, i) => {
+              const key = `lmk-${i}`;
               switch (m.feature) {
-                case 'compression':
-                  return arrowDownAt(
-                    compressionX(clampK(m.cycle ?? 0, maxCompK)),
-                    m.label,
-                    `lmk-${i}`
-                  );
-                case 'rarefaction':
-                  return arrowDownAt(
-                    rarefactionX(clampK(m.cycle ?? 0, maxRareK)),
-                    m.label,
-                    `lmk-${i}`
-                  );
+                case 'compression': {
+                  const c = compressionX(clampK(m.cycle ?? 0, maxCompK));
+                  return sectionBracket(c - sectionHW, c + sectionHW, m.label, key);
+                }
+                case 'rarefaction': {
+                  const c = rarefactionX(clampK(m.cycle ?? 0, maxRareK));
+                  return sectionBracket(c - sectionHW, c + sectionHW, m.label, key);
+                }
                 case 'wavelength': {
                   const k = clampK(m.cycle ?? 0, Math.max(0, cycles - 2));
-                  const x1 = compressionX(k);
-                  const x2 = compressionX(k + 1);
-                  const y = topY - 16;
-                  return (
-                    <g key={`lmk-${i}`}>
-                      <DoubleArrow x1={x1} y1={y} x2={x2} y2={y} />
-                      <text
-                        {...MARKER_FONT}
-                        x={f((x1 + x2) / 2)}
-                        y={f(y - 6)}
-                        textAnchor="middle"
-                      >
-                        {m.label}
-                      </text>
-                    </g>
+                  return sectionBracket(
+                    compressionX(k),
+                    compressionX(k + 1),
+                    m.label,
+                    key
                   );
                 }
-                case 'point': {
-                  const x = pointXs[Math.min(pi, pointXs.length - 1)];
-                  pi++;
-                  return (
-                    <g key={`lmk-${i}`}>
-                      <line
-                        x1={f(x)}
-                        y1={f(bottom + 22)}
-                        x2={f(x)}
-                        y2={f(bottom + 4)}
-                        stroke={POINTER_COLOR}
-                        strokeWidth="1.4"
-                      />
-                      <polygon points={head(x, bottom, 0, -1)} fill={STROKE} />
-                      <text
-                        {...MARKER_FONT}
-                        x={f(x)}
-                        y={f(bottom + 36)}
-                        textAnchor="middle"
-                      >
-                        {m.label}
-                      </text>
-                    </g>
-                  );
+                case 'half-wavelength': {
+                  const k = clampK(m.cycle ?? 0, maxCompK);
+                  const x1 = compressionX(k);
+                  return sectionBracket(x1, x1 + lam / 2, m.label, key);
                 }
                 default:
                   return null;
@@ -712,11 +704,10 @@ export function WaveDiagram({
   const waveCount = isTransverse && secondWave ? 2 : 1;
   const xCaptionH = isTransverse && params.axisLabels?.x ? 22 : 0;
   // Transverse markers need headroom above (horizontal arrows + letters) and
-  // below (Point P/Q arrows + captions). Longitudinal draws letter arrows above
-  // the bands (existing space) and only needs a little room below for any point
-  // captions.
+  // below (Point P/Q arrows + captions). Longitudinal draws section brackets in
+  // the existing space above the bands, so it needs no extra padding.
   const markerTopPad = hasMarkers && isTransverse ? 20 : 0;
-  const markerBotPad = hasMarkers ? (isTransverse ? 30 : 16) : 0;
+  const markerBotPad = hasMarkers && isTransverse ? 30 : 0;
   const H =
     blockH * waveCount + xCaptionH + 8 + markerTopPad + markerBotPad;
 
