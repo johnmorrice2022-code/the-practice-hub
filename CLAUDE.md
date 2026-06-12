@@ -248,7 +248,7 @@ If `generate-questions`, `mark-answer`, and `jam-help` all fail at the same time
 ### Diagram component pattern (overhauled 11/06/2026 — see DIAGRAMS.md)
 Parametric SVG diagram library. **DIAGRAMS.md** (repo root) is the source of truth for all param schemas — read it before touching any diagram component. Each diagram family:
 - A pure renderer component in `src/components/diagrams/` (inline SVG, validates own params, renders null + `console.warn` on malformed params — never throws)
-- An entry in `QUESTION_DIAGRAM_REGISTRY` (`questionDiagramRegistry.tsx`): `{ component, questionSafe }`
+- An entry in `QUESTION_DIAGRAM_REGISTRY` (`questionDiagramRegistry.tsx`): `{ component, questionSafe, editor?, editorDefaults?, label? }` (the optional `editor` makes the family authorable in the Seeded Question Composer)
 - `diagram_component` + `diagram_params` fields on the question record
 
 **Registry mechanics:**
@@ -327,7 +327,9 @@ Single entry point: `/admin` (AdminHub) → three labelled sections:
 
 **Content Tools:** Content Pipeline, Review Queue, Members Area, Question Feedback.
 **Maths Tools:** Probability Questions (live) + coming soon authoring cards (Trig, Vector, Higher Probability, Frequency Trees & Venn).
-**Physics Tools:** placeholder section — ready for physics-specific authoring tools as they are built.
+**Physics Tools:** **Seeded Question Composer** (`/admin/seeded-composer`, "Wave Questions" card — launches with the wave family preselected) + a coming-soon card for more physics authoring.
+
+**Seeded Question Composer** (`/admin/seeded-composer`, `AdminSeededComposer.tsx`) — touch-first, iPad-first authoring of a complete seeded diagram question with no JSON. Shared form (subtopic, KaTeX question + toolbar, marks, structured mark-scheme rows + AI generate, worked solution) plus a registry-driven diagram panel: pick a family, edit params via its touch-first `editor`, live-preview in question/worked-solution view. Saves to `seeded_questions`, confirms via the real `QuestionCard`. Add a family by giving its registry entry an `editor` (+ `editorDefaults`/`label`) — the shell auto-discovers it. First editor: `WaveDiagramEditor`. Single-part only so far.
 
 **Content Pipeline** (`/admin/content-pipeline`) is the primary workflow entry point for new subtopics:
 - Create subtopic rows (subject, topic, name, slug, tier — exam_board auto-set from subject)

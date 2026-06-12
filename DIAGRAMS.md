@@ -100,6 +100,12 @@ interface DiagramRegistryEntry {
   component: QuestionDiagramComponent;
   /** May this diagram appear in QuestionCard at all? */
   questionSafe: boolean | ((params: any) => boolean);
+  /** Touch-first params editor for the Seeded Question Composer (added
+      12/06/2026). A family becomes authorable in the composer purely by
+      gaining an `editor` — the composer shell auto-discovers it. */
+  editor?: DiagramEditorComponent;       // React.FC<{ params; onChange }>
+  editorDefaults?: Record<string, unknown>; // starting params when picked
+  label?: string;                        // family name in the composer picker
 }
 ```
 
@@ -849,6 +855,10 @@ interface CircuitDiagramParams {
 | `histogram` | Histogram | Edexcel Higher Maths | `true` | drawn-in `hidden` bars |
 | `vector-geometry-diagram` | VectorGeometryDiagram | Edexcel Higher Maths | `true` | `feedbackEdges` |
 | `circuit-diagram` | CircuitDiagram | AQA Physics — Electricity | `true` | none |
+
+> `wave-diagram` also carries **always-shown** layers that aren't feedback-only:
+> lettered `markers` (the answer-by-letter mechanism, §5) and the longitudinal
+> `energyArrow`. It has a composer `editor` (`WaveDiagramEditor`).
 
 ---
 
