@@ -357,6 +357,13 @@ interface WaveDiagramParams {
   /** FEEDBACK-ONLY LAYER: labels shown only in worked solutions — use when the
       label IS the answer ("On the diagram, label the wavelength"). */
   answerLabels?: WaveLabel[];
+  /** Lettered measurement arrows for AQA "which arrow shows the amplitude /
+      wavelength?" questions (added 12/06/2026). Some markers are the answer,
+      others are distractors — but the LETTER reveals nothing, so markers are
+      question-safe and render in BOTH modes. The student answers with the
+      letter; the correct letter lives in the mark scheme, never in the diagram.
+      Transverse only. */
+  markers?: WaveMarker[];
   /** Axis captions, e.g. { "x": "Distance (m)", "y": "Displacement (cm)" }.
       Transverse only. Default: unlabelled plain axes. */
   axisLabels?: { x?: string; y?: string };
@@ -370,6 +377,22 @@ interface WaveDiagramParams {
     phaseShift?: number;
     label?: string;             // e.g. "Wave B"
   };
+}
+
+type WaveMarkerFeature =
+  | 'wavelength'      // horizontal double-arrow, one full cycle (crest→crest)
+  | 'half-wavelength' // horizontal double-arrow, crest→trough (½ cycle) — distractor
+  | 'amplitude'       // vertical double-arrow, axis→crest
+  | 'peak-to-trough'  // vertical double-arrow, crest→trough (2×amplitude) — distractor
+  | 'point';          // single up-arrow at the equilibrium axis (Point P / Point Q)
+
+interface WaveMarker {
+  /** Letter (or short caption) drawn at the arrow, e.g. 'A', 'B', 'Point P'. */
+  label: string;
+  feature: WaveMarkerFeature;
+  /** Which cycle the marker sits on (0-based). Defaults spread markers out and
+      are clamped to the visible range. Ignored for 'point' (auto left/right). */
+  cycle?: number;
 }
 ```
 
@@ -412,10 +435,34 @@ interface WaveDiagramParams {
 }
 ```
 
+**D. "Which arrow shows the amplitude / wavelength?" (AQA lettered arrows)**
+```json
+{
+  "type": "transverse",
+  "cycles": 3,
+  "markers": [
+    { "label": "A", "feature": "wavelength", "cycle": 0 },
+    { "label": "B", "feature": "amplitude", "cycle": 1 },
+    { "label": "C", "feature": "peak-to-trough", "cycle": 1 },
+    { "label": "D", "feature": "half-wavelength", "cycle": 2 },
+    { "label": "Point P", "feature": "point" },
+    { "label": "Point Q", "feature": "point" }
+  ]
+}
+```
+*(Multi-part question: "(a) Which arrow shows the amplitude? (b) Which arrow
+shows the wavelength?" The student types the letter in the answer box. The
+mark scheme names the correct letter — here B = amplitude, A = wavelength.
+The same diagram is shown in both question and worked-solution modes; the
+worked solution **text** explains which letter is which.)*
+
 ### Question-safe vs answer-revealing
-- **Question-safe:** the wave itself, `labels`, `secondWave`, axis captions.
+- **Question-safe:** the wave itself, `labels`, `markers`, `secondWave`, axis captions.
 - **Answer-revealing:** `answerLabels` — rendered only when `mode === 'feedback'`.
   The generator decides which list a label belongs in based on what the question asks.
+- **`markers` are question-safe by construction:** the letter reveals nothing;
+  the answer (which letter = amplitude) lives in the mark scheme, never the
+  diagram. Never put the word "amplitude"/"wavelength" next to a marker letter.
 - Registry: `questionSafe: true`.
 
 ---

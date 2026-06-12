@@ -133,8 +133,23 @@ const GALLERY_METADATA: Record<string, GalleryMetadata> = {
   'wave-diagram': {
     name: 'Wave Diagram',
     description:
-      'Transverse sine wave or longitudinal line bands. answerLabels only render in Worked solution view — for "label the wavelength" questions.',
+      'Transverse sine wave or longitudinal line bands. Lettered measurement arrows (markers) drive AQA "which arrow shows the amplitude/wavelength" questions — the student answers with a letter. answerLabels only render in Worked solution view, for "label the wavelength" questions.',
     presets: [
+      {
+        label: 'Which arrow shows…? (lettered arrows)',
+        params: {
+          type: 'transverse',
+          cycles: 3,
+          markers: [
+            { label: 'A', feature: 'wavelength', cycle: 0 },
+            { label: 'B', feature: 'amplitude', cycle: 1 },
+            { label: 'C', feature: 'peak-to-trough', cycle: 1 },
+            { label: 'D', feature: 'half-wavelength', cycle: 2 },
+            { label: 'Point P', feature: 'point' },
+            { label: 'Point Q', feature: 'point' },
+          ],
+        },
+      },
       {
         label: 'Label amplitude + wavelength (answer)',
         params: {

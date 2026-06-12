@@ -17,12 +17,33 @@ export type WaveLabel =
   | 'compression'
   | 'rarefaction';
 
+// AQA "which arrow shows the…" question type: lettered measurement arrows
+// (some correct, some distractors) drawn on the wave. The letters reveal
+// nothing on their own — the answer (which letter = amplitude) lives in the
+// mark scheme — so markers are question-safe and render in BOTH modes.
+export type WaveMarkerFeature =
+  | 'wavelength' // horizontal double-arrow, one full cycle (crest→crest)
+  | 'half-wavelength' // horizontal double-arrow, crest→trough (½ cycle) — distractor
+  | 'amplitude' // vertical double-arrow, axis→crest
+  | 'peak-to-trough' // vertical double-arrow, crest→trough (2×amplitude) — distractor
+  | 'point'; // single up-arrow at the equilibrium axis (Point P / Point Q)
+
+export interface WaveMarker {
+  /** Letter (or short caption) drawn at the arrow, e.g. 'A', 'B', 'Point P'. */
+  label: string;
+  feature: WaveMarkerFeature;
+  /** Which cycle the marker sits on (0-based). Defaults spread markers out;
+      clamped to the visible range. Ignored for 'point'. */
+  cycle?: number;
+}
+
 export interface WaveDiagramParams {
   type: 'transverse' | 'longitudinal';
   cycles?: number; // default 3, clamped 1–6
   amplitude?: number; // relative 0.2–1, default 1 (transverse only)
   labels?: WaveLabel[];
   answerLabels?: WaveLabel[]; // feedback-only
+  markers?: WaveMarker[]; // transverse only; lettered measurement arrows
   axisLabels?: { x?: string; y?: string }; // transverse only
   mainWaveLabel?: string;
   secondWave?: {
@@ -49,8 +70,22 @@ const FONT = {
   fill: LABEL_COLOR,
 };
 
+const MARKER_FONT = {
+  fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif",
+  fontSize: '13',
+  fontWeight: 700 as const,
+  fill: LABEL_COLOR,
+};
+
 const TRANSVERSE_LABELS: WaveLabel[] = ['amplitude', 'wavelength', 'crest', 'trough'];
 const LONGITUDINAL_LABELS: WaveLabel[] = ['compression', 'rarefaction', 'wavelength'];
+const MARKER_FEATURES: WaveMarkerFeature[] = [
+  'wavelength',
+  'half-wavelength',
+  'amplitude',
+  'peak-to-trough',
+  'point',
+];
 
 function clamp(n: number, lo: number, hi: number): number {
   return Math.min(hi, Math.max(lo, n));
@@ -134,6 +169,28 @@ export function WaveDiagram({
     ...(mode === 'feedback' ? collect(params.answerLabels) : []),
   ]);
 
+  // Lettered measurement arrows (AQA "which arrow shows…" questions).
+  // Transverse only; always rendered (the letters reveal no answer).
+  const markerList: WaveMarker[] = (() => {
+    if (!Array.isArray(params.markers) || params.markers.length === 0) return [];
+    if (!isTransverse) {
+      console.warn('[WaveDiagram] markers ignored for longitudinal waves');
+      return [];
+    }
+    return params.markers.filter((m): m is WaveMarker => {
+      if (
+        m &&
+        typeof m.label === 'string' &&
+        MARKER_FEATURES.includes(m.feature as WaveMarkerFeature)
+      ) {
+        return true;
+      }
+      console.warn('[WaveDiagram] ignoring invalid marker', m);
+      return false;
+    });
+  })();
+  const hasMarkers = markerList.length > 0;
+
   let cycles = clamp(
     typeof params.cycles === 'number' && Number.isFinite(params.cycles)
       ? Math.round(params.cycles)
@@ -143,6 +200,10 @@ export function WaveDiagram({
   );
   // Crest-to-crest / compression-to-compression brackets need 2 full cycles.
   if (shown.has('wavelength') && cycles < 2) cycles = 2;
+  // A wavelength marker spans crest→crest, so it also needs 2 cycles.
+  if (hasMarkers && markerList.some((m) => m.feature === 'wavelength') && cycles < 2) {
+    cycles = 2;
+  }
 
   const secondWave = isTransverse ? params.secondWave : undefined;
   if (params.secondWave && !isTransverse) {
@@ -300,6 +361,134 @@ export function WaveDiagram({
             trough
           </text>
         )}
+
+        {/* Lettered measurement arrows (AQA "which arrow shows…" questions) */}
+        {withLabels &&
+          markerList.length > 0 &&
+          (() => {
+            const descZeroX = (k: number) =>
+              plotL + phasePx + lamPx / 2 + k * lamPx;
+            const maxCrestK = Math.max(0, cycles - 1);
+            const clampK = (k: number, max: number) =>
+              Math.min(max, Math.max(0, Math.round(k)));
+            const pointXs: number[] = (() => {
+              const n = markerList.filter((m) => m.feature === 'point').length;
+              if (n <= 1) return [plotL + (PLOT_R - plotL) / 2];
+              return [plotL + 4, PLOT_R - 4];
+            })();
+            let pi = 0;
+
+            return markerList.map((m, i) => {
+              switch (m.feature) {
+                case 'wavelength': {
+                  const k = clampK(m.cycle ?? 0, Math.max(0, cycles - 2));
+                  const x1 = crestX(k);
+                  const x2 = crestX(k + 1);
+                  const y = midY - ampPx - 14;
+                  return (
+                    <g key={`mk-${i}`}>
+                      <DoubleArrow x1={x1} y1={y} x2={x2} y2={y} />
+                      <text
+                        {...MARKER_FONT}
+                        x={f((x1 + x2) / 2)}
+                        y={f(y - 6)}
+                        textAnchor="middle"
+                      >
+                        {m.label}
+                      </text>
+                    </g>
+                  );
+                }
+                case 'half-wavelength': {
+                  const k = clampK(m.cycle ?? maxCrestK, maxCrestK);
+                  const x1 = crestX(k);
+                  const x2 = troughX(k);
+                  const y = midY - ampPx - 14;
+                  return (
+                    <g key={`mk-${i}`}>
+                      <DoubleArrow x1={x1} y1={y} x2={x2} y2={y} />
+                      <text
+                        {...MARKER_FONT}
+                        x={f((x1 + x2) / 2)}
+                        y={f(y - 6)}
+                        textAnchor="middle"
+                      >
+                        {m.label}
+                      </text>
+                    </g>
+                  );
+                }
+                case 'amplitude': {
+                  const k = clampK(m.cycle ?? 0, maxCrestK);
+                  const x = crestX(k);
+                  return (
+                    <g key={`mk-${i}`}>
+                      <DoubleArrow x1={x} y1={midY} x2={x} y2={midY - ampPx} />
+                      <text
+                        {...MARKER_FONT}
+                        x={f(x + 9)}
+                        y={f(midY - ampPx / 2 + 4)}
+                        textAnchor="start"
+                      >
+                        {m.label}
+                      </text>
+                    </g>
+                  );
+                }
+                case 'peak-to-trough': {
+                  const k = clampK(m.cycle ?? 0, maxCrestK);
+                  const x = descZeroX(k);
+                  return (
+                    <g key={`mk-${i}`}>
+                      <DoubleArrow
+                        x1={x}
+                        y1={midY - ampPx}
+                        x2={x}
+                        y2={midY + ampPx}
+                      />
+                      <text
+                        {...MARKER_FONT}
+                        x={f(x + 9)}
+                        y={f(midY + 4)}
+                        textAnchor="start"
+                      >
+                        {m.label}
+                      </text>
+                    </g>
+                  );
+                }
+                case 'point': {
+                  const x = pointXs[Math.min(pi, pointXs.length - 1)];
+                  pi++;
+                  const anchor = x < W / 2 ? 'start' : 'end';
+                  const tx = x < W / 2 ? x - 3 : x + 3;
+                  return (
+                    <g key={`mk-${i}`}>
+                      <line
+                        x1={f(x)}
+                        y1={f(midY + ampPx * 0.72)}
+                        x2={f(x)}
+                        y2={f(midY + 6)}
+                        stroke={POINTER_COLOR}
+                        strokeWidth="1.4"
+                      />
+                      <polygon points={head(x, midY, 0, -1)} fill={STROKE} />
+                      <text
+                        {...MARKER_FONT}
+                        x={f(tx)}
+                        y={f(midY + ampPx * 0.72 + 16)}
+                        textAnchor={anchor}
+                      >
+                        {m.label}
+                      </text>
+                    </g>
+                  );
+                }
+                default:
+                  return null;
+              }
+            });
+          })()}
       </g>
     );
   };
@@ -409,7 +598,12 @@ export function WaveDiagram({
   const blockH = isTransverse ? 2 * MAX_AMP + 64 : 150;
   const waveCount = isTransverse && secondWave ? 2 : 1;
   const xCaptionH = isTransverse && params.axisLabels?.x ? 22 : 0;
-  const H = blockH * waveCount + xCaptionH + 8;
+  // Markers need headroom above (horizontal arrows + letters) and below
+  // (Point P/Q arrows + captions).
+  const markerTopPad = hasMarkers ? 20 : 0;
+  const markerBotPad = hasMarkers ? 30 : 0;
+  const H =
+    blockH * waveCount + xCaptionH + 8 + markerTopPad + markerBotPad;
 
   // Second wave geometry
   const amp2 = secondWave
@@ -418,13 +612,19 @@ export function WaveDiagram({
   const lam2 = secondWave ? lam * clamp(secondWave.wavelengthRatio ?? 1, 0.25, 3) : lam;
   const phase2 = secondWave ? clamp(secondWave.phaseShift ?? 0, 0, 1) * lam2 : 0;
 
-  const mid1 = blockH / 2 + 14;
-  const mid2 = blockH + blockH / 2 + 14;
+  const mid1 = blockH / 2 + 14 + markerTopPad;
+  const mid2 = blockH + blockH / 2 + 14 + markerTopPad;
 
   const labelList = Array.from(shown);
+  const markerDesc = hasMarkers
+    ? `; lettered measurement arrows: ${markerList
+        .map((m) => `${m.label} (${m.feature})`)
+        .join(', ')}`
+    : '';
   const desc = isTransverse
     ? `Transverse wave with ${cycles} cycles` +
       (labelList.length ? `, labelled: ${labelList.join(', ')}` : '') +
+      markerDesc +
       (secondWave
         ? `; second wave for comparison${secondWave.label ? ` (${secondWave.label})` : ''}`
         : '') +
