@@ -457,10 +457,11 @@ export function WaveDiagram({
                         x2={x}
                         y2={midY + ampPx}
                       />
+                      {/* Label in the lower arm so it never sits on the axis */}
                       <text
                         {...MARKER_FONT}
                         x={f(x + 9)}
-                        y={f(midY + 4)}
+                        y={f(midY + ampPx * 0.5 + 4)}
                         textAnchor="start"
                       >
                         {m.label}
@@ -475,9 +476,11 @@ export function WaveDiagram({
                   const tx = x < W / 2 ? x - 3 : x + 3;
                   return (
                     <g key={`mk-${i}`}>
+                      {/* Short up-arrow to the axis; caption dropped below the
+                          trough line so it never overlaps the curve. */}
                       <line
                         x1={f(x)}
-                        y1={f(midY + ampPx * 0.72)}
+                        y1={f(midY + ampPx * 0.5)}
                         x2={f(x)}
                         y2={f(midY + 6)}
                         stroke={POINTER_COLOR}
@@ -487,7 +490,7 @@ export function WaveDiagram({
                       <text
                         {...MARKER_FONT}
                         x={f(tx)}
-                        y={f(midY + ampPx * 0.72 + 16)}
+                        y={f(midY + ampPx + 16)}
                         textAnchor={anchor}
                       >
                         {m.label}
