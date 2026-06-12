@@ -22,11 +22,15 @@ export type WaveLabel =
 // nothing on their own — the answer (which letter = amplitude) lives in the
 // mark scheme — so markers are question-safe and render in BOTH modes.
 export type WaveMarkerFeature =
-  | 'wavelength' // horizontal double-arrow, one full cycle (crest→crest)
-  | 'half-wavelength' // horizontal double-arrow, crest→trough (½ cycle) — distractor
-  | 'amplitude' // vertical double-arrow, axis→crest
-  | 'peak-to-trough' // vertical double-arrow, crest→trough (2×amplitude) — distractor
-  | 'point'; // single up-arrow at the equilibrium axis (Point P / Point Q)
+  // Transverse features
+  | 'wavelength' // horizontal double-arrow, one full cycle (crest→crest / compression→compression)
+  | 'half-wavelength' // horizontal double-arrow, crest→trough (½ cycle) — distractor (transverse)
+  | 'amplitude' // vertical double-arrow, axis→crest (transverse)
+  | 'peak-to-trough' // vertical double-arrow, crest→trough (2×amplitude) — distractor (transverse)
+  | 'point' // single up-arrow at the equilibrium axis (transverse; Point P / Point Q)
+  // Longitudinal features
+  | 'compression' // arrow pointing at a tight (bunched) band
+  | 'rarefaction'; // arrow pointing at a sparse (spread) band
 
 export interface WaveMarker {
   /** Letter (or short caption) drawn at the arrow, e.g. 'A', 'B', 'Point P'. */
@@ -79,11 +83,17 @@ const MARKER_FONT = {
 
 const TRANSVERSE_LABELS: WaveLabel[] = ['amplitude', 'wavelength', 'crest', 'trough'];
 const LONGITUDINAL_LABELS: WaveLabel[] = ['compression', 'rarefaction', 'wavelength'];
-const MARKER_FEATURES: WaveMarkerFeature[] = [
+const TRANSVERSE_MARKER_FEATURES: WaveMarkerFeature[] = [
   'wavelength',
   'half-wavelength',
   'amplitude',
   'peak-to-trough',
+  'point',
+];
+const LONGITUDINAL_MARKER_FEATURES: WaveMarkerFeature[] = [
+  'wavelength',
+  'compression',
+  'rarefaction',
   'point',
 ];
 
@@ -170,23 +180,24 @@ export function WaveDiagram({
   ]);
 
   // Lettered measurement arrows (AQA "which arrow shows…" questions).
-  // Transverse only; always rendered (the letters reveal no answer).
+  // Valid for both wave types; always rendered (the letter reveals no answer).
+  const allowedMarkerFeatures = isTransverse
+    ? TRANSVERSE_MARKER_FEATURES
+    : LONGITUDINAL_MARKER_FEATURES;
   const markerList: WaveMarker[] = (() => {
     if (!Array.isArray(params.markers) || params.markers.length === 0) return [];
-    if (!isTransverse) {
-      console.warn('[WaveDiagram] markers ignored for longitudinal waves');
-      return [];
-    }
     return params.markers.filter((m): m is WaveMarker => {
-      if (
-        m &&
-        typeof m.label === 'string' &&
-        MARKER_FEATURES.includes(m.feature as WaveMarkerFeature)
-      ) {
-        return true;
+      if (!m || typeof m.label !== 'string') {
+        console.warn('[WaveDiagram] ignoring invalid marker', m);
+        return false;
       }
-      console.warn('[WaveDiagram] ignoring invalid marker', m);
-      return false;
+      if (!allowedMarkerFeatures.includes(m.feature as WaveMarkerFeature)) {
+        console.warn(
+          `[WaveDiagram] ignoring marker "${m.label}" — feature "${m.feature}" not valid for ${params.type}`
+        );
+        return false;
+      }
+      return true;
     });
   })();
   const hasMarkers = markerList.length > 0;
@@ -582,6 +593,102 @@ export function WaveDiagram({
             </text>
           </g>
         )}
+
+        {/* Lettered arrows (AQA "which arrow shows the compression?" questions).
+            Each arrow points DOWN at a band from above; the letter sits above. */}
+        {markerList.length > 0 &&
+          (() => {
+            const clampK = (k: number, max: number) =>
+              Math.min(max, Math.max(0, Math.round(k)));
+            const maxCompK = Math.max(0, cycles - 1);
+            const maxRareK = Math.max(0, cycles - 2);
+            let pi = 0;
+            const pointXs: number[] = (() => {
+              const n = markerList.filter((m) => m.feature === 'point').length;
+              if (n <= 1) return [plotL + (PLOT_R - plotL) / 2];
+              return [plotL + 4, PLOT_R - 4];
+            })();
+
+            const arrowDownAt = (x: number, label: string, key: string) => (
+              <g key={key}>
+                <line
+                  x1={f(x)}
+                  y1={f(topY - 22)}
+                  x2={f(x)}
+                  y2={f(topY - 3)}
+                  stroke={POINTER_COLOR}
+                  strokeWidth="1.4"
+                />
+                <polygon points={head(x, topY, 0, 1)} fill={STROKE} />
+                <text {...MARKER_FONT} x={f(x)} y={f(topY - 28)} textAnchor="middle">
+                  {label}
+                </text>
+              </g>
+            );
+
+            return markerList.map((m, i) => {
+              switch (m.feature) {
+                case 'compression':
+                  return arrowDownAt(
+                    compressionX(clampK(m.cycle ?? 0, maxCompK)),
+                    m.label,
+                    `lmk-${i}`
+                  );
+                case 'rarefaction':
+                  return arrowDownAt(
+                    rarefactionX(clampK(m.cycle ?? 0, maxRareK)),
+                    m.label,
+                    `lmk-${i}`
+                  );
+                case 'wavelength': {
+                  const k = clampK(m.cycle ?? 0, Math.max(0, cycles - 2));
+                  const x1 = compressionX(k);
+                  const x2 = compressionX(k + 1);
+                  const y = topY - 16;
+                  return (
+                    <g key={`lmk-${i}`}>
+                      <DoubleArrow x1={x1} y1={y} x2={x2} y2={y} />
+                      <text
+                        {...MARKER_FONT}
+                        x={f((x1 + x2) / 2)}
+                        y={f(y - 6)}
+                        textAnchor="middle"
+                      >
+                        {m.label}
+                      </text>
+                    </g>
+                  );
+                }
+                case 'point': {
+                  const x = pointXs[Math.min(pi, pointXs.length - 1)];
+                  pi++;
+                  return (
+                    <g key={`lmk-${i}`}>
+                      <line
+                        x1={f(x)}
+                        y1={f(bottom + 22)}
+                        x2={f(x)}
+                        y2={f(bottom + 4)}
+                        stroke={POINTER_COLOR}
+                        strokeWidth="1.4"
+                      />
+                      <polygon points={head(x, bottom, 0, -1)} fill={STROKE} />
+                      <text
+                        {...MARKER_FONT}
+                        x={f(x)}
+                        y={f(bottom + 36)}
+                        textAnchor="middle"
+                      >
+                        {m.label}
+                      </text>
+                    </g>
+                  );
+                }
+                default:
+                  return null;
+              }
+            });
+          })()}
       </g>
     );
   };
@@ -598,10 +705,12 @@ export function WaveDiagram({
   const blockH = isTransverse ? 2 * MAX_AMP + 64 : 150;
   const waveCount = isTransverse && secondWave ? 2 : 1;
   const xCaptionH = isTransverse && params.axisLabels?.x ? 22 : 0;
-  // Markers need headroom above (horizontal arrows + letters) and below
-  // (Point P/Q arrows + captions).
-  const markerTopPad = hasMarkers ? 20 : 0;
-  const markerBotPad = hasMarkers ? 30 : 0;
+  // Transverse markers need headroom above (horizontal arrows + letters) and
+  // below (Point P/Q arrows + captions). Longitudinal draws letter arrows above
+  // the bands (existing space) and only needs a little room below for any point
+  // captions.
+  const markerTopPad = hasMarkers && isTransverse ? 20 : 0;
+  const markerBotPad = hasMarkers ? (isTransverse ? 30 : 16) : 0;
   const H =
     blockH * waveCount + xCaptionH + 8 + markerTopPad + markerBotPad;
 

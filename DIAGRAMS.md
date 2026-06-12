@@ -380,11 +380,18 @@ interface WaveDiagramParams {
 }
 
 type WaveMarkerFeature =
-  | 'wavelength'      // horizontal double-arrow, one full cycle (crest→crest)
+  // Transverse
+  | 'wavelength'      // horizontal double-arrow, one full cycle (crest→crest / compression→compression)
   | 'half-wavelength' // horizontal double-arrow, crest→trough (½ cycle) — distractor
   | 'amplitude'       // vertical double-arrow, axis→crest
   | 'peak-to-trough'  // vertical double-arrow, crest→trough (2×amplitude) — distractor
-  | 'point';          // single up-arrow at the equilibrium axis (Point P / Point Q)
+  | 'point'           // single up-arrow at the equilibrium axis (Point P / Point Q)
+  // Longitudinal
+  | 'compression'     // arrow pointing down at a tight (bunched) band
+  | 'rarefaction';    // arrow pointing down at a sparse (spread) band
+// Valid features depend on wave type: transverse accepts wavelength,
+// half-wavelength, amplitude, peak-to-trough, point; longitudinal accepts
+// wavelength, compression, rarefaction, point. Wrong-type markers warn + skip.
 
 interface WaveMarker {
   /** Letter (or short caption) drawn at the arrow, e.g. 'A', 'B', 'Point P'. */
@@ -397,6 +404,9 @@ interface WaveMarker {
 ```
 
 ### Defaults & validation
+- Markers invalid for the wave type (e.g. `amplitude` on longitudinal, or
+  `compression` on transverse) → ignored + warn. Cycle indices clamp to the
+  visible range.
 - Labels invalid for the wave type (e.g. `crest` on longitudinal) → ignored + warn.
 - `secondWave` on `longitudinal` → ignored + warn (comparison questions are
   transverse at GCSE; revisit if needed).
@@ -455,6 +465,25 @@ shows the wavelength?" The student types the letter in the answer box. The
 mark scheme names the correct letter — here B = amplitude, A = wavelength.
 The same diagram is shown in both question and worked-solution modes; the
 worked solution **text** explains which letter is which.)*
+
+**E. "Which arrow shows the compression / rarefaction?" (longitudinal)**
+```json
+{
+  "type": "longitudinal",
+  "cycles": 3,
+  "markers": [
+    { "label": "A", "feature": "compression", "cycle": 0 },
+    { "label": "B", "feature": "rarefaction", "cycle": 0 },
+    { "label": "C", "feature": "compression", "cycle": 1 },
+    { "label": "D", "feature": "rarefaction", "cycle": 1 }
+  ]
+}
+```
+*(Lettered arrows point down at bands. Same answer-by-letter mechanism as the
+transverse case — solves the "identify the compression/rarefaction" question
+type, which is otherwise un-answerable against a bare band diagram. Frame the
+question so the answer is unambiguous, e.g. "Which **two** letters show
+compressions?" → A and C.)*
 
 ### Question-safe vs answer-revealing
 - **Question-safe:** the wave itself, `labels`, `markers`, `secondWave`, axis captions.

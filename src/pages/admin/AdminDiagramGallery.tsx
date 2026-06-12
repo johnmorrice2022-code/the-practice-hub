@@ -159,6 +159,19 @@ const GALLERY_METADATA: Record<string, GalleryMetadata> = {
         },
       },
       {
+        label: 'Which arrow is compression/rarefaction? (longitudinal)',
+        params: {
+          type: 'longitudinal',
+          cycles: 3,
+          markers: [
+            { label: 'A', feature: 'compression', cycle: 0 },
+            { label: 'B', feature: 'rarefaction', cycle: 0 },
+            { label: 'C', feature: 'compression', cycle: 1 },
+            { label: 'D', feature: 'rarefaction', cycle: 1 },
+          ],
+        },
+      },
+      {
         label: 'Longitudinal, labelled',
         params: {
           type: 'longitudinal',
