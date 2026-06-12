@@ -22,6 +22,7 @@ import {
   Flag,
   Layers,
   Shapes,
+  Waves,
 } from 'lucide-react';
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -235,10 +236,20 @@ export default function AdminHub() {
             Physics tools
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <ToolCard
+              icon={<Waves size={18} color="white" />}
+              iconBg="#E23D28"
+              title="Wave Questions"
+              description="Author seeded wave diagram questions — lettered markers, no JSON, iPad-ready."
+              stat={null}
+              statLabel=""
+              statsLoaded={true}
+              onClick={() => navigate('/admin/seeded-composer?family=wave-diagram')}
+            />
             <ComingSoonCard
               icon={<LayoutDashboard size={16} color="#9ca3af" />}
-              title="Physics Authoring"
-              description="Physics-specific question authoring tools coming soon."
+              title="More Physics Authoring"
+              description="Free-body, vector and circuit authoring coming soon."
             />
           </div>
         </section>

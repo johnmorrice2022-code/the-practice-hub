@@ -26,6 +26,7 @@ import AdminFeedback from './pages/admin/AdminFeedback';
 import AdminLearningContent from './pages/admin/AdminLearningContent';
 import AdminContentPipeline from './pages/admin/AdminContentPipeline';
 import AdminDiagramGallery from './pages/admin/AdminDiagramGallery';
+import AdminSeededComposer from './pages/admin/AdminSeededComposer';
 import OnboardingFlow from './components/onboarding/OnboardingFlow';
 import ResetPassword from './pages/ResetPassword';
 import JamSessions from './pages/JamSessions';
@@ -163,6 +164,11 @@ const App = () => (
             <Route path="/admin/diagram-gallery" element={
               <ProtectedRoute requireOnboarding={false} requireAdmin={true}>
                 <AdminDiagramGallery />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/seeded-composer" element={
+              <ProtectedRoute requireOnboarding={false} requireAdmin={true}>
+                <AdminSeededComposer />
               </ProtectedRoute>
             } />
 

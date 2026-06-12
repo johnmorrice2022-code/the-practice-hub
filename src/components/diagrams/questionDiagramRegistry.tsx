@@ -32,6 +32,7 @@ import { ParabolaVertexGraph } from './ParabolaVertexGraph';
 import { FreeBodyDiagram } from './FreeBodyDiagram';
 import { VectorDiagram } from './VectorDiagram';
 import { WaveDiagram } from './WaveDiagram';
+import { WaveDiagramEditor } from './editors/WaveDiagramEditor';
 
 export type DiagramMode = 'question' | 'feedback';
 
@@ -44,11 +45,25 @@ export type QuestionDiagramComponent = React.FC<{
   mode?: DiagramMode;
 }>;
 
+// Touch-first structured params editor for the Seeded Question Composer.
+// Builds diagram_params from form controls — no JSON. Optional per registry
+// entry; families without one are not yet authorable in the composer.
+export type DiagramEditorComponent = React.FC<{
+  params: Record<string, unknown>;
+  onChange: (params: Record<string, unknown>) => void;
+}>;
+
 export interface QuestionDiagramRegistryEntry {
   component: QuestionDiagramComponent;
   /** May this diagram appear in QuestionCard? Predicate form for diagrams
       whose safety depends on their params. FeedbackCard renders everything. */
   questionSafe: boolean | ((params: any) => boolean);
+  /** Touch-first params editor for the Seeded Question Composer. */
+  editor?: DiagramEditorComponent;
+  /** Sensible starting params when this family is picked in the composer. */
+  editorDefaults?: Record<string, unknown>;
+  /** Human label for the composer family picker. */
+  label?: string;
 }
 
 // Wrappers adapt component signatures to the common (params, mode) shape.
@@ -120,6 +135,9 @@ export const QUESTION_DIAGRAM_REGISTRY: Record<
   'wave-diagram': {
     component: WaveDiagramWrapper,
     questionSafe: true,
+    editor: WaveDiagramEditor,
+    editorDefaults: { type: 'transverse', cycles: 3 },
+    label: 'Wave',
   },
   // Future entries (DIAGRAMS.md): 'histogram', 'vector-geometry-diagram',
   // 'circuit-diagram'.
