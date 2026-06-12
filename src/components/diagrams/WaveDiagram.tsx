@@ -47,7 +47,10 @@ export interface WaveDiagramParams {
   amplitude?: number; // relative 0.2–1, default 1 (transverse only)
   labels?: WaveLabel[];
   answerLabels?: WaveLabel[]; // feedback-only
-  markers?: WaveMarker[]; // transverse only; lettered measurement arrows
+  markers?: WaveMarker[]; // lettered measurement arrows / section brackets
+  /** Longitudinal only: horizontal arrow through the centre of the bands, with
+      a forward arrowhead, showing the direction of energy transfer. */
+  energyArrow?: boolean;
   axisLabels?: { x?: string; y?: string }; // transverse only
   mainWaveLabel?: string;
   secondWave?: {
@@ -92,7 +95,6 @@ const TRANSVERSE_MARKER_FEATURES: WaveMarkerFeature[] = [
 ];
 const LONGITUDINAL_MARKER_FEATURES: WaveMarkerFeature[] = [
   'wavelength',
-  'half-wavelength',
   'compression',
   'rarefaction',
 ];
@@ -544,6 +546,44 @@ export function WaveDiagram({
           />
         ))}
 
+        {/* Direction of energy transfer: a horizontal arrow through the centre
+            of the bands, with a white channel so it reads over the black lines. */}
+        {params.energyArrow && (
+          <g>
+            <line
+              x1={f(plotL + 2)}
+              y1={f(topY + bandH / 2)}
+              x2={f(PLOT_R - 4)}
+              y2={f(topY + bandH / 2)}
+              stroke="#FAF7F2"
+              strokeWidth="5"
+            />
+            <line
+              x1={f(plotL + 2)}
+              y1={f(topY + bandH / 2)}
+              x2={f(PLOT_R - 7)}
+              y2={f(topY + bandH / 2)}
+              stroke={AXIS_COLOR}
+              strokeWidth="1.8"
+            />
+            <polygon
+              points={head(PLOT_R - 3, topY + bandH / 2, 1, 0)}
+              fill={AXIS_COLOR}
+            />
+            <text
+              {...FONT}
+              fontSize="10.5"
+              fontWeight={400}
+              fill={AXIS_COLOR}
+              x={f((plotL + PLOT_R) / 2)}
+              y={f(bottom + 16)}
+              textAnchor="middle"
+            >
+              direction of energy transfer
+            </text>
+          </g>
+        )}
+
         {shown.has('wavelength') && (
           <g>
             <DoubleArrow
@@ -612,8 +652,10 @@ export function WaveDiagram({
             const maxCompK = Math.max(0, cycles - 1);
             const maxRareK = Math.max(0, cycles - 2);
             const bracketY = topY - 16;
-            // Half-width of a compression / rarefaction section bracket.
-            const sectionHW = lam * 0.2;
+            // Tight bracket over the densest lines of a compression; a slightly
+            // wider one centred on the sparse middle of a rarefaction.
+            const compressionHW = lam * 0.11;
+            const rarefactionHW = lam * 0.15;
 
             const sectionBracket = (
               x1: number,
@@ -662,11 +704,21 @@ export function WaveDiagram({
               switch (m.feature) {
                 case 'compression': {
                   const c = compressionX(clampK(m.cycle ?? 0, maxCompK));
-                  return sectionBracket(c - sectionHW, c + sectionHW, m.label, key);
+                  return sectionBracket(
+                    c - compressionHW,
+                    c + compressionHW,
+                    m.label,
+                    key
+                  );
                 }
                 case 'rarefaction': {
                   const c = rarefactionX(clampK(m.cycle ?? 0, maxRareK));
-                  return sectionBracket(c - sectionHW, c + sectionHW, m.label, key);
+                  return sectionBracket(
+                    c - rarefactionHW,
+                    c + rarefactionHW,
+                    m.label,
+                    key
+                  );
                 }
                 case 'wavelength': {
                   const k = clampK(m.cycle ?? 0, Math.max(0, cycles - 2));
@@ -676,11 +728,6 @@ export function WaveDiagram({
                     m.label,
                     key
                   );
-                }
-                case 'half-wavelength': {
-                  const k = clampK(m.cycle ?? 0, maxCompK);
-                  const x1 = compressionX(k);
-                  return sectionBracket(x1, x1 + lam / 2, m.label, key);
                 }
                 default:
                   return null;

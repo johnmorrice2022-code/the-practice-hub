@@ -163,11 +163,11 @@ const GALLERY_METADATA: Record<string, GalleryMetadata> = {
         params: {
           type: 'longitudinal',
           cycles: 4,
+          energyArrow: true,
           markers: [
             { label: 'A', feature: 'compression', cycle: 0 },
             { label: 'B', feature: 'rarefaction', cycle: 0 },
-            { label: 'C', feature: 'half-wavelength', cycle: 1 },
-            { label: 'D', feature: 'wavelength', cycle: 2 },
+            { label: 'C', feature: 'wavelength', cycle: 2 },
           ],
         },
       },

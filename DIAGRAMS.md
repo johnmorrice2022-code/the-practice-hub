@@ -364,6 +364,9 @@ interface WaveDiagramParams {
       letter; the correct letter lives in the mark scheme, never in the diagram.
       Transverse only. */
   markers?: WaveMarker[];
+  /** Longitudinal only: horizontal arrow through the centre of the bands with a
+      forward arrowhead, showing the direction of energy transfer (captioned). */
+  energyArrow?: boolean;
   /** Axis captions, e.g. { "x": "Distance (m)", "y": "Displacement (cm)" }.
       Transverse only. Default: unlabelled plain axes. */
   axisLabels?: { x?: string; y?: string };
@@ -391,11 +394,12 @@ type WaveMarkerFeature =
   | 'rarefaction';    // bracket over a sparse (spread) band section
 // Valid features depend on wave type: transverse accepts wavelength,
 // half-wavelength, amplitude, peak-to-trough, point; longitudinal accepts
-// compression, rarefaction, half-wavelength, wavelength. Wrong-type markers
-// warn + skip. Longitudinal markers are horizontal brackets (with end-guides
-// down to the band) so each letter marks a SECTION the student can identify —
-// not a single point — and each section should be a DISTINCT part of the wave
-// (no two letters on the same kind of region).
+// compression, rarefaction, wavelength. Wrong-type markers warn + skip.
+// Longitudinal markers are horizontal brackets (with end-guides down to the
+// band) so each letter marks a SECTION the student can identify — not a single
+// point — and each section should be a DISTINCT part of the wave (no two
+// letters on the same kind of region). Compression brackets hug the densest
+// lines; rarefaction brackets are centred on the sparse middle.
 
 interface WaveMarker {
   /** Letter (or short caption) drawn at the arrow, e.g. 'A', 'B', 'Point P'. */
@@ -475,22 +479,21 @@ worked solution **text** explains which letter is which.)*
 {
   "type": "longitudinal",
   "cycles": 4,
+  "energyArrow": true,
   "markers": [
     { "label": "A", "feature": "compression", "cycle": 0 },
     { "label": "B", "feature": "rarefaction", "cycle": 0 },
-    { "label": "C", "feature": "half-wavelength", "cycle": 1 },
-    { "label": "D", "feature": "wavelength", "cycle": 2 }
+    { "label": "C", "feature": "wavelength", "cycle": 2 }
   ]
 }
 ```
-*(Each letter is a horizontal bracket over a **section** of the wave, and each
-section is a **distinct** part (A = compression, B = rarefaction, C = half a
-wavelength, D = one wavelength). The student reads the band density under a
-bracket and picks the letter — so any question has exactly one answer:
-"Which section shows a compression?" → A; "…one wavelength?" → D. Lay sections
-out left-to-right (A…D) over non-overlapping regions. Same answer-by-letter
-mechanism as the transverse case; solves the otherwise un-answerable "identify
-the compression/rarefaction" question.)*
+*(Each letter is a horizontal bracket over a **distinct section** (A = a
+compression, B = a rarefaction, C = one wavelength). The student reads the band
+density under a bracket and picks the letter — so any question has exactly one
+answer: "Which section shows a compression?" → A; "…one wavelength?" → C. Lay
+sections out left-to-right over non-overlapping regions. `energyArrow` shows
+the direction of energy transfer through the wave. Solves the otherwise
+un-answerable "identify the compression/rarefaction" question.)*
 
 ### Question-safe vs answer-revealing
 - **Question-safe:** the wave itself, `labels`, `markers`, `secondWave`, axis captions.
