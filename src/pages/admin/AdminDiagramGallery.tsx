@@ -321,6 +321,108 @@ const GALLERY_METADATA: Record<string, GalleryMetadata> = {
       { label: 'Vertex on y-axis', params: { p: 0, q: -9 } },
     ],
   },
+  'circuit-diagram': {
+    name: 'Circuit Diagram',
+    description:
+      'AQA 8463 symbol set on a constrained topology: one series loop plus an optional parallel section of up to 3 branches. Ammeters sit in line; voltmeters connect across a named component. The diagram shows the setup only — answer values stay in the question/solution text.',
+    presets: [
+      {
+        label: 'Series + meters (Ohm’s law)',
+        params: {
+          supply: { type: 'battery', label: '6 V' },
+          series: [
+            { type: 'switch-closed', id: 's1' },
+            { type: 'resistor', id: 'r1', label: 'R' },
+            { type: 'lamp', id: 'l1' },
+          ],
+          meters: [
+            { type: 'ammeter', label: 'A', position: 'main' },
+            { type: 'voltmeter', label: 'V', position: { across: 'l1' } },
+          ],
+        },
+      },
+      {
+        label: 'Two lamps in parallel',
+        params: {
+          supply: { type: 'battery', label: '12 V' },
+          series: [{ type: 'switch-closed', id: 's1' }],
+          parallelBranches: [
+            [{ type: 'lamp', id: 'l1' }],
+            [{ type: 'lamp', id: 'l2' }],
+          ],
+          meters: [
+            { type: 'ammeter', label: 'A₁', position: 'main' },
+            { type: 'ammeter', label: 'A₂', position: { branch: 0 } },
+          ],
+        },
+      },
+      {
+        label: 'Thermistor potential divider',
+        params: {
+          supply: { type: 'battery', label: '12 V' },
+          series: [
+            { type: 'thermistor', id: 't1' },
+            { type: 'resistor', id: 'r1', label: 'R' },
+          ],
+          meters: [{ type: 'voltmeter', label: 'V', position: { across: 'r1' } }],
+        },
+      },
+      {
+        label: 'LED with protective resistor',
+        params: {
+          supply: { type: 'cell', label: '1.5 V' },
+          series: [
+            { type: 'switch-open', id: 's1' },
+            { type: 'resistor', id: 'r1', label: 'protective resistor' },
+            { type: 'led', id: 'd1' },
+          ],
+        },
+      },
+      {
+        label: 'Three parallel branches',
+        params: {
+          supply: { type: 'battery', label: '12 V' },
+          series: [{ type: 'switch-closed', id: 's1' }],
+          parallelBranches: [
+            [{ type: 'resistor', id: 'r1', label: '6 Ω' }],
+            [{ type: 'lamp', id: 'l1' }],
+            [{ type: 'variable-resistor', id: 'vr1' }],
+          ],
+        },
+      },
+      {
+        label: 'Ladder — two lamps in parallel',
+        params: {
+          parallelStyle: 'ladder',
+          supply: { type: 'cell' },
+          series: [{ type: 'switch-open', id: 's1' }],
+          parallelBranches: [
+            [{ type: 'lamp', id: 'l1' }],
+            [{ type: 'lamp', id: 'l2' }],
+          ],
+        },
+      },
+      {
+        label: 'Ladder — five ammeters',
+        params: {
+          parallelStyle: 'ladder',
+          supply: { type: 'battery' },
+          parallelBranches: [
+            [{ type: 'lamp', id: 'l1' }],
+            [{ type: 'lamp', id: 'l2' }],
+            [{ type: 'lamp', id: 'l3' }],
+          ],
+          meters: [
+            { type: 'ammeter', label: 'A₁', position: 'main' },
+            { type: 'ammeter', label: 'A₅', position: 'main' },
+            { type: 'ammeter', label: 'A₂', position: { branch: 0 } },
+            { type: 'ammeter', label: 'A₃', position: { branch: 1 } },
+            { type: 'ammeter', label: 'A₄', position: { branch: 2 } },
+          ],
+        },
+      },
+    ],
+  },
 };
 
 // ─── Error boundary ───────────────────────────────────────────────────────────

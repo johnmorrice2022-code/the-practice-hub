@@ -23,6 +23,7 @@ import {
   Layers,
   Shapes,
   Waves,
+  Zap,
 } from 'lucide-react';
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -246,10 +247,20 @@ export default function AdminHub() {
               statsLoaded={true}
               onClick={() => navigate('/admin/seeded-composer?family=wave-diagram')}
             />
+            <ToolCard
+              icon={<Zap size={18} color="white" />}
+              iconBg="#F5A623"
+              title="Circuit Questions"
+              description="Author seeded circuit diagram questions — AQA symbols, series & parallel, meters, no JSON."
+              stat={null}
+              statLabel=""
+              statsLoaded={true}
+              onClick={() => navigate('/admin/seeded-composer?family=circuit-diagram')}
+            />
             <ComingSoonCard
               icon={<LayoutDashboard size={16} color="#9ca3af" />}
               title="More Physics Authoring"
-              description="Free-body, vector and circuit authoring coming soon."
+              description="Free-body and vector authoring coming soon."
             />
           </div>
         </section>

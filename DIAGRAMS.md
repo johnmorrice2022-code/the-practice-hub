@@ -715,9 +715,26 @@ interface VectorGeometryParams {
 
 ## 8. `CircuitDiagram` — registry key `circuit-diagram`
 
-**AQA Physics — Electricity.** The hardest component; built in its own phase
-(Phase 5) starting with the symbol sub-library. Symbols must match the AQA GCSE
-spec symbol sheet exactly — **John signs off every symbol before layout work begins.**
+**AQA Physics — Electricity. BUILT 16/06/2026** (`src/components/diagrams/CircuitDiagram.tsx`),
+adapted from John's signed-off circuit prototype. Has a touch-first composer
+`editor` (`CircuitDiagramEditor`, label "Circuit") and gallery presets — author
+in `/admin/seeded-composer?family=circuit-diagram`. AI generation is wired into
+the `series-parallel-circuits` and `resistance-potential-difference` subtopics
+(schema + rules + few-shots in their `prompt_config.system_prompt`). Symbols
+follow the AQA 8463 spec sheet — **John QAs every symbol in the gallery.**
+**LDR** is drawn as a resistor enclosed in a circle with two inward arrows (AQA
+spec); the prototype's circle-less LDR was corrected during the port.
+
+**Multi-part generation (16/06/2026, later session):** `circuit-diagram` now also
+backs **structured multi-part** AI questions. For a multi-part question the params
+schema is unchanged — the diagram is a single shared figure carried at the
+**top level** of the question object (alongside the stem + `parts[]`), and renders
+once above all parts in QuestionCard. The `series-parallel-circuits` /
+`resistance-potential-difference` prompts gained few-shots that pair a circuit with
+parts (a/b/c…) building on each other (see CLAUDE.md). **Open issue (John, this
+session):** the live Review Queue is still dominated by `circuit-symbols-components`
+"name the component / state the use" questions; the structured multi-part style
+needs more prompt iteration with further resources John will supply.
 
 ### Topology — deliberately constrained
 Supported topologies, and nothing else:
@@ -769,8 +786,39 @@ interface CircuitDiagramParams {
   /** 1–3 branches, each 1–3 components. Omit for a pure series circuit. */
   parallelBranches?: ComponentSpec[][];
   meters?: CircuitMeterSpec[];
+  /** Parallel branch layout, default 'inline'.
+      - 'inline': branches sit as a compact block in line on the bottom edge,
+        alongside the series components (the original layout).
+      - 'ladder': supply + series on the TOP edge; each branch is drawn as a
+        full-width rung, equal length, stacked between the two side rails;
+        main-loop ammeters sit on the rails (A₁ left, A₅ right). The
+        conventional AQA "stacked equal-length branches" parallel diagram
+        (added 16/06/2026). Only affects circuits that have parallelBranches. */
+  parallelStyle?: 'inline' | 'ladder';
 }
 ```
+
+**Ladder layout example — five-ammeter parallel circuit (the classic AQA figure):**
+```json
+{
+  "parallelStyle": "ladder",
+  "supply": { "type": "battery" },
+  "parallelBranches": [
+    [ { "type": "lamp", "id": "l1" } ],
+    [ { "type": "lamp", "id": "l2" } ],
+    [ { "type": "lamp", "id": "l3" } ]
+  ],
+  "meters": [
+    { "type": "ammeter", "label": "A₁", "position": "main" },
+    { "type": "ammeter", "label": "A₅", "position": "main" },
+    { "type": "ammeter", "label": "A₂", "position": { "branch": 0 } },
+    { "type": "ammeter", "label": "A₃", "position": { "branch": 1 } },
+    { "type": "ammeter", "label": "A₄", "position": { "branch": 2 } }
+  ]
+}
+```
+*(Two `'main'` ammeters land on the left and right rails; a branch ammeter is
+drawn just before its component, "A₂ ─ ⊗". Branches are equal-width rungs.)*
 
 ### Rendering rules
 - Each AQA symbol implemented as a small pure SVG function on a consistent grid
@@ -859,6 +907,12 @@ interface CircuitDiagramParams {
 > `wave-diagram` also carries **always-shown** layers that aren't feedback-only:
 > lettered `markers` (the answer-by-letter mechanism, §5) and the longitudinal
 > `energyArrow`. It has a composer `editor` (`WaveDiagramEditor`).
+>
+> `wave-diagram` and `circuit-diagram` both have composer `editor`s, so both are
+> authorable with no JSON in the Seeded Question Composer. `circuit-diagram`
+> carries no feedback layer: answer values (readings, calculated resistances)
+> are stated in the question/solution **text**, so the diagram is identical in
+> question and worked-solution mode.
 
 ---
 

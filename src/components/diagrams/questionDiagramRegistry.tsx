@@ -32,7 +32,9 @@ import { ParabolaVertexGraph } from './ParabolaVertexGraph';
 import { FreeBodyDiagram } from './FreeBodyDiagram';
 import { VectorDiagram } from './VectorDiagram';
 import { WaveDiagram } from './WaveDiagram';
+import { CircuitDiagram } from './CircuitDiagram';
 import { WaveDiagramEditor } from './editors/WaveDiagramEditor';
+import { CircuitDiagramEditor } from './editors/CircuitDiagramEditor';
 
 export type DiagramMode = 'question' | 'feedback';
 
@@ -95,6 +97,10 @@ const WaveDiagramWrapper: QuestionDiagramComponent = ({ params, mode }) => (
   <WaveDiagram params={params} mode={mode} />
 );
 
+const CircuitDiagramWrapper: QuestionDiagramComponent = ({ params }) => (
+  <CircuitDiagram params={params} />
+);
+
 export const QUESTION_DIAGRAM_REGISTRY: Record<
   string,
   QuestionDiagramRegistryEntry
@@ -139,8 +145,27 @@ export const QUESTION_DIAGRAM_REGISTRY: Record<
     editorDefaults: { type: 'transverse', cycles: 3 },
     label: 'Wave',
   },
-  // Future entries (DIAGRAMS.md): 'histogram', 'vector-geometry-diagram',
-  // 'circuit-diagram'.
+  // AQA Physics electricity. Circuit diagrams show the setup only — answer
+  // values live in the question/solution text — so there is no feedback-only
+  // layer and the diagram is question-safe (DIAGRAMS.md §8).
+  'circuit-diagram': {
+    component: CircuitDiagramWrapper,
+    questionSafe: true,
+    editor: CircuitDiagramEditor,
+    editorDefaults: {
+      supply: { type: 'battery', label: '6 V' },
+      series: [
+        { type: 'switch-closed', id: 's1' },
+        { type: 'resistor', id: 'r1', label: 'R' },
+      ],
+      meters: [
+        { type: 'ammeter', label: 'A', position: 'main' },
+        { type: 'voltmeter', label: 'V', position: { across: 'r1' } },
+      ],
+    },
+    label: 'Circuit',
+  },
+  // Future entries (DIAGRAMS.md): 'histogram', 'vector-geometry-diagram'.
 };
 
 /**

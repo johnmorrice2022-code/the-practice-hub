@@ -52,6 +52,15 @@ interface MarkRow {
 
 const MARK_TYPES = ['B1', 'M1', 'A1', 'C1'];
 
+// Diagram families that are inherently AQA Physics — authoring one means the
+// mark scheme should be 1-mark-per-point even before a subtopic is selected.
+// (vector-diagram is excluded: it doubles as Edexcel Maths column vectors.)
+const PHYSICS_DIAGRAM_FAMILIES = new Set([
+  'wave-diagram',
+  'circuit-diagram',
+  'free-body-diagram',
+]);
+
 // Families authorable in the composer = registry entries with an editor.
 const EDITOR_FAMILIES = Object.entries(QUESTION_DIAGRAM_REGISTRY)
   .filter(([, e]) => !!e.editor)
@@ -175,6 +184,14 @@ export default function AdminSeededComposer() {
   }, [authed]);
 
   const selectedSubtopic = subtopics.find((s) => s.id === subtopicId) ?? null;
+  // AQA Physics awards 1 mark per point (no M1/A1/B1 labels) — the marking
+  // engine treats every Physics criterion as a standalone 1-mark step.
+  // Driven by the selected subtopic's subject, but the diagram families below
+  // are inherently Physics, so the 1-mark UI shows immediately when authoring
+  // one (even before a subtopic is picked).
+  const isPhysics =
+    (selectedSubtopic?.subject ?? '').toLowerCase().includes('physics') ||
+    (hasDiagram && PHYSICS_DIAGRAM_FAMILIES.has(family));
   const familyEntry = QUESTION_DIAGRAM_REGISTRY[family];
   const Editor = familyEntry?.editor;
   const PreviewComponent = familyEntry?.component;
@@ -232,7 +249,10 @@ export default function AdminSeededComposer() {
     setSaveError('');
 
     const mark_scheme = [
-      ...cleanRows.map((r) => ({ mark: r.mark, criterion: r.criterion.trim() })),
+      ...cleanRows.map((r) => ({
+        mark: isPhysics ? 'step' : r.mark,
+        criterion: r.criterion.trim(),
+      })),
       { mark: 'TOTAL', criterion: `${marks} mark${marks !== 1 ? 's' : ''}` },
     ];
 
@@ -447,23 +467,37 @@ export default function AdminSeededComposer() {
               }
             >
               {msError && <p className="text-[11px] text-red-500 mb-2">{msError}</p>}
+              {isPhysics && (
+                <p className="text-[11px] text-gray-400 mb-2 leading-relaxed">
+                  AQA Physics awards <span className="font-medium text-gray-500">1 mark per point</span> —
+                  add one line per mark. Write each point as the examiner would, and list acceptable
+                  alternatives with <span className="font-mono text-gray-500">allow …</span> (e.g.
+                  “current decreases; allow gets smaller / reduces”). The marking AI uses these.
+                </p>
+              )}
               <div className="space-y-2">
                 {markRows.map((r, i) => (
                   <div key={i} className="flex items-center gap-2">
-                    <select
-                      value={r.mark}
-                      onChange={(e) => updateMarkRow(i, { mark: e.target.value })}
-                      className="w-20 h-11 text-sm border border-gray-200 rounded-lg px-2 bg-white focus:outline-none focus:border-amber-400"
-                    >
-                      {MARK_TYPES.map((t) => (
-                        <option key={t} value={t}>{t}</option>
-                      ))}
-                    </select>
+                    {isPhysics ? (
+                      <span className="w-20 h-11 shrink-0 flex items-center justify-center text-[11px] font-semibold text-gray-500 border border-gray-200 rounded-lg bg-gray-50">
+                        1 mark
+                      </span>
+                    ) : (
+                      <select
+                        value={r.mark}
+                        onChange={(e) => updateMarkRow(i, { mark: e.target.value })}
+                        className="w-20 h-11 text-sm border border-gray-200 rounded-lg px-2 bg-white focus:outline-none focus:border-amber-400"
+                      >
+                        {MARK_TYPES.map((t) => (
+                          <option key={t} value={t}>{t}</option>
+                        ))}
+                      </select>
+                    )}
                     <input
                       type="text"
                       value={r.criterion}
                       onChange={(e) => updateMarkRow(i, { criterion: e.target.value })}
-                      placeholder="Criterion — e.g. amplitude is arrow B"
+                      placeholder={isPhysics ? 'Point — e.g. the current decreases; allow reduces' : 'Criterion — e.g. amplitude is arrow B'}
                       className="flex-1 min-w-0 h-11 text-sm border border-gray-200 rounded-lg px-3 bg-white focus:outline-none focus:border-amber-400"
                     />
                     <button
@@ -478,7 +512,7 @@ export default function AdminSeededComposer() {
               </div>
               <button
                 type="button"
-                onClick={() => setMarkRows((rows) => [...rows, { mark: 'A1', criterion: '' }])}
+                onClick={() => setMarkRows((rows) => [...rows, { mark: isPhysics ? 'step' : 'A1', criterion: '' }])}
                 className="mt-2 flex items-center justify-center gap-1.5 w-full h-11 rounded-lg border-2 border-dashed border-gray-200 text-xs font-medium text-gray-500 active:bg-gray-50"
               >
                 <Plus size={14} /> Add mark scheme line
