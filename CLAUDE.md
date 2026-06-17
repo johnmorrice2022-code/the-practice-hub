@@ -305,8 +305,10 @@ Still to build (DIAGRAMS.md priority order): `histogram`, `vector-geometry-diagr
 ### prompt_config — system_prompt field rules
 The `system_prompt` in `prompt_config` is injected into the paper prompt builder. The builders already handle question format, mark scheme structure, LaTeX rules, and forbidden question types.
 
-**system_prompt must contain:** spec statements, key vocabulary, specific constraints, exam-board specific details.
+**system_prompt must contain:** spec statements, key vocabulary, specific constraints, exam-board specific details, tier-specific questioning guidance (Foundation vs Higher styles, question stems, mark scheme expectations).
 **system_prompt must NOT contain:** question format instructions, mark scheme format, LaTeX rules, generic exam technique advice.
+
+**Physics "Both" tier split (17/06/2026):** `generate-pending-questions` now splits tier "Both" Physics subtopics into two Claude calls — Foundation half + Higher half. Each call gets `ALL QUESTIONS IN THIS BATCH MUST BE [FOUNDATION/HIGHER] TIER DIFFICULTY` prepended. The `system_prompt` should include both Foundation and Higher questioning guidance so each call can select the relevant section. Pattern established with `series-parallel-circuits` using John's tier distinction document.
 
 **`marking_guidance` injection (fixed 10/06/2026):** `prompt_config.marking_guidance` is injected as a "SUBTOPIC-SPECIFIC MARKING GUIDANCE" block into all Maths Foundation/Higher P1/P2/P3 builders in both `generate-questions/index.ts` and `generate-pending-questions/index.ts`, plus the Physics builder. If adding a new builder/paper variant, copy this block too — it was previously Physics-only, which silently meant any `marking_guidance` written for a Maths subtopic was never sent to Claude.
 
@@ -360,7 +362,7 @@ Single entry point: `/admin` (AdminHub) → three labelled sections:
 - Deep links into Learning Content Editor and Review Queue, pre-filtered to that subtopic via URL params
 
 **Learning Content Editor** (`/admin/learning-content`) has 4 tabs per subtopic:
-1. **Learning Content** — sections and styled paragraphs; each paragraph has inline diagram upload (SVG/PNG/JPG → `diagrams/` Storage bucket). Upload, replace, and remove without leaving the editor. Diagram URL is saved with the normal "Save changes" button. Paragraphs can be reordered with ▲▼ buttons next to the style dropdown (added 08/06/2026, mirrors the section ▲▼ pattern) — **known bug:** John reports the swap doesn't behave as a true up/down move when diagrams or subheadings are involved (suspects the embedded image is the cause); needs reproduction and fix before relying on it.
+1. **Learning Content** — sections and styled paragraphs; each paragraph has inline diagram upload (SVG/PNG/JPG → `diagrams/` Storage bucket) AND **parametric diagram preview** (17/06/2026): paragraphs with `diagram_component`/`diagram_params` render a live preview with a blue "Component diagram" badge — no JSON editing needed to see the result. Upload, replace, and remove without leaving the editor. Diagram URL is saved with the normal "Save changes" button. Paragraphs can be reordered with ▲▼ buttons next to the style dropdown (added 08/06/2026, mirrors the section ▲▼ pattern) — **known bug:** John reports the swap doesn't behave as a true up/down move when diagrams or subheadings are involved (suspects the embedded image is the cause); needs reproduction and fix before relying on it.
 2. **Check Questions** — up to 5 MCQ comprehension checks (full CRUD)
 3. **Live Seeded** — all seeded practice questions; inline edit + delete
 4. **Live AI** — all approved AI practice questions; inline edit + delete
@@ -513,6 +515,14 @@ Every feature must pass this test: if a Year 10 Foundation student who is alread
 ## Physics Content Pipeline
 
 ### Live Physics subtopics
+- **Series and Parallel Circuits** (`series-parallel-circuits`) — LIVE ✅
+  - ID: `d26816b1-679d-43fe-b3fb-545020b48f3c`
+  - Topic: Electricity | Tier: Both | Exam board: AQA
+  - Sections: What is an Electric Circuit?, Series Circuits, Potential Difference in Series Circuits, Parallel Circuits, Current and PD in Parallel Circuits, Comparing Series and Parallel, Why Resistance Changes and Common Misconceptions
+  - 5 inline circuit diagrams (parametric `circuit-diagram` component, not static images)
+  - 5 check questions
+  - Prompt config: Foundation/Higher tier-specific guidance from John's tier distinction document; circuit diagram schema + few-shot examples for both tiers
+  - Built from John's "Series and Parallel Circuits" PDF (17/06/2026)
 - **Internal Energy and Changes of State** (`internal-energy-changes-of-state`) — LIVE ✅
   - ID: `5f604bc6-d7b1-45f5-ac28-c27bab593aec`
   - Sections: What is Internal Energy?, Changes of State, Why Temp Stays Constant, Specific Heat Capacity, Evaporation
@@ -568,7 +578,7 @@ See [SECURITY_AUDIT.md](SECURITY_AUDIT.md) — living checklist of all known sec
 
 ---
 
-## Current Priorities (as of 11/06/2026)
+## Current Priorities (as of 17/06/2026)
 
 ### Recently completed (11/06/2026 — diagram library session)
 - **DIAGRAMS.md** created: approved param schemas for 6 diagram families (free body, vector, wave, histogram, vector geometry, circuit), shared conventions, question-safe rules. All schema decisions recorded in its Section 10.
@@ -590,6 +600,14 @@ See [SECURITY_AUDIT.md](SECURITY_AUDIT.md) — living checklist of all known sec
 - Refined `completing-the-square` `prompt_config` for question generation (informed by a copyrighted PhysicsAndMathsTutor.com past paper John shared — used only for general phrasing patterns, not copied): removed all diagram instructions/examples from `system_prompt` (real Edexcel exam questions don't carry diagrams — area-model diagram stays in learning content only); added a "QUESTION PHRASING STYLE" section covering Edexcel structures ("for all values of x... find p and q", "Express... Hence", two-part minimum-point/solve follow-ons, standalone "by completing the square" questions) with an explicit copyright instruction not to copy the reference paper; added a "QUESTION VARIETY" block requiring a roughly even spread of question types and a=1/a>1 across each batch, and forbidding reuse of few-shot/canonical example numbers; expanded `command_words`.
 - Generated and reviewed a 17-question pending batch for `completing-the-square` under the new prompt — good mix of a=1/a>1, all three question types, varied phrasing, no diagrams. An earlier 20-question batch (generated before the diagram-removal fix, still carrying `completing-the-square-area-model`) was bulk-deleted from `pending_questions`.
 
+### Recently completed (17/06/2026 — series-parallel learning content + tier-split generation)
+- **Series and Parallel Circuits learning content built** — 7 sections, 5 inline circuit diagrams (parametric `circuit-diagram` component via `diagram_component`/`diagram_params` on paragraphs), 5 check questions. Content based on John's "Series and Parallel Circuits" PDF. Subtopic activated (`active: true`).
+- **Admin Learning Content Editor now renders parametric diagrams** — paragraphs with `diagram_component`/`diagram_params` show a live preview with a blue "Component diagram: circuit-diagram" badge. `Paragraph` interface updated to include the fields; `getQuestionDiagram` renders the component inline. Fields survive edit round-trips (deep clone preserves unknown fields).
+- **Physics "Both" tier now generates Foundation + Higher separately.** `generate-pending-questions` edge function modified: `normalisePhysicsTier` returns `'both'` for tier "Both" (previously defaulted to Foundation); the Physics calling code splits into two Claude calls — `Math.ceil(count/2)` Foundation + `Math.floor(count/2)` Higher — mirroring how Maths splits calc/non-calc. Each call gets `ALL QUESTIONS IN THIS BATCH MUST BE [FOUNDATION/HIGHER] TIER DIFFICULTY` in the prompt header. Edge function deployed.
+- **Series-parallel-circuits `prompt_config` fully rewritten** using John's tier distinction document. Foundation: one rule at a time, simple numbers, no rearrangement, direct substitution. Higher: multi-step, combine rules, explain misconceptions, interpret ammeter readings. 3 Foundation + 3 Higher few-shot examples with circuit diagrams. Forbidden: 1/R formula, Kirchhoff's by name, power equations, draw/label/tick questions.
+- **Verified live:** test batch of 4 returned 2 Foundation (1-mark total R, 3-mark parallel with parts) + 2 Higher (5-mark multi-part series chain, 5-mark parallel chain). All had valid circuit diagrams. 31 total pending questions across 4 batches for review.
+- **test-circuit-prompts branch merged to main** — all circuit diagram component work (CircuitDiagram.tsx, CircuitDiagramEditor, registry entries, gallery presets, model bump to claude-sonnet-4-6) now on main and deployed.
+
 ### Recently completed (16/06/2026 — circuit diagram component + AI generation)
 - **`CircuitDiagram` built** (`src/components/diagrams/CircuitDiagram.tsx`) from John's signed-off prototype (provided as a session attachment). AQA 8463 symbol set (14 symbols) on the constrained topology from DIAGRAMS.md §8: one series loop + optional ≤3 parallel branches (≤3 components each). Ammeters/voltmeters supplied via `meters[]` with `position` (`'main'`/`{branch:n}`/`{across:id}`) — converted internally to inline glyphs / across-component drawings. Pure function: any structural problem (bad supply, dup id, unknown type, voltmeter across unknown id, branch overflow) → null + one `console.warn`. **LDR corrected** to AQA spec (resistor in a circle, two inward arrows); prototype lacked the circle. `questionSafe: true`, no feedback layer.
 - **`CircuitDiagramEditor`** — touch-first composer editor with 3 quick-start presets, supply toggle, series list, parallel section (toggle + up to 3 branches), and meters (ammeter main/branch, voltmeter across a picked component). Auto-generates + reuses unique component ids so John never types one; prunes orphaned meters when a component/branch is removed.
@@ -602,8 +620,8 @@ See [SECURITY_AUDIT.md](SECURITY_AUDIT.md) — living checklist of all known sec
 - **Symbol-recognition questions done right.** `circuit-symbols-components` originally told the AI to "identify a component from its symbol" / "draw a circuit" with no diagram → it produced un-renderable junk (text-described symbol MCQs, "draw a line to match"). Rewrote it to **show** the symbol (attach a circuit, label the target component `X`) and ask **"Name component X."** All three circuit subtopics now carry an explicit FORBIDDEN list: no matching/draw-a-line, no symbol-as-text MCQ, no draw/add/complete/label, no tick-a-picture — every question must be answerable by typing. **Apply this pattern to any future symbol/identification subtopic.** (scripts: `/tmp/circuit-prompts.mjs`, `/tmp/circuit-symbols-fix.mjs`.)
 - Typecheck + production build clean. **Pending John:** gallery sign-off of the 14 symbols, iPad pass on the composer editor, and review of the generated circuit batches (incl. the 5 "Name component X" symbol questions).
 - **Deeper multi-part circuit questions (16/06/2026, later session).** `series-parallel-circuits` and `resistance-potential-difference` `prompt_config.system_prompt` **appended** (not rewritten) with a "STRUCTURED MULTI-PART QUESTIONS" block + 2 multi-part few-shots each (parts[] format, top-level shared circuit diagram). Modelled on a copyrighted AQA PPQ John supplied (used for *structure only* — all values/components original): series V=IR + pd-sharing chains, **unknown-resistor-by-total-resistance** (Rtotal = supply pd ÷ main current, subtract knowns), parallel pd-across-branch + **current-splitting by subtraction** + branch resistance, and **state-and-explain endings** (switch closes a parallel branch / thermistor-LDR resistance change → effect on total R, current, pd — typed in words, never tick-boxes). **Multi-part is fully supported end-to-end:** generation emits `parts[]` (each with own `part_text`/`marks`/`mark_scheme`/`worked_solution`; empty top-level scheme), the insert path carries top-level `diagram_component`/`diagram_params`, QuestionCard renders the shared diagram + each part separately, and `mark-answer` applies follow-through between parts. Verified live: a count-4 batch (`series-parallel-circuits`, batch `a9405e0c-a1c7-4bbd-94e5-b08b208e4df3`) returned **4/4 multi-part 4–6 mark questions, all with valid circuit diagrams**. (script: `/tmp/circuit-deepen.mjs`; idempotent — re-running skips if the "STRUCTURED MULTI-PART QUESTIONS" marker is already present.)
-  - **OPEN ISSUE — needs another pass (John, 16/06/2026):** in the live Review Queue John still sees mostly **"name the component" / "state the use"** questions, i.e. the `circuit-symbols-components` symbol-recognition style rather than the new structured multi-part calculations. The structured prompt change above is in the DB and verified to generate good multi-part questions on demand, but the everyday output still skews shallow. **John will supply further resources next session to push the prompts toward deeper, exam-style multi-part questions.** Likely angles to investigate then: whether `circuit-symbols-components` is the subtopic being practised/reviewed (it is name/use by design); raising the *proportion* of multi-part questions the generator must emit (the few-shots invite but don't mandate them); and possibly a minimum-marks / question-type mix instruction in each circuit prompt.
-  - **All of this session's work is committed on the `test-circuit-prompts` branch (NOT main).** Git changes are documentation only (CLAUDE.md, DIAGRAMS.md); the prompt edits live in Supabase `prompt_config`, not in git.
+  - **RESOLVED (17/06/2026):** The shallow-question issue was addressed by fully rewriting the `series-parallel-circuits` `prompt_config` with John's tier distinction document (Foundation vs Higher questioning styles, explicit question-type mix mandates, Foundation/Higher few-shot examples). The edge function now splits "Both" tier into two separate Claude calls. Verified: test batch produces proper Foundation (1-rule, direct substitution) and Higher (multi-step, combine rules, explain reasoning) questions with circuit diagrams.
+  - **test-circuit-prompts branch merged to main (17/06/2026).** All circuit component work now on main and deployed to Netlify.
 
 ### Recently completed (12/06/2026 — wave questions + composer session)
 - **Repaired all six string-scalar `prompt_config` rows** (`sound-ultrasound-seismic`, `em-spectrum`, `light-reflection-refraction-colour`, `lenses-magnification`, `black-body-radiation`, `conservation-dissipation-energy`) — parse + write back as object; verified `system_prompt` now resolves.
@@ -613,7 +631,10 @@ See [SECURITY_AUDIT.md](SECURITY_AUDIT.md) — living checklist of all known sec
 - **Seeded Question Composer built** (`/admin/seeded-composer`) — Task 3 phase 1: shell + Waves editor + save → `seeded_questions` → QuestionCard confirmation. **Awaiting John's iPad sign-off.**
 
 ### Immediate next session — Diagram library (see "Diagram next steps" in the diagram section)
-- [ ] Circuit component — **DONE 16/06/2026.** Next: John gallery-QAs the 14 AQA symbols, iPad-tests the composer editor, and runs a first AI batch in the Review Queue for `series-parallel-circuits` + `resistance-potential-difference`; review + publish good circuit questions.
+- [x] Circuit component — DONE 16/06/2026. Merged to main 17/06/2026.
+- [x] Series-parallel-circuits learning content + prompt + tier-split generation — DONE 17/06/2026.
+- [ ] **Review + publish the 31 pending questions for `series-parallel-circuits`** in Review Queue (Foundation + Higher mix, circuit diagrams). Also review pending batches for `resistance-potential-difference` and `circuit-symbols-components`.
+- [ ] Apply the same tier-specific prompt pattern to `resistance-potential-difference` (currently has circuit diagram schema but no Foundation/Higher distinction)
 - [ ] Seeded Composer: after iPad sign-off, add free-body + vector editors (registry `editor` field); consider multi-part `parts` support
 - [ ] `histogram` + `vector-geometry-diagram` components (note: histogram "complete the histogram" has the same answerability problem as waves — needs a letter/number answer, not a draw action)
 - [ ] Review + publish the good `markers` wave-properties pending questions; consider wiring markers generation into more Waves subtopics now their `prompt_config` is repaired
