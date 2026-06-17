@@ -33,6 +33,7 @@ import { FreeBodyDiagram } from './FreeBodyDiagram';
 import { VectorDiagram } from './VectorDiagram';
 import { WaveDiagram } from './WaveDiagram';
 import { CircuitDiagram } from './CircuitDiagram';
+import { CircuitSymbolGrid } from './CircuitSymbolGrid';
 import { WaveDiagramEditor } from './editors/WaveDiagramEditor';
 import { CircuitDiagramEditor } from './editors/CircuitDiagramEditor';
 
@@ -101,6 +102,10 @@ const CircuitDiagramWrapper: QuestionDiagramComponent = ({ params }) => (
   <CircuitDiagram params={params} />
 );
 
+const CircuitSymbolGridWrapper: QuestionDiagramComponent = () => (
+  <CircuitSymbolGrid />
+);
+
 export const QUESTION_DIAGRAM_REGISTRY: Record<
   string,
   QuestionDiagramRegistryEntry
@@ -164,6 +169,12 @@ export const QUESTION_DIAGRAM_REGISTRY: Record<
       ],
     },
     label: 'Circuit',
+  },
+  // Reference grid of all AQA circuit symbols — learning content only,
+  // no params needed (pass empty object {}). Not a question diagram.
+  'circuit-symbol-grid': {
+    component: CircuitSymbolGridWrapper,
+    questionSafe: true,
   },
   // Future entries (DIAGRAMS.md): 'histogram', 'vector-geometry-diagram'.
 };

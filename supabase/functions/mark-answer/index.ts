@@ -334,6 +334,32 @@ serve(async (req) => {
       try { parsedScheme = JSON.parse(markScheme) ?? []; } catch { /* leave [] */ }
     }
 
+    // Multi-part questions store mark schemes per-part, not at the top level.
+    // Aggregate them so Claude sees all criteria.
+    if (isMultiPart && parsedScheme.filter((m: any) => m.mark !== 'TOTAL').length === 0) {
+      for (const p of parts) {
+        let partScheme: any[] = [];
+        if (Array.isArray(p.mark_scheme)) {
+          partScheme = p.mark_scheme;
+        } else if (typeof p.mark_scheme === 'string') {
+          try { partScheme = JSON.parse(p.mark_scheme) ?? []; } catch { /* skip */ }
+        }
+        for (const entry of partScheme) {
+          if (entry.mark === 'TOTAL') continue;
+          parsedScheme.push({ ...entry, part: p.part_label });
+        }
+      }
+    }
+
+    // Same for worked_solution — aggregate per-part solutions when top-level is empty.
+    let effectiveWorkedSolution = workedSolution;
+    if (isMultiPart && !workedSolution?.trim()) {
+      effectiveWorkedSolution = parts
+        .filter((p: any) => p.worked_solution?.trim())
+        .map((p: any) => `Part (${p.part_label}):\n${p.worked_solution}`)
+        .join('\n\n');
+    }
+
     const isPhysics =
       subject?.toLowerCase().includes('physics') ||
       examBoard?.toLowerCase() === 'aqa';
@@ -360,7 +386,7 @@ ${JSON.stringify(
 TOTAL MARKS AVAILABLE: ${marks}
 
 MODEL SOLUTION (one valid approach — other valid methods that reach the same results deserve equal credit):
-${workedSolution || 'Not provided.'}
+${effectiveWorkedSolution || 'Not provided.'}
 
 STUDENT'S ANSWER:
 ${studentAnswer}

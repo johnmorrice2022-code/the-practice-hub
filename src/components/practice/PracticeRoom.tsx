@@ -462,12 +462,37 @@ export function PracticeRoom({
     if (!q || !hasAnswer(q)) return;
     setMarkingId(questionId);
     try {
+      const isMultiPart = q.parts && q.parts.length > 0;
+
+      let effectiveMarkScheme = q.mark_scheme;
+      let effectiveWorkedSolution = q.worked_solution;
+      if (isMultiPart) {
+        const topScheme = Array.isArray(q.mark_scheme) ? q.mark_scheme as any[] : [];
+        if (topScheme.filter((m: any) => m.mark !== 'TOTAL').length === 0) {
+          const aggregated: any[] = [];
+          for (const p of q.parts as any[]) {
+            const ps = Array.isArray(p.mark_scheme) ? p.mark_scheme : [];
+            for (const entry of ps) {
+              if (entry.mark === 'TOTAL') continue;
+              aggregated.push({ ...entry, part: p.part_label });
+            }
+          }
+          effectiveMarkScheme = aggregated;
+        }
+        if (!q.worked_solution?.trim()) {
+          effectiveWorkedSolution = (q.parts as any[])
+            .filter((p: any) => p.worked_solution?.trim())
+            .map((p: any) => `Part (${p.part_label}):\n${p.worked_solution}`)
+            .join('\n\n');
+        }
+      }
+
       const { data, error } = await supabase.functions.invoke('mark-answer', {
         body: {
           questionText: q.question_text,
           parts: q.parts,
-          markScheme: q.mark_scheme,
-          workedSolution: q.worked_solution,
+          markScheme: effectiveMarkScheme,
+          workedSolution: effectiveWorkedSolution,
           studentAnswer: buildAnswerForMarking(q),
           marks: q.marks,
           markingGuidance,

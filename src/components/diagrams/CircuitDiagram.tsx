@@ -170,13 +170,16 @@ const SYMBOLS: Record<CircuitComponentType, SymbolDef> = {
     ),
   },
   diode: {
-    w: 72,
+    w: 84,
     name: 'diode',
-    labelDy: 38,
+    labelDy: 40,
     body: () => (
       <g>
-        {wire(-36, 0, -8, 0)}
-        {wire(8, 0, 36, 0)}
+        {wire(-42, 0, -17, 0)}
+        {wire(17, 0, 42, 0)}
+        <circle cx={0} cy={0} r={17} fill={PAPER} stroke={INK} strokeWidth={SW} />
+        {wire(-17, 0, -8, 0)}
+        {wire(8, 0, 17, 0)}
         <path d="M -8 -8 L -8 8 L 8 0 Z" fill={INK} />
         <line x1={8} y1={-8} x2={8} y2={8} stroke={INK} strokeWidth={SW} />
       </g>
