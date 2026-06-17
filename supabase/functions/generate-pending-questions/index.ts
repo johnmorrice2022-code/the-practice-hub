@@ -446,9 +446,11 @@ serve(async (req) => {
           p1Prompt,
           buildUserPrompt(subtopic, nonCalcCount, false)
         );
+        const mathsTier = isFoundation ? 'Foundation' : 'Higher';
         const p1Questions = parseQuestions(p1Raw).map((q) => ({
           ...q,
           calculator_allowed: false,
+          tier: mathsTier,
         }));
 
         // Calculator call (P2 or P3, alternating)
@@ -468,6 +470,7 @@ serve(async (req) => {
         const calcQuestions = parseQuestions(calcRaw).map((q) => ({
           ...q,
           calculator_allowed: true,
+          tier: mathsTier,
         }));
 
         allQuestions = [...p1Questions, ...calcQuestions];
@@ -482,14 +485,14 @@ serve(async (req) => {
             fPrompt,
             buildUserPrompt(subtopic, foundationCount, true)
           );
-          const fQuestions = parseQuestions(fRaw);
+          const fQuestions = parseQuestions(fRaw).map((q) => ({ ...q, tier: 'Foundation' }));
 
           const hPrompt = buildPhysicsPrompt(subtopic, higherCount, 'higher');
           const hRaw = await callClaude(
             hPrompt,
             buildUserPrompt(subtopic, higherCount, true)
           );
-          const hQuestions = parseQuestions(hRaw);
+          const hQuestions = parseQuestions(hRaw).map((q) => ({ ...q, tier: 'Higher' }));
 
           allQuestions = [...fQuestions, ...hQuestions];
         } else {
@@ -498,7 +501,8 @@ serve(async (req) => {
             physicsPrompt,
             buildUserPrompt(subtopic, count, true)
           );
-          allQuestions = parseQuestions(raw);
+          const tierLabel = physicsTier === 'foundation' ? 'Foundation' : 'Higher';
+          allQuestions = parseQuestions(raw).map((q) => ({ ...q, tier: tierLabel }));
         }
       }
     } catch (genError) {
@@ -530,6 +534,7 @@ serve(async (req) => {
       calculator_allowed: q.calculator_allowed ?? null,
       diagram_component: q.diagram_component ?? null,
       diagram_params: q.diagram_params ?? null,
+      tier: q.tier ?? null,
       status: 'pending',
       prompt_version: promptVersion,
     }));

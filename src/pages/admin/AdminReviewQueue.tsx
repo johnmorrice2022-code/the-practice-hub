@@ -88,6 +88,7 @@ interface PendingQuestion {
   batch_id: string;
   diagram_component: string | null;
   diagram_params: unknown;
+  tier: string | null;
 }
 
 interface SeededQuestion {
@@ -1347,6 +1348,7 @@ export default function AdminReviewQueue() {
       calculator_allowed: q.calculator_allowed,
       diagram_component: q.diagram_component ?? null,
       diagram_params: q.diagram_params ?? null,
+      tier: q.tier ?? null,
       source: 'reviewed',
     }));
 
@@ -1570,9 +1572,11 @@ export default function AdminReviewQueue() {
             <span className="text-sm font-semibold text-gray-800">
               {selectedSubtopic?.subtopic_name}
             </span>
-            <span className="text-xs text-gray-400">
-              {selectedSubtopic?.tier}
-            </span>
+            {selectedSubtopic?.tier && selectedSubtopic.tier !== 'Both' && (
+              <span className="text-xs text-gray-400">
+                {selectedSubtopic.tier}
+              </span>
+            )}
           </div>
           <span className="text-xs text-gray-400 tabular-nums">
             {reviewedCount} / {questions.length} reviewed
@@ -1590,15 +1594,24 @@ export default function AdminReviewQueue() {
         </div>
       ) : currentQuestion ? (
         <div className="max-w-3xl mx-auto px-6 py-8 space-y-8">
-          {currentQuestion.calculator_allowed !== null && (
+          {(currentQuestion.calculator_allowed !== null || currentQuestion.tier) && (
             <div className="flex items-center gap-2">
-              <span
-                className={`text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wide ${currentQuestion.calculator_allowed ? 'bg-blue-50 text-blue-500' : 'bg-gray-100 text-gray-500'}`}
-              >
-                {currentQuestion.calculator_allowed
-                  ? 'Calculator'
-                  : 'Non-calculator'}
-              </span>
+              {currentQuestion.tier && (
+                <span
+                  className={`text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wide ${currentQuestion.tier === 'Foundation' ? 'bg-emerald-50 text-emerald-600' : 'bg-purple-50 text-purple-600'}`}
+                >
+                  {currentQuestion.tier}
+                </span>
+              )}
+              {currentQuestion.calculator_allowed !== null && (
+                <span
+                  className={`text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wide ${currentQuestion.calculator_allowed ? 'bg-blue-50 text-blue-500' : 'bg-gray-100 text-gray-500'}`}
+                >
+                  {currentQuestion.calculator_allowed
+                    ? 'Calculator'
+                    : 'Non-calculator'}
+                </span>
+              )}
               <span className="text-[10px] text-gray-400">
                 {currentQuestion.prompt_version}
               </span>
