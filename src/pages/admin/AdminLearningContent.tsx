@@ -7,12 +7,15 @@ import {
   ImagePlus, Upload, AlertTriangle, CheckCircle2,
 } from 'lucide-react';
 import { LiveQuestionsTab } from './LiveQuestionsTab';
+import { getQuestionDiagram } from '@/components/diagrams/questionDiagramRegistry';
 
 const ADMIN_EMAIL = 'johnmorrice2022@gmail.com';
 
 interface Paragraph {
   text: string;
   diagram_url?: string | null;
+  diagram_component?: string | null;
+  diagram_params?: Record<string, unknown> | null;
   is_non_example?: boolean;
   style?: 'key-point' | 'exam-tip' | 'watch-out' | 'subheading' | 'higher-only' | 'worked-example';
 }
@@ -728,6 +731,23 @@ function ParagraphRow({ para, paraIndex, sectionIndex, total, subtopicInfo, onUp
           className="w-full text-sm text-gray-700 border rounded-lg px-3 py-2 resize-y focus:outline-none focus:ring-2 transition"
           style={{ borderColor: 'rgba(0,0,0,0.10)' }}
           placeholder="Paragraph text… (use $…$ for inline LaTeX, $$…$$ for display)" />
+
+        {(() => {
+          const DiagComp = getQuestionDiagram(para.diagram_component);
+          return DiagComp ? (
+            <div className="p-2.5 rounded-lg bg-blue-50 border border-blue-100">
+              <div className="flex items-center gap-1 mb-1.5">
+                <CheckCircle2 size={11} className="text-blue-500 flex-shrink-0" />
+                <span className="text-[11px] font-medium text-blue-700">
+                  Component diagram: {para.diagram_component}
+                </span>
+              </div>
+              <div style={{ maxWidth: 360 }}>
+                <DiagComp params={para.diagram_params} mode="feedback" />
+              </div>
+            </div>
+          ) : null;
+        })()}
 
         {para.diagram_url ? (
           <div className="flex items-center gap-3 p-2.5 rounded-lg bg-gray-50 border border-gray-100">
