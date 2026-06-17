@@ -724,6 +724,8 @@ the `series-parallel-circuits` and `resistance-potential-difference` subtopics
 follow the AQA 8463 spec sheet — **John QAs every symbol in the gallery.**
 **LDR** is drawn as a resistor enclosed in a circle with two inward arrows (AQA
 spec); the prototype's circle-less LDR was corrected during the port.
+**Diode** is enclosed in a circle (matching LED); corrected 17/06/2026 — was
+previously the bare triangle+bar without the enclosing circle.
 
 **Multi-part generation (16/06/2026, later session):** `circuit-diagram` now also
 backs **structured multi-part** AI questions. For a multi-part question the params
@@ -903,7 +905,13 @@ drawn just before its component, "A₂ ─ ⊗". Branches are equal-width rungs.
 | `histogram` | Histogram | Edexcel Higher Maths | `true` | drawn-in `hidden` bars |
 | `vector-geometry-diagram` | VectorGeometryDiagram | Edexcel Higher Maths | `true` | `feedbackEdges` |
 | `circuit-diagram` | CircuitDiagram | AQA Physics — Electricity | `true` | none |
+| `circuit-symbol-grid` | CircuitSymbolGrid | AQA Physics — Electricity | `true` | none (reference only) |
 
+> `circuit-symbol-grid` is a standalone reference component (not a question
+> diagram): 4-column grid of all 14 AQA circuit symbols + ammeter/voltmeter,
+> each labelled. No params — pass `{}`. Used in learning content only (added
+> 17/06/2026).
+>
 > `wave-diagram` also carries **always-shown** layers that aren't feedback-only:
 > lettered `markers` (the answer-by-letter mechanism, §5) and the longitudinal
 > `energyArrow`. It has a composer `editor` (`WaveDiagramEditor`).

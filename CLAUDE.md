@@ -285,7 +285,8 @@ Parametric SVG diagram library. **DIAGRAMS.md** (repo root) is the source of tru
 | `free-body-diagram` | true | `{ object?: box\|dot\|car\|rocket, forces[], balanced? }`; feedback layer: `showResultant` |
 | `vector-diagram` | true | `{ vectors[], grid?, axes?, tipToTail? }`; feedback layer: `showResultant`+`resultantLabel` |
 | `wave-diagram` | true | `{ type: transverse\|longitudinal, cycles?, amplitude?, labels?, markers?, energyArrow?, secondWave?, axisLabels? }`; feedback layer: `answerLabels`. **`markers`** = lettered arrows (transverse) / section brackets (longitudinal) for "Which arrow/section shows…?" questions answered by a letter — the answerable replacement for the old "identify on a bare diagram" pattern (see DIAGRAMS.md §5). `energyArrow` (longitudinal) draws the direction-of-energy-transfer arrow. Has a composer `editor`. |
-| `circuit-diagram` | true | `{ supply:{type:cell\|battery,label?}, series?[], parallelBranches?[][], meters?[], parallelStyle? }` — AQA 8463 symbols, one series loop + optional ≤3 parallel branches (≤3 components each). Ammeters `position:'main'\|{branch:n}`, voltmeters `{across:id}` — meters go in `meters[]`, never inline in `series`. **`parallelStyle: 'inline'`** (default, compact block) **\| `'ladder'`** (full-width equal-length rungs stacked between two rails, supply on top, main ammeters on the rails — the conventional AQA parallel figure; added 16/06/2026, separate `buildLadder`). No feedback layer: answer values stay in question/solution **text**. Composer `editor` = `CircuitDiagramEditor` (label "Circuit"). Built 16/06/2026 from John's prototype. |
+| `circuit-diagram` | true | `{ supply:{type:cell\|battery,label?}, series?[], parallelBranches?[][], meters?[], parallelStyle? }` — AQA 8463 symbols, one series loop + optional ≤3 parallel branches (≤3 components each). Ammeters `position:'main'\|{branch:n}`, voltmeters `{across:id}` — meters go in `meters[]`, never inline in `series`. **`parallelStyle: 'inline'`** (default, compact block) **\| `'ladder'`** (full-width equal-length rungs stacked between two rails, supply on top, main ammeters on the rails — the conventional AQA parallel figure; added 16/06/2026, separate `buildLadder`). No feedback layer: answer values stay in question/solution **text**. Composer `editor` = `CircuitDiagramEditor` (label "Circuit"). Built 16/06/2026 from John's prototype. **Diode** enclosed in a circle (matching LED), corrected 17/06/2026. |
+| `circuit-symbol-grid` | true | No params (pass `{}`). 4-column reference grid of all 14 AQA circuit symbols + ammeter/voltmeter, each labelled. Learning content only — not a question diagram. Built 17/06/2026. |
 
 Still to build (DIAGRAMS.md priority order): `histogram`, `vector-geometry-diagram`.
 
@@ -448,6 +449,7 @@ src/
       VectorDiagram.tsx            -- grid vectors, column vectors + scale drawings
       WaveDiagram.tsx              -- transverse/longitudinal waves; markers (lettered arrows/section brackets), energyArrow
       CircuitDiagram.tsx           -- AQA 8463 circuits; series loop + ≤3 parallel branches; ammeters/voltmeters via meters[]
+      CircuitSymbolGrid.tsx        -- 4-column reference grid of all 14 AQA circuit symbols with labels (learning content only)
       questionDiagramRegistry.tsx  -- registry: { component, questionSafe, editor?, editorDefaults?, label? }, mode prop
       editors/
         WaveDiagramEditor.tsx      -- touch-first params editor for the composer (wave family)
@@ -517,6 +519,13 @@ Every feature must pass this test: if a Year 10 Foundation student who is alread
 ## Physics Content Pipeline
 
 ### Live Physics subtopics
+- **Circuit Symbols and Components** (`circuit-symbols-components`) — DRAFT (content + 5 check Qs complete, needs review questions + activation)
+  - ID: `fc017564-b79a-4047-a76b-24e38832a62f`
+  - Topic: Electricity | Tier: Both | Exam board: AQA
+  - Sections: Why Do We Use Circuit Symbols?, Power Supply — Cells and Batteries, Switches Lamps and Resistors, Measuring Current and Potential Difference, Diodes and LEDs, Thermistors and LDRs, Fuses and Safety, Input and Output Components, Common Misconceptions and Exam Tips
+  - 16 inline circuit diagrams (parametric `circuit-diagram` + `circuit-symbol-grid` components)
+  - 5 check questions
+  - Built from John's lesson material (17/06/2026). Content avoids NTC terminology and output components (motors/heaters) per John's AQA scope guidance.
 - **Series and Parallel Circuits** (`series-parallel-circuits`) — LIVE ✅
   - ID: `d26816b1-679d-43fe-b3fb-545020b48f3c`
   - Topic: Electricity | Tier: Both | Exam board: AQA
@@ -580,7 +589,7 @@ See [SECURITY_AUDIT.md](SECURITY_AUDIT.md) — living checklist of all known sec
 
 ---
 
-## Current Priorities (as of 17/06/2026)
+## Current Priorities (as of 18/06/2026)
 
 ### Recently completed (11/06/2026 — diagram library session)
 - **DIAGRAMS.md** created: approved param schemas for 6 diagram families (free body, vector, wave, histogram, vector geometry, circuit), shared conventions, question-safe rules. All schema decisions recorded in its Section 10.
@@ -635,10 +644,21 @@ See [SECURITY_AUDIT.md](SECURITY_AUDIT.md) — living checklist of all known sec
 ### Recently completed (17/06/2026 — multi-part marking fix)
 - **Fixed multi-part questions awarding 0 marks despite correct answers.** Root cause: multi-part questions store `mark_scheme` and `worked_solution` inside each `parts[]` element, with empty `[]`/`""` at the top level. `mark-answer` and `PracticeRoom.tsx` were sending the empty top-level scheme to Claude, so it saw no criteria and awarded 0 marks. Fix: both `mark-answer/index.ts` (server-side, defence in depth) and `PracticeRoom.tsx` (client-side) now detect multi-part questions with an empty top-level scheme and aggregate per-part mark schemes (tagged with part labels) and worked solutions before sending to Claude. Edge function deployed 17/06/2026.
 
+### Recently completed (17/06/2026 — circuit symbols learning content session)
+- **Circuit Symbols and Components learning content built** — 9 sections, 16 inline circuit diagrams, 5 check questions. Subtopic `fc017564-b79a-4047-a76b-24e38832a62f`, still Draft.
+- **`CircuitSymbolGrid` component** — standalone 4-column reference grid of all 14 AQA circuit symbols + ammeter/voltmeter, each labelled beneath. Registered as `circuit-symbol-grid` (no params, pass `{}`). Embedded after the first paragraph of the learning content so students see all symbols upfront.
+- **Diode symbol corrected** — now enclosed in a circle (matching LED and AQA spec). Previously was bare triangle+bar with no enclosing circle.
+- **Content quality fixes per John's AQA teaching guidance:**
+  - Removed NTC (negative temperature coefficient) terminology — not introduced at AQA GCSE level
+  - Removed output components section (motors, buzzers, heaters) — these belong in energy transfers / motor effect, not circuit components
+  - All worked examples across both Electricity subtopics now include an explicit question before the working (was previously jumping straight into steps)
+  - Final "Common Misconceptions" section rewritten from dense text-only to digestible chunks with subheadings and 4 circuit diagrams interspersed
+
 ### Immediate next session — Diagram library (see "Diagram next steps" in the diagram section)
 - [x] Circuit component — DONE 16/06/2026. Merged to main 17/06/2026.
 - [x] Series-parallel-circuits learning content + prompt + tier-split generation — DONE 17/06/2026.
 - [ ] **Review + publish the 31 pending questions for `series-parallel-circuits`** in Review Queue (Foundation + Higher mix, circuit diagrams). Also review pending batches for `resistance-potential-difference` and `circuit-symbols-components`.
+- [ ] **Generate + review questions for `circuit-symbols-components`**, then set `active = true` — learning content + 5 check questions are ready; needs practice questions and prompt config before activation.
 - [ ] Apply the same tier-specific prompt pattern to `resistance-potential-difference` (currently has circuit diagram schema but no Foundation/Higher distinction)
 - [ ] Seeded Composer: after iPad sign-off, add free-body + vector editors (registry `editor` field); consider multi-part `parts` support
 - [ ] `histogram` + `vector-geometry-diagram` components (note: histogram "complete the histogram" has the same answerability problem as waves — needs a letter/number answer, not a draw action)
