@@ -1706,35 +1706,82 @@ export default function AdminReviewQueue() {
             />
           )}
 
-          {!editMode && currentQuestion.mark_scheme && (
-            <div className="bg-white/70 rounded-xl border border-black/5 p-5 space-y-2">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 mb-3">
-                Mark scheme
-              </p>
-              {currentQuestion.mark_scheme.map((item: any, i: number) => (
-                <div key={i} className="flex items-start gap-3 text-sm">
-                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 shrink-0 mt-0.5">
-                    {item.mark_type}
-                  </span>
-                  <span className="text-gray-700">{item.criterion}</span>
-                  <span className="ml-auto text-xs text-gray-400 shrink-0">
-                    {item.marks}m
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
+          {!editMode && (() => {
+            const hasTopLevel = currentQuestion.mark_scheme && currentQuestion.mark_scheme.length > 0;
+            const hasParts = currentQuestion.parts && currentQuestion.parts.length > 0;
+            const showParts = !hasTopLevel && hasParts;
 
-          {!editMode && currentQuestion.worked_solution && (
-            <div className="bg-white/70 rounded-xl border border-black/5 p-5">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 mb-3">
-                Worked solution
-              </p>
-              <pre className="text-sm text-gray-700 whitespace-pre-wrap font-mono leading-relaxed">
-                {currentQuestion.worked_solution}
-              </pre>
-            </div>
-          )}
+            if (!hasTopLevel && !showParts) return null;
+
+            return (
+              <div className="bg-white/70 rounded-xl border border-black/5 p-5 space-y-2">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 mb-3">
+                  Mark scheme
+                </p>
+                {hasTopLevel && currentQuestion.mark_scheme.map((item: any, i: number) => (
+                  <div key={i} className="flex items-start gap-3 text-sm">
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 shrink-0 mt-0.5">
+                      {item.mark_type}
+                    </span>
+                    <span className="text-gray-700">{item.criterion}</span>
+                    <span className="ml-auto text-xs text-gray-400 shrink-0">
+                      {item.marks}m
+                    </span>
+                  </div>
+                ))}
+                {showParts && currentQuestion.parts.map((part: any) => (
+                  <div key={part.part_label} className="space-y-1.5">
+                    <p className="text-[11px] font-semibold text-gray-500 mt-3">
+                      Part ({part.part_label}) — {part.marks} mark{part.marks !== 1 ? 's' : ''}
+                    </p>
+                    {(part.mark_scheme ?? []).map((item: any, i: number) => (
+                      <div key={i} className="flex items-start gap-3 text-sm">
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 shrink-0 mt-0.5">
+                          {item.mark_type}
+                        </span>
+                        <span className="text-gray-700">{item.criterion}</span>
+                        <span className="ml-auto text-xs text-gray-400 shrink-0">
+                          {item.marks}m
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+
+          {!editMode && (() => {
+            const hasTopLevel = currentQuestion.worked_solution && currentQuestion.worked_solution.trim();
+            const hasParts = currentQuestion.parts && currentQuestion.parts.length > 0 &&
+              currentQuestion.parts.some((p: any) => p.worked_solution && p.worked_solution.trim());
+            const showParts = !hasTopLevel && hasParts;
+
+            if (!hasTopLevel && !showParts) return null;
+
+            return (
+              <div className="bg-white/70 rounded-xl border border-black/5 p-5">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 mb-3">
+                  Worked solution
+                </p>
+                {hasTopLevel && (
+                  <pre className="text-sm text-gray-700 whitespace-pre-wrap font-mono leading-relaxed">
+                    {currentQuestion.worked_solution}
+                  </pre>
+                )}
+                {showParts && currentQuestion.parts.map((part: any) => (
+                  <div key={part.part_label} className="mb-4">
+                    <p className="text-[11px] font-semibold text-gray-500 mb-1">
+                      Part ({part.part_label})
+                    </p>
+                    <pre className="text-sm text-gray-700 whitespace-pre-wrap font-mono leading-relaxed">
+                      {part.worked_solution}
+                    </pre>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
 
           {showRejectInput && (
             <div className="bg-red-50 rounded-xl border border-red-100 p-4 space-y-3">
