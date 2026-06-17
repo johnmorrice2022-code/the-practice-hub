@@ -254,17 +254,18 @@ function inferPhysicsPaper(subtopic: any): 'paper1' | 'paper2' {
   return 'paper2';
 }
 
-function normalisePhysicsTier(subtopic: any): 'foundation' | 'higher' {
+function normalisePhysicsTier(subtopic: any): 'foundation' | 'higher' | 'both' {
   const fromSubtopic = String(subtopic.tier || '').toLowerCase();
+  if (fromSubtopic === 'both') return 'both';
   if (fromSubtopic.includes('higher')) return 'higher';
   return 'foundation';
 }
 
-function buildPhysicsPrompt(subtopic: any, count: number): string {
+function buildPhysicsPrompt(subtopic: any, count: number, tierOverride?: 'foundation' | 'higher'): string {
   const promptConfig = subtopic.prompt_config || {};
-  const tier = normalisePhysicsTier(subtopic);
+  const tier = tierOverride || normalisePhysicsTier(subtopic);
   const paper = inferPhysicsPaper(subtopic);
-  const tierLabel = tier === 'foundation' ? 'Foundation' : 'Higher';
+  const tierLabel = tier === 'foundation' ? 'Foundation' : tier === 'higher' ? 'Higher' : 'Foundation and Higher';
   const paperLabel = paper === 'paper1' ? 'Paper 1' : 'Paper 2';
 
   return `You are a senior AQA GCSE Physics examiner writing questions for AQA 8463 ${tierLabel} Tier ${paperLabel}.
@@ -277,6 +278,8 @@ Paper: ${paperLabel}
 Grade band: ${subtopic.grade_band}
 Topic: ${subtopic.topic}
 Subtopic: ${subtopic.subtopic_name}
+
+ALL QUESTIONS IN THIS BATCH MUST BE ${tierLabel.toUpperCase()} TIER DIFFICULTY.
 
 TOPICS IN SCOPE FOR THIS SUBTOPIC:
 ${promptConfig.system_prompt || `Generate questions that directly test ${subtopic.subtopic_name} within ${subtopic.topic}.`}
@@ -469,12 +472,34 @@ serve(async (req) => {
 
         allQuestions = [...p1Questions, ...calcQuestions];
       } else if (isPhysics) {
-        const physicsPrompt = buildPhysicsPrompt(subtopic, count);
-        const raw = await callClaude(
-          physicsPrompt,
-          buildUserPrompt(subtopic, count, true)
-        );
-        allQuestions = parseQuestions(raw);
+        const physicsTier = normalisePhysicsTier(subtopic);
+        if (physicsTier === 'both') {
+          const foundationCount = Math.ceil(count / 2);
+          const higherCount = Math.floor(count / 2);
+
+          const fPrompt = buildPhysicsPrompt(subtopic, foundationCount, 'foundation');
+          const fRaw = await callClaude(
+            fPrompt,
+            buildUserPrompt(subtopic, foundationCount, true)
+          );
+          const fQuestions = parseQuestions(fRaw);
+
+          const hPrompt = buildPhysicsPrompt(subtopic, higherCount, 'higher');
+          const hRaw = await callClaude(
+            hPrompt,
+            buildUserPrompt(subtopic, higherCount, true)
+          );
+          const hQuestions = parseQuestions(hRaw);
+
+          allQuestions = [...fQuestions, ...hQuestions];
+        } else {
+          const physicsPrompt = buildPhysicsPrompt(subtopic, count);
+          const raw = await callClaude(
+            physicsPrompt,
+            buildUserPrompt(subtopic, count, true)
+          );
+          allQuestions = parseQuestions(raw);
+        }
       }
     } catch (genError) {
       // Mark batch as failed
