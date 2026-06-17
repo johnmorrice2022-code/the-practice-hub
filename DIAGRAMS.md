@@ -733,10 +733,10 @@ schema is unchanged — the diagram is a single shared figure carried at the
 **top level** of the question object (alongside the stem + `parts[]`), and renders
 once above all parts in QuestionCard. The `series-parallel-circuits` /
 `resistance-potential-difference` prompts gained few-shots that pair a circuit with
-parts (a/b/c…) building on each other (see CLAUDE.md). **Open issue (John, this
-session):** the live Review Queue is still dominated by `circuit-symbols-components`
-"name the component / state the use" questions; the structured multi-part style
-needs more prompt iteration with further resources John will supply.
+parts (a/b/c…) building on each other (see CLAUDE.md). **Resolved (18/06/2026):** `circuit-symbols-components` `prompt_config` was fully
+rewritten with John's tier distinction document — Foundation (recall, symbol ID)
+and Higher (misconception correction, cause-and-effect, multi-part) questioning
+styles, 6 few-shot examples, full AQA spec knowledge. 39 questions published.
 
 ### Topology — deliberately constrained
 Supported topologies, and nothing else:

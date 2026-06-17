@@ -186,7 +186,7 @@ VALUES (
 - **AI-generated questions** — for algebra, calculations, standard questions. Generated on demand or in batches via AdminReviewQueue.
 - **Seeded questions** — John's hand-authored questions, stored in `seeded_questions`. LaTeX supported via `$...$` (inline) and `$$...$$` (display).
 
-`pending_questions` and `questions` both have `diagram_component`/`diagram_params` columns (added 10/06/2026, mirroring `seeded_questions`). `AdminReviewQueue.handlePublish` copies these from `pending_questions` to `questions` — if `AdminReviewQueue.tsx` is changed, remember it must be **pushed and deployed to Netlify** before the next "approve & publish" run, or the new field won't be carried through (already-published rows can be backfilled from their matching `pending_questions` row by `question_text`).
+`pending_questions` and `questions` both have `diagram_component`/`diagram_params` columns (added 10/06/2026, mirroring `seeded_questions`) and a `tier` column (added 18/06/2026 — `'Foundation'` or `'Higher'`, nullable). `AdminReviewQueue.handlePublish` copies `diagram_component`, `diagram_params`, and `tier` from `pending_questions` to `questions` — if `AdminReviewQueue.tsx` is changed, remember it must be **pushed and deployed to Netlify** before the next "approve & publish" run, or the new field won't be carried through (already-published rows can be backfilled from their matching `pending_questions` row by `question_text`).
 
 ### Seeded question mark scheme format (critical)
 Use flat format with a `criterion` string per mark. **Never use nested objects, `methods` arrays, or `requirement`/`reason` fields** — these confuse the marking AI and produce broken step_breakdown output.
@@ -313,6 +313,8 @@ The `system_prompt` in `prompt_config` is injected into the paper prompt builder
 
 **Physics "Both" tier split (17/06/2026):** `generate-pending-questions` now splits tier "Both" Physics subtopics into two Claude calls — Foundation half + Higher half. Each call gets `ALL QUESTIONS IN THIS BATCH MUST BE [FOUNDATION/HIGHER] TIER DIFFICULTY` prepended. The `system_prompt` should include both Foundation and Higher questioning guidance so each call can select the relevant section. Pattern established with `series-parallel-circuits` using John's tier distinction document.
 
+**Per-question tier tagging (18/06/2026):** Each generated question is tagged `'Foundation'` or `'Higher'` in the `tier` column of `pending_questions`. The tag is determined by which Claude call produced it (for "Both" subtopics) or the subtopic's own tier (for single-tier subtopics). Works for both Physics and Maths. The Review Queue shows a coloured badge per question (green Foundation, purple Higher). `handlePublish` carries the tier through to the `questions` table. Questions generated before 18/06/2026 have `tier: null` (no badge).
+
 **`marking_guidance` injection (fixed 10/06/2026):** `prompt_config.marking_guidance` is injected as a "SUBTOPIC-SPECIFIC MARKING GUIDANCE" block into all Maths Foundation/Higher P1/P2/P3 builders in both `generate-questions/index.ts` and `generate-pending-questions/index.ts`, plus the Physics builder. If adding a new builder/paper variant, copy this block too — it was previously Physics-only, which silently meant any `marking_guidance` written for a Maths subtopic was never sent to Claude.
 
 ### AuthContext pattern
@@ -375,7 +377,7 @@ Accepts `?tab=checks` to jump directly to the Check Questions tab.
 
 **Diagram upload flow (inline):** file → Supabase Storage (`diagrams/{subject}/{topic}/{slug}/para-{si}-{pi}-{ts}.{ext}`) → public URL stored in `working[section][para].diagram_url` → saved on "Save changes". Orphaned storage files can occur if the editor is closed before saving — acceptable trade-off.
 
-**Review Queue** (`/admin/review-queue`) accepts `?subject=Physics&subtopicId=UUID` for pre-filtering from Content Pipeline.
+**Review Queue** (`/admin/review-queue`) accepts `?subject=Physics&subtopicId=UUID` for pre-filtering from Content Pipeline. Shows per-question **tier badges** (green "Foundation" / purple "Higher") for questions generated after 18/06/2026. Multi-part questions now display per-part mark schemes and worked solutions (previously showed nothing because the top-level fields are empty for multi-part questions).
 
 **Important:** `seeded_questions` does NOT have a `calculator_allowed` column. Selecting it causes a silent Supabase error returning empty data. Use only: `id, question_text, worked_solution, mark_scheme, diagram_component` (+ `question_order`, `diagram_url`, `diagram_params` as needed).
 
@@ -519,12 +521,13 @@ Every feature must pass this test: if a Year 10 Foundation student who is alread
 ## Physics Content Pipeline
 
 ### Live Physics subtopics
-- **Circuit Symbols and Components** (`circuit-symbols-components`) — DRAFT (content + 5 check Qs complete, needs review questions + activation)
+- **Circuit Symbols and Components** (`circuit-symbols-components`) — LIVE ✅
   - ID: `fc017564-b79a-4047-a76b-24e38832a62f`
   - Topic: Electricity | Tier: Both | Exam board: AQA
   - Sections: Why Do We Use Circuit Symbols?, Power Supply — Cells and Batteries, Switches Lamps and Resistors, Measuring Current and Potential Difference, Diodes and LEDs, Thermistors and LDRs, Fuses and Safety, Input and Output Components, Common Misconceptions and Exam Tips
   - 16 inline circuit diagrams (parametric `circuit-diagram` + `circuit-symbol-grid` components)
-  - 5 check questions
+  - 5 check questions, 39 published AI questions (Foundation + Higher mix, including multi-part)
+  - Prompt config: Full tier-specific guidance from John's tier distinction document (18/06/2026). Foundation: recall, symbol identification, one idea at a time. Higher: misconception correction, cause-and-effect chains, multi-part component behaviour. Both tiers include "Name component X" with circuit diagrams. Forbidden: matching, draw/label/complete, symbol-as-text MCQ.
   - Built from John's lesson material (17/06/2026). Content avoids NTC terminology and output components (motors/heaters) per John's AQA scope guidance.
 - **Series and Parallel Circuits** (`series-parallel-circuits`) — LIVE ✅
   - ID: `d26816b1-679d-43fe-b3fb-545020b48f3c`
@@ -590,6 +593,13 @@ See [SECURITY_AUDIT.md](SECURITY_AUDIT.md) — living checklist of all known sec
 ---
 
 ## Current Priorities (as of 18/06/2026)
+
+### Recently completed (18/06/2026 — circuit symbols prompt + tier tagging + Review Queue fix)
+- **Circuit Symbols and Components `prompt_config` fully rewritten** using John's tier distinction document. Full AQA spec knowledge (all 13 components + functions, LDR/thermistor/diode/filament lamp behaviour, meter connections). Foundation: recall, symbol ID, one idea at a time. Higher: misconception correction, cause-and-effect chains (resistance→current via V=IR), multi-part component behaviour. 6 few-shot examples (3 Foundation + 3 Higher). Both tiers include "Name component X" with circuit diagrams. Forbidden list preserved.
+- **Per-question tier tagging** — `tier` column added to `pending_questions` and `questions` tables. Edge function (`generate-pending-questions`) tags every question `'Foundation'` or `'Higher'` based on which Claude call produced it. Works for all Physics and Maths subtopics. Deployed.
+- **Review Queue tier badges** — green "FOUNDATION" / purple "HIGHER" pill badge above each question. "Both" label removed from the header for "Both"-tier subtopics (per-question badges replace it). Tier carries through on Publish.
+- **Review Queue multi-part mark scheme + worked solution display** — previously showed nothing for multi-part questions (top-level `mark_scheme` is `[]`, `worked_solution` is `""`). Now detects multi-part questions and renders per-part mark schemes (with part labels) and per-part worked solutions.
+- **Circuit Symbols activated** — subtopic set to `active: true`, 39 published questions (Foundation + Higher mix, including multi-part).
 
 ### Recently completed (11/06/2026 — diagram library session)
 - **DIAGRAMS.md** created: approved param schemas for 6 diagram families (free body, vector, wave, histogram, vector geometry, circuit), shared conventions, question-safe rules. All schema decisions recorded in its Section 10.
@@ -658,7 +668,7 @@ See [SECURITY_AUDIT.md](SECURITY_AUDIT.md) — living checklist of all known sec
 - [x] Circuit component — DONE 16/06/2026. Merged to main 17/06/2026.
 - [x] Series-parallel-circuits learning content + prompt + tier-split generation — DONE 17/06/2026.
 - [ ] **Review + publish the 31 pending questions for `series-parallel-circuits`** in Review Queue (Foundation + Higher mix, circuit diagrams). Also review pending batches for `resistance-potential-difference` and `circuit-symbols-components`.
-- [ ] **Generate + review questions for `circuit-symbols-components`**, then set `active = true` — learning content + 5 check questions are ready; needs practice questions and prompt config before activation.
+- [x] **Generate + review questions for `circuit-symbols-components`**, then set `active = true` — DONE 18/06/2026. Prompt rewritten with tier distinction, 39 questions published, subtopic activated.
 - [ ] Apply the same tier-specific prompt pattern to `resistance-potential-difference` (currently has circuit diagram schema but no Foundation/Higher distinction)
 - [ ] Seeded Composer: after iPad sign-off, add free-body + vector editors (registry `editor` field); consider multi-part `parts` support
 - [ ] `histogram` + `vector-geometry-diagram` components (note: histogram "complete the histogram" has the same answerability problem as waves — needs a letter/number answer, not a draw action)
