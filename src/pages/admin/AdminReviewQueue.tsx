@@ -27,6 +27,14 @@ import {
   isQuestionSafe,
 } from '@/components/diagrams/questionDiagramRegistry';
 import {
+  SteppedQuestionEditor,
+  SteppedQuestionPreview,
+} from '@/components/admin/SteppedQuestionEditor';
+import {
+  validateSteppedQuestion,
+  type SteppedQuestion,
+} from '@/lib/steppedQuestion';
+import {
   ArrowLeft,
   ArrowRight,
   Check,
@@ -89,6 +97,8 @@ interface PendingQuestion {
   diagram_component: string | null;
   diagram_params: unknown;
   tier: string | null;
+  answer_model: string;
+  steps: SteppedQuestion | null;
 }
 
 interface SeededQuestion {
@@ -1199,6 +1209,12 @@ export default function AdminReviewQueue() {
 
   const currentQuestion = questions[currentIndex] ?? null;
 
+  // A stepped question must pass structural validation before it can be saved.
+  const stepEditInvalid =
+    editMode &&
+    editFields.answer_model === 'stepped_calculation' &&
+    validateSteppedQuestion(editFields.steps).length > 0;
+
   async function handleApprove() {
     if (!currentQuestion || savingAction) return;
     setSavingAction(true);
@@ -1310,6 +1326,8 @@ export default function AdminReviewQueue() {
           question_text: currentQuestion?.question_text ?? '',
           worked_solution: currentQuestion?.worked_solution ?? '',
           mark_scheme: currentQuestion?.mark_scheme ?? [],
+          answer_model: currentQuestion?.answer_model ?? 'ai_freeresponse',
+          steps: currentQuestion?.steps ?? null,
         });
       }
       if (e.key === 'ArrowRight') handleNext();
@@ -1349,6 +1367,8 @@ export default function AdminReviewQueue() {
       diagram_component: q.diagram_component ?? null,
       diagram_params: q.diagram_params ?? null,
       tier: q.tier ?? null,
+      answer_model: q.answer_model ?? 'ai_freeresponse',
+      steps: q.steps ?? null,
       source: 'reviewed',
     }));
 
@@ -1594,8 +1614,15 @@ export default function AdminReviewQueue() {
         </div>
       ) : currentQuestion ? (
         <div className="max-w-3xl mx-auto px-6 py-8 space-y-8">
-          {(currentQuestion.calculator_allowed !== null || currentQuestion.tier) && (
+          {(currentQuestion.calculator_allowed !== null ||
+            currentQuestion.tier ||
+            currentQuestion.answer_model === 'stepped_calculation') && (
             <div className="flex items-center gap-2">
+              {currentQuestion.answer_model === 'stepped_calculation' && (
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wide bg-amber-50 text-amber-600">
+                  Stepped
+                </span>
+              )}
               {currentQuestion.tier && (
                 <span
                   className={`text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wide ${currentQuestion.tier === 'Foundation' ? 'bg-emerald-50 text-emerald-600' : 'bg-purple-50 text-purple-600'}`}
@@ -1638,6 +1665,30 @@ export default function AdminReviewQueue() {
               </p>
               <div>
                 <label className="text-xs text-gray-500 mb-1 block">
+                  Answer model
+                </label>
+                <select
+                  className="w-full border border-gray-200 rounded-lg p-2.5 text-sm bg-white"
+                  value={
+                    (editFields.answer_model as string) ?? 'ai_freeresponse'
+                  }
+                  onChange={(e) =>
+                    setEditFields({
+                      ...editFields,
+                      answer_model: e.target.value,
+                    })
+                  }
+                >
+                  <option value="ai_freeresponse">
+                    AI free response (default — AI marks the typed answer)
+                  </option>
+                  <option value="stepped_calculation">
+                    Stepped calculation (deterministic, step-by-step)
+                  </option>
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">
                   Question text
                 </label>
                 <textarea
@@ -1652,49 +1703,65 @@ export default function AdminReviewQueue() {
                   }
                 />
               </div>
-              <div>
-                <label className="text-xs text-gray-500 mb-1 block">
-                  Worked solution
-                </label>
-                <textarea
-                  className="w-full border border-gray-200 rounded-lg p-3 text-sm font-mono resize-y"
-                  rows={4}
-                  value={editFields.worked_solution ?? ''}
-                  onChange={(e) =>
-                    setEditFields({
-                      ...editFields,
-                      worked_solution: e.target.value,
-                    })
-                  }
-                />
-              </div>
-              <div>
-                <label className="text-xs text-gray-500 mb-1 block">
-                  Mark scheme (JSON)
-                </label>
-                <textarea
-                  className="w-full border border-gray-200 rounded-lg p-3 text-sm font-mono resize-y"
-                  rows={6}
-                  value={
-                    typeof editFields.mark_scheme === 'string'
-                      ? editFields.mark_scheme
-                      : JSON.stringify(editFields.mark_scheme ?? [], null, 2)
-                  }
-                  onChange={(e) => {
-                    try {
-                      setEditFields({
-                        ...editFields,
-                        mark_scheme: JSON.parse(e.target.value),
-                      });
-                    } catch {
-                      setEditFields({
-                        ...editFields,
-                        mark_scheme: e.target.value as any,
-                      });
+              {editFields.answer_model === 'stepped_calculation' ? (
+                <div>
+                  <label className="text-xs text-gray-500 mb-2 block">
+                    Steps — the deterministic scaffold (no AI marking)
+                  </label>
+                  <SteppedQuestionEditor
+                    value={editFields.steps as SteppedQuestion | null}
+                    onChange={(next) =>
+                      setEditFields({ ...editFields, steps: next })
                     }
-                  }}
-                />
-              </div>
+                  />
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <label className="text-xs text-gray-500 mb-1 block">
+                      Worked solution
+                    </label>
+                    <textarea
+                      className="w-full border border-gray-200 rounded-lg p-3 text-sm font-mono resize-y"
+                      rows={4}
+                      value={editFields.worked_solution ?? ''}
+                      onChange={(e) =>
+                        setEditFields({
+                          ...editFields,
+                          worked_solution: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 mb-1 block">
+                      Mark scheme (JSON)
+                    </label>
+                    <textarea
+                      className="w-full border border-gray-200 rounded-lg p-3 text-sm font-mono resize-y"
+                      rows={6}
+                      value={
+                        typeof editFields.mark_scheme === 'string'
+                          ? editFields.mark_scheme
+                          : JSON.stringify(editFields.mark_scheme ?? [], null, 2)
+                      }
+                      onChange={(e) => {
+                        try {
+                          setEditFields({
+                            ...editFields,
+                            mark_scheme: JSON.parse(e.target.value),
+                          });
+                        } catch {
+                          setEditFields({
+                            ...editFields,
+                            mark_scheme: e.target.value as any,
+                          });
+                        }
+                      }}
+                    />
+                  </div>
+                </>
+              )}
             </div>
           )}
 
@@ -1706,7 +1773,19 @@ export default function AdminReviewQueue() {
             />
           )}
 
-          {!editMode && (() => {
+          {!editMode &&
+            currentQuestion.answer_model === 'stepped_calculation' && (
+              <div className="bg-white/70 rounded-xl border border-black/5 p-5">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 mb-3">
+                  Stepped scaffold
+                </p>
+                <SteppedQuestionPreview value={currentQuestion.steps} />
+              </div>
+            )}
+
+          {!editMode &&
+            currentQuestion.answer_model !== 'stepped_calculation' &&
+            (() => {
             const hasTopLevel = currentQuestion.mark_scheme && currentQuestion.mark_scheme.length > 0;
             const hasParts = currentQuestion.parts && currentQuestion.parts.length > 0;
             const showParts = !hasTopLevel && hasParts;
@@ -1751,7 +1830,9 @@ export default function AdminReviewQueue() {
             );
           })()}
 
-          {!editMode && (() => {
+          {!editMode &&
+            currentQuestion.answer_model !== 'stepped_calculation' &&
+            (() => {
             const hasTopLevel = currentQuestion.worked_solution && currentQuestion.worked_solution.trim();
             const hasParts = currentQuestion.parts && currentQuestion.parts.length > 0 &&
               currentQuestion.parts.some((p: any) => p.worked_solution && p.worked_solution.trim());
@@ -1853,8 +1934,13 @@ export default function AdminReviewQueue() {
                 </button>
                 <button
                   onClick={handleSaveEdit}
-                  disabled={savingAction}
-                  className="flex items-center gap-1.5 text-xs font-medium px-4 py-2 rounded-lg text-white"
+                  disabled={savingAction || stepEditInvalid}
+                  title={
+                    stepEditInvalid
+                      ? 'Fix the step errors before saving'
+                      : undefined
+                  }
+                  className="flex items-center gap-1.5 text-xs font-medium px-4 py-2 rounded-lg text-white disabled:opacity-40"
                   style={{ background: '#F5A623' }}
                 >
                   {savingAction ? (
@@ -1884,6 +1970,9 @@ export default function AdminReviewQueue() {
                       question_text: currentQuestion.question_text,
                       worked_solution: currentQuestion.worked_solution,
                       mark_scheme: currentQuestion.mark_scheme,
+                      answer_model:
+                        currentQuestion.answer_model ?? 'ai_freeresponse',
+                      steps: currentQuestion.steps ?? null,
                     });
                   }}
                   disabled={savingAction}
