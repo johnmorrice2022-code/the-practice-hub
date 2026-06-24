@@ -3,11 +3,13 @@ import {
   checkChooseEquation,
   checkSubstitute,
   checkNumeric,
+  checkSelectSteps,
   checkStep,
   validateSteppedQuestion,
   type ChooseEquationStep,
   type SubstituteStep,
   type NumericStep,
+  type SelectStepsStep,
   type SteppedQuestion,
 } from './steppedQuestion';
 
@@ -145,6 +147,88 @@ describe('checkNumeric', () => {
   });
 });
 
+// A 4-mark required-practical method: 4 correct points + 2 distractors.
+const methodStep: SelectStepsStep = {
+  id: 'method',
+  kind: 'select_steps',
+  prompt: 'Describe a method to investigate the resistance of a thermistor.',
+  maxMarks: 4,
+  options: [
+    { id: 's1', text: 'Set up the thermistor in series with an ammeter.', correct: true, order: 1 },
+    { id: 's2', text: 'Heat the thermistor in a water bath.', correct: true, order: 2 },
+    { id: 's3', text: 'Record current and temperature at intervals.', correct: true, order: 3 },
+    { id: 's4', text: 'Repeat and calculate resistance with R = V/I.', correct: true, order: 4 },
+    { id: 'd1', text: 'Measure the mass of the water.', correct: false },
+    { id: 'd2', text: 'Add salt to the water.', correct: false },
+  ],
+  hint: 'Think set up → change → measure → process.',
+};
+
+describe('checkSelectSteps', () => {
+  it('awards full marks for all correct and no distractors', () => {
+    const r = checkSelectSteps(methodStep, {
+      kind: 'select_steps',
+      selected: ['s1', 's2', 's3', 's4'],
+    });
+    expect(r).toMatchObject({
+      correct: true,
+      marksAwarded: 4,
+      maxMarks: 4,
+      missed: [],
+      wrongPicks: [],
+    });
+    expect(r.hits).toEqual(['s1', 's2', 's3', 's4']);
+  });
+
+  it('order of selection does not matter', () => {
+    const r = checkSelectSteps(methodStep, {
+      kind: 'select_steps',
+      selected: ['s4', 's1', 's3', 's2'],
+    });
+    expect(r.correct).toBe(true);
+    expect(r.marksAwarded).toBe(4);
+  });
+
+  it('gives partial marks with a distractor (correct − wrong)', () => {
+    const r = checkSelectSteps(methodStep, {
+      kind: 'select_steps',
+      selected: ['s1', 's2', 's3', 'd1'],
+    });
+    expect(r.correct).toBe(false);
+    expect(r.marksAwarded).toBe(2); // 3 correct − 1 wrong
+    expect(r.hits).toEqual(['s1', 's2', 's3']);
+    expect(r.missed).toEqual(['s4']);
+    expect(r.wrongPicks).toEqual(['d1']);
+  });
+
+  it('selecting everything does not earn full marks', () => {
+    const r = checkSelectSteps(methodStep, {
+      kind: 'select_steps',
+      selected: ['s1', 's2', 's3', 's4', 'd1', 'd2'],
+    });
+    expect(r.correct).toBe(false);
+    expect(r.marksAwarded).toBe(2); // 4 − 2
+  });
+
+  it('clamps at zero when wrong picks exceed correct', () => {
+    const r = checkSelectSteps(methodStep, {
+      kind: 'select_steps',
+      selected: ['s1', 'd1', 'd2'],
+    });
+    expect(r.marksAwarded).toBe(0); // max(0, 1 − 2)
+  });
+
+  it('gives partial marks for some-but-not-all correct', () => {
+    const r = checkSelectSteps(methodStep, {
+      kind: 'select_steps',
+      selected: ['s1', 's2'],
+    });
+    expect(r.marksAwarded).toBe(2);
+    expect(r.correct).toBe(false);
+    expect(r.missed).toEqual(['s3', 's4']);
+  });
+});
+
 describe('checkStep dispatch', () => {
   it('routes by kind', () => {
     expect(checkStep(numericStep, { kind: 'numeric', value: 24, unit: 'W' }).correct).toBe(true);
@@ -196,5 +280,33 @@ describe('validateSteppedQuestion', () => {
   it('flags an unknown step kind', () => {
     const bad = { given: [], steps: [{ id: 's', kind: 'mystery' }] };
     expect(validateSteppedQuestion(bad).some((e) => e.includes('unknown step kind'))).toBe(true);
+  });
+
+  it('passes a well-formed select_steps step', () => {
+    expect(validateSteppedQuestion({ given: [], steps: [methodStep] })).toEqual([]);
+  });
+
+  it('requires at least one correct option on a select_steps step', () => {
+    const noCorrect: SelectStepsStep = {
+      ...methodStep,
+      options: [
+        { id: 'd1', text: 'x', correct: false },
+        { id: 'd2', text: 'y', correct: false },
+      ],
+    };
+    expect(
+      validateSteppedQuestion({ given: [], steps: [noCorrect] }).some((e) =>
+        e.includes('at least one correct')
+      )
+    ).toBe(true);
+  });
+
+  it('requires a positive maxMarks on a select_steps step', () => {
+    const badMarks: SelectStepsStep = { ...methodStep, maxMarks: 0 };
+    expect(
+      validateSteppedQuestion({ given: [], steps: [badMarks] }).some((e) =>
+        e.includes('maxMarks must be a positive number')
+      )
+    ).toBe(true);
   });
 });

@@ -81,7 +81,34 @@ export interface NumericStep {
   hint?: string;
 }
 
-export type Step = ChooseEquationStep | SubstituteStep | NumericStep;
+/**
+ * Build an extended-response / required-practical answer by SELECTING the correct
+ * statements from a pool that also holds distractors. Order is not graded (see
+ * STEPPED_QUESTIONS.md §6). Partial credit:
+ *   awarded = clamp(correctSelected − wrongSelected, 0, maxMarks)
+ */
+export interface SelectStepsStep {
+  id: string;
+  kind: 'select_steps';
+  prompt: string;
+  maxMarks: number;
+  options: SelectStepOption[];
+  hint?: string;
+}
+
+export interface SelectStepOption {
+  id: string;
+  text: string;
+  correct?: boolean;
+  /** Canonical sequence position — used ONLY for the feedback reveal, never graded. */
+  order?: number;
+}
+
+export type Step =
+  | ChooseEquationStep
+  | SubstituteStep
+  | NumericStep
+  | SelectStepsStep;
 
 export interface SteppedQuestion {
   given: Given[];
@@ -109,10 +136,17 @@ export interface NumericResponse {
   unit?: string;
 }
 
+export interface SelectStepsResponse {
+  kind: 'select_steps';
+  /** The option ids the student selected. */
+  selected: string[];
+}
+
 export type StepResponse =
   | ChooseEquationResponse
   | SubstituteResponse
-  | NumericResponse;
+  | NumericResponse
+  | SelectStepsResponse;
 
 // ─── Check result ────────────────────────────────────────────────────────────
 
@@ -128,6 +162,15 @@ export interface StepCheckResult {
   /** For numeric steps: which half was wrong, for a precise hint. */
   valueOk?: boolean;
   unitOk?: boolean;
+  /** For select_steps: partial marks and the breakdown for the feedback reveal. */
+  marksAwarded?: number;
+  maxMarks?: number;
+  /** correct option ids the student selected */
+  hits?: string[];
+  /** correct option ids the student missed */
+  missed?: string[];
+  /** distractor option ids the student wrongly selected */
+  wrongPicks?: string[];
 }
 
 // ─── Pure checkers ───────────────────────────────────────────────────────────
@@ -178,6 +221,37 @@ export function checkNumeric(
   return { correct: false, valueOk, unitOk, hint: step.hint };
 }
 
+export function checkSelectSteps(
+  step: SelectStepsStep,
+  response: SelectStepsResponse
+): StepCheckResult {
+  const selected = new Set(response.selected);
+  const correctIds = step.options.filter((o) => o.correct).map((o) => o.id);
+
+  const hits = correctIds.filter((id) => selected.has(id));
+  const missed = correctIds.filter((id) => !selected.has(id));
+  const wrongPicks = step.options
+    .filter((o) => !o.correct && selected.has(o.id))
+    .map((o) => o.id);
+
+  // awarded = clamp(correctSelected − wrongSelected, 0, maxMarks)
+  const marksAwarded = Math.max(
+    0,
+    Math.min(step.maxMarks, hits.length - wrongPicks.length)
+  );
+  const correct = missed.length === 0 && wrongPicks.length === 0;
+
+  return {
+    correct,
+    marksAwarded,
+    maxMarks: step.maxMarks,
+    hits,
+    missed,
+    wrongPicks,
+    hint: correct ? undefined : step.hint,
+  };
+}
+
 /** Dispatch to the right checker. Throws only on a kind mismatch (a bug). */
 export function checkStep(step: Step, response: StepResponse): StepCheckResult {
   if (step.kind !== response.kind) {
@@ -192,6 +266,8 @@ export function checkStep(step: Step, response: StepResponse): StepCheckResult {
       return checkSubstitute(step, response as SubstituteResponse);
     case 'numeric':
       return checkNumeric(step, response as NumericResponse);
+    case 'select_steps':
+      return checkSelectSteps(step, response as SelectStepsResponse);
   }
 }
 
@@ -242,6 +318,16 @@ export function validateSteppedQuestion(q: unknown): string[] {
       case 'numeric': {
         if (typeof (step as NumericStep).value !== 'number')
           errors.push(`${where}: numeric value must be a number`);
+        break;
+      }
+      case 'select_steps': {
+        const s = step as SelectStepsStep;
+        if (!Array.isArray(s.options) || s.options.length < 2)
+          errors.push(`${where}: needs at least 2 options`);
+        else if (s.options.filter((o) => o.correct).length < 1)
+          errors.push(`${where}: needs at least one correct option`);
+        if (typeof s.maxMarks !== 'number' || s.maxMarks < 1)
+          errors.push(`${where}: maxMarks must be a positive number`);
         break;
       }
       default:
