@@ -3,8 +3,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { QuestionCard } from './QuestionCard';
 import { FeedbackCard, MarkingFeedback } from './FeedbackCard';
 import { JamHelpPanel } from './JamHelpPanel';
+import { SteppedPlayer } from './SteppedPlayer';
 import { SessionConfig } from './SessionSetup';
 import { TreeAnswers } from '@/components/diagrams/InteractiveProbabilityTree';
+import type { SteppedQuestion } from '@/lib/steppedQuestion';
 import {
   ChevronLeft,
   ChevronRight,
@@ -34,6 +36,8 @@ interface Question {
   diagram_params?: Record<string, unknown> | null;
   diagram_url?: string | null;
   diagram_component?: string | null;
+  answer_model?: string | null;
+  steps?: SteppedQuestion | null;
 }
 interface PracticeRoomProps {
   config: SessionConfig;
@@ -207,7 +211,7 @@ export function PracticeRoom({
         supabase
           .from('questions')
           .select(
-            'id, question_text, marks, mark_scheme, worked_solution, parts, calculator_allowed, diagram_component, diagram_params'
+            'id, question_text, marks, mark_scheme, worked_solution, parts, calculator_allowed, diagram_component, diagram_params, answer_model, steps'
           )
           .eq('subtopic_id', config.subtopicId),
         supabase
@@ -232,6 +236,10 @@ export function PracticeRoom({
 
       const reviewedPool = (reviewedRes.data ?? []).filter(
         (q) =>
+          // Stepped questions are calculator-agnostic — never filter them out on
+          // the calculator flag (otherwise Physics' always-"no calculator" mode
+          // would hide every stepped question).
+          (q as any).answer_model === 'stepped_calculation' ||
           q.calculator_allowed === null ||
           q.calculator_allowed === calculatorAllowed
       );
@@ -243,6 +251,8 @@ export function PracticeRoom({
         diagram_params: (q as any).diagram_params || null,
         diagram_url: null,
         diagram_component: (q as any).diagram_component || null,
+        answer_model: (q as any).answer_model || null,
+        steps: (q as any).steps || null,
       }));
 
       const combined = [...seededNormalised, ...reviewedNormalised];
@@ -423,6 +433,10 @@ export function PracticeRoom({
   };
 
   const hasAnswer = (q: Question): boolean => {
+    // A stepped question counts as answered only once it has been completed
+    // (its deterministic feedback has been recorded).
+    if (q.answer_model === 'stepped_calculation') return !!feedbacks[q.id];
+
     const isMultiPart = q.parts && q.parts.length > 0;
     if (isMultiPart) {
       const parts = partAnswers[q.id] || {};
@@ -460,6 +474,9 @@ export function PracticeRoom({
   const markAnswer = async (questionId: string) => {
     const q = questions.find((q) => q.id === questionId);
     if (!q || !hasAnswer(q)) return;
+    // Stepped questions are never sent to the AI marker — they are checked
+    // deterministically by SteppedPlayer.
+    if (isStepped(q)) return;
     setMarkingId(questionId);
     try {
       const isMultiPart = q.parts && q.parts.length > 0;
@@ -583,6 +600,54 @@ export function PracticeRoom({
     setJamHelpAnswer(answer);
     setJamHelpFeedback(feedback ?? null);
     setJamHelpOpen(true);
+  };
+
+  const isStepped = (q: Question | null | undefined): boolean =>
+    !!q &&
+    q.answer_model === 'stepped_calculation' &&
+    !!q.steps &&
+    Array.isArray(q.steps.steps) &&
+    q.steps.steps.length > 0;
+
+  // A stepped question is checked deterministically by SteppedPlayer; on
+  // completion we record a full-marks feedback so progress, session saving and
+  // the review phase all work through the existing feedback path.
+  const completeStepped = (q: Question, marksAwarded: number) => {
+    setFeedbacks((prev) => ({
+      ...prev,
+      [q.id]: {
+        marks_awarded: marksAwarded,
+        marks_available: q.marks,
+        step_breakdown: (q.steps?.steps ?? []).map((s) => ({
+          criterion: s.prompt,
+          status: 'awarded' as const,
+          comment: '',
+        })),
+        error_type: 'none',
+        feedback_summary:
+          'You worked through every step correctly and earned full marks.',
+        worked_solution: '',
+        revision_focus: '',
+      },
+    }));
+  };
+
+  // "I'm stuck" on a step → open JAM Help with that step's target as context.
+  const handleSteppedJamHelp = (
+    q: Question,
+    args: { studentAttempt: string; criterion: string }
+  ) => {
+    handleJamHelp(q, args.studentAttempt, {
+      marks_awarded: 0,
+      marks_available: q.marks,
+      step_breakdown: [
+        { criterion: args.criterion, status: 'not_awarded', comment: '' },
+      ],
+      error_type: '',
+      feedback_summary: '',
+      worked_solution: '',
+      revision_focus: '',
+    });
   };
 
   const allAnswered =
@@ -829,6 +894,26 @@ export function PracticeRoom({
                   Marking question {currentIndex + 1}...
                 </p>
               </div>
+            ) : currentQuestion && isStepped(currentQuestion) ? (
+              feedbacks[currentQuestion.id] ? (
+                <FeedbackCard
+                  feedback={feedbacks[currentQuestion.id]}
+                  questionNumber={currentIndex + 1}
+                  questionId={currentQuestion.id}
+                  subtopicId={config.subtopicId}
+                  questionText={currentQuestion.question_text}
+                />
+              ) : (
+                <SteppedPlayer
+                  questionText={currentQuestion.question_text}
+                  marks={currentQuestion.marks}
+                  data={currentQuestion.steps as SteppedQuestion}
+                  onComplete={(m) => completeStepped(currentQuestion, m)}
+                  onJamHelp={(args) =>
+                    handleSteppedJamHelp(currentQuestion, args)
+                  }
+                />
+              )
             ) : (
               <>
                 <QuestionCard
