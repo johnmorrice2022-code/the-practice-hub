@@ -208,6 +208,54 @@ export function SteppedQuestionEditor({ value, onChange }: EditorProps) {
         </button>
       )}
 
+      {/* Mode & display (§5) */}
+      <div className="bg-white rounded-xl border border-black/5 p-4 grid grid-cols-2 gap-3">
+        <div>
+          <label className={labelCls}>Entry mode</label>
+          <select
+            className={`${inputCls} bg-white`}
+            value={sq.default_mode ?? 'auto'}
+            onChange={(e) =>
+              update({
+                default_mode:
+                  e.target.value === 'auto'
+                    ? undefined
+                    : (e.target.value as 'direct' | 'stepped'),
+              })
+            }
+          >
+            <option value="auto">Auto (Higher → direct, else stepped)</option>
+            <option value="direct">Direct (answer first)</option>
+            <option value="stepped">Stepped (guided)</option>
+          </select>
+        </div>
+        <div>
+          <label className={labelCls}>Show given-value chips</label>
+          <select
+            className={`${inputCls} bg-white`}
+            value={
+              sq.show_givens === undefined
+                ? 'auto'
+                : sq.show_givens
+                  ? 'show'
+                  : 'hide'
+            }
+            onChange={(e) =>
+              update({
+                show_givens:
+                  e.target.value === 'auto'
+                    ? undefined
+                    : e.target.value === 'show',
+              })
+            }
+          >
+            <option value="auto">Auto (Foundation show, Higher hide)</option>
+            <option value="show">Always show</option>
+            <option value="hide">Always hide (extract from prose)</option>
+          </select>
+        </div>
+      </div>
+
       {/* Givens */}
       <div className="bg-white rounded-xl border border-black/5 p-4 space-y-3">
         <div className="flex items-center justify-between">
@@ -647,6 +695,79 @@ function NumericFields({
           placeholder="e.g. W, watt, watts"
         />
       )}
+
+      {/* Direct-mode distractor hints (§5) — wrong value → specific nudge */}
+      <div>
+        <div className="flex items-center justify-between mb-1">
+          <label className={labelCls}>
+            Wrong-answer hints (Direct mode)
+          </label>
+          <button
+            type="button"
+            onClick={() =>
+              onChange({
+                ...step,
+                distractors: [
+                  ...(step.distractors ?? []),
+                  { value: 0, hint: '' },
+                ],
+              })
+            }
+            className="flex items-center gap-1 text-[11px] text-amber-600 hover:text-amber-700"
+          >
+            <Plus size={12} /> Add
+          </button>
+        </div>
+        {(step.distractors ?? []).map((d, i) => (
+          <div key={i} className="flex items-end gap-2 mb-2">
+            <div className="w-24">
+              <input
+                className={inputCls}
+                type="number"
+                value={Number.isNaN(d.value) ? '' : d.value}
+                placeholder="value"
+                onChange={(e) =>
+                  onChange({
+                    ...step,
+                    distractors: (step.distractors ?? []).map((x, idx) =>
+                      idx === i ? { ...x, value: Number(e.target.value) } : x
+                    ),
+                  })
+                }
+              />
+            </div>
+            <div className="flex-1">
+              <input
+                className={inputCls}
+                value={d.hint}
+                placeholder="hint shown if the student answers this value"
+                onChange={(e) =>
+                  onChange({
+                    ...step,
+                    distractors: (step.distractors ?? []).map((x, idx) =>
+                      idx === i ? { ...x, hint: e.target.value } : x
+                    ),
+                  })
+                }
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() =>
+                onChange({
+                  ...step,
+                  distractors: (step.distractors ?? []).filter(
+                    (_, idx) => idx !== i
+                  ),
+                })
+              }
+              className="p-2 text-gray-300 hover:text-red-500"
+            >
+              <Trash2 size={14} />
+            </button>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

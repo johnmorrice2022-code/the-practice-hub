@@ -5,6 +5,8 @@ import {
   checkNumeric,
   checkSelectSteps,
   checkStep,
+  buildWorking,
+  numericDistractorHint,
   validateSteppedQuestion,
   type ChooseEquationStep,
   type SubstituteStep,
@@ -226,6 +228,45 @@ describe('checkSelectSteps', () => {
     expect(r.marksAwarded).toBe(2);
     expect(r.correct).toBe(false);
     expect(r.missed).toEqual(['s3', 's4']);
+  });
+});
+
+describe('buildWorking', () => {
+  it('assembles equation, substitution and answer from the steps', () => {
+    const working = buildWorking({
+      given: [],
+      steps: [equationStep, substituteStep, numericStep],
+    });
+    expect(working).toBe(
+      ['$P = I \\times V$', '$P = 2 \\times 12$', '$= 24\\ \\text{W}$'].join('\n')
+    );
+  });
+
+  it('omits the unit when the numeric step has none', () => {
+    const working = buildWorking({
+      given: [],
+      steps: [{ id: 'a', kind: 'numeric', prompt: '', value: 5 }],
+    });
+    expect(working).toBe('$= 5$');
+  });
+});
+
+describe('numericDistractorHint', () => {
+  const step: NumericStep = {
+    ...numericStep,
+    distractors: [
+      { value: 6, hint: 'Looks like you divided instead of multiplying.' },
+      { value: 14, hint: 'Looks like you added the two numbers.' },
+    ],
+  };
+  it('returns the hint for a matching wrong value', () => {
+    expect(numericDistractorHint(step, 6)).toMatch(/divided/);
+  });
+  it('returns null for an unanticipated wrong value', () => {
+    expect(numericDistractorHint(step, 99)).toBeNull();
+  });
+  it('returns null when no distractors are authored', () => {
+    expect(numericDistractorHint(numericStep, 6)).toBeNull();
   });
 });
 

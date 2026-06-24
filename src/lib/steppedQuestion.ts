@@ -79,6 +79,11 @@ export interface NumericStep {
   /** Accepted spellings/forms of the unit, e.g. ["W","watt","watts"]. */
   acceptedUnits?: string[];
   hint?: string;
+  /**
+   * Known wrong answers → a specific nudge, fired in Direct mode (§5) when the
+   * student's value matches one. Deterministic — no AI. Optional.
+   */
+  distractors?: { value: number; hint: string }[];
 }
 
 /**
@@ -113,6 +118,16 @@ export type Step =
 export interface SteppedQuestion {
   given: Given[];
   steps: Step[];
+  /**
+   * Entry point (§5). If unset, derive from the student's tier:
+   * Higher → 'direct', otherwise 'stepped'.
+   */
+  default_mode?: 'direct' | 'stepped';
+  /**
+   * Render the parsed given-value chips? If unset, derive from tier:
+   * Foundation/default → true, Higher → false (they extract from the prose).
+   */
+  show_givens?: boolean;
 }
 
 // ─── Student responses ───────────────────────────────────────────────────────
@@ -269,6 +284,43 @@ export function checkStep(step: Step, response: StepResponse): StepCheckResult {
     case 'select_steps':
       return checkSelectSteps(step, response as SelectStepsResponse);
   }
+}
+
+// ─── Working reveal + direct-mode helpers (§5/§7) ────────────────────────────
+
+/**
+ * Assemble the full worked method from the steps (§7), as a `\n`-separated
+ * worked_solution string with `$…$` LaTeX — always consistent with the scaffold,
+ * shown on the mark screen on every path. Non-calculation kinds (select_steps)
+ * are skipped here; they reveal via their own breakdown.
+ */
+export function buildWorking(data: SteppedQuestion): string {
+  const lines: string[] = [];
+  for (const step of data.steps) {
+    if (step.kind === 'choose_equation') {
+      const c = step.options.find((o) => o.correct);
+      if (c) lines.push(`$${c.latex}$`);
+    } else if (step.kind === 'substitute') {
+      let expr = step.expression;
+      for (const s of step.slots) {
+        expr = expr.split(`[${s.slot}]`).join(String(s.value));
+      }
+      lines.push(`$${expr}$`);
+    } else if (step.kind === 'numeric') {
+      const unit = step.unit ? `\\ \\text{${step.unit}}` : '';
+      lines.push(`$= ${step.value}${unit}$`);
+    }
+  }
+  return lines.join('\n');
+}
+
+/** The misconception hint for a wrong Direct-mode value, if it matches one. */
+export function numericDistractorHint(
+  step: NumericStep,
+  value: number
+): string | null {
+  const d = (step.distractors ?? []).find((x) => x.value === value);
+  return d ? d.hint : null;
 }
 
 // ─── Validation (used by the Review Queue / generator gate) ──────────────────

@@ -6,7 +6,7 @@ coaches and never delivers a verdict.** No function that decides right/wrong cal
 an LLM. Read this before touching `src/lib/steppedQuestion.ts`, `SteppedPlayer`,
 or the Review Queue step editor.
 
-Status: **§1–§4 shipped (24/06/2026). `select_steps` pure checker (§6) shipped + tested. §5, §7 and all UI (player/editor) for `select_steps` still specced, not yet built.**
+Status: **§1–§5 shipped + §7 for calculations (24/06/2026). `select_steps` pure checker (§6) shipped + tested; its UI (player input + editor panel) and ordered-steps reveal are the only parts left.**
 
 ---
 
@@ -137,9 +137,12 @@ working; this teaches exam technique even when the answer was right):
 
 ## Build order (next)
 1. ~~`select_steps` kind: type + `checkSelectSteps` + validation + vitest (pure, no UI).~~ **DONE 24/06/2026** — `checkSelectSteps` + 9 tests in `steppedQuestion.ts`/`.test.ts`.
-2. Player input for `select_steps` + the §7 reveal.
+2. Player input for `select_steps` + the §7 ordered-steps reveal. **(next)**
 3. Review Queue editor panel for `select_steps`.
-4. Adaptive modes (§5): `default_mode`/`show_givens` fields, Direct entry reusing the
-   `numeric` step, "Break it down" / "Let me just answer" overrides, distractor-hint
-   on a wrong Direct answer.
-5. Workings reveal (§7) on the calculation mark screen.
+4. ~~Adaptive modes (§5)~~ **DONE 24/06/2026** — `default_mode`/`show_givens` on the
+   `SteppedQuestion` root + editor controls; Direct entry reuses the final `numeric`
+   step; "Break it down" / "Let me just answer" overrides; `numericDistractorHint`
+   fires a misconception nudge on a wrong Direct answer.
+5. ~~Workings reveal (§7) on the calculation mark screen~~ **DONE 24/06/2026** —
+   `buildWorking()` assembles equation→substitution→answer from the steps into the
+   completion `worked_solution`, shown on every path.

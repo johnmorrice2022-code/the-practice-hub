@@ -6,7 +6,7 @@ import { JamHelpPanel } from './JamHelpPanel';
 import { SteppedPlayer } from './SteppedPlayer';
 import { SessionConfig } from './SessionSetup';
 import { TreeAnswers } from '@/components/diagrams/InteractiveProbabilityTree';
-import type { SteppedQuestion } from '@/lib/steppedQuestion';
+import { buildWorking, type SteppedQuestion } from '@/lib/steppedQuestion';
 import {
   ChevronLeft,
   ChevronRight,
@@ -625,8 +625,10 @@ export function PracticeRoom({
         })),
         error_type: 'none',
         feedback_summary:
-          'You worked through every step correctly and earned full marks.',
-        worked_solution: '',
+          'Full marks. Here is the full working — set it out like this in the exam.',
+        // Assemble the canonical working from the steps so it shows on every
+        // path (including a correct Direct-mode answer). STEPPED_QUESTIONS.md §7.
+        worked_solution: q.steps ? buildWorking(q.steps) : '',
         revision_focus: '',
       },
     }));
@@ -908,6 +910,7 @@ export function PracticeRoom({
                   questionText={currentQuestion.question_text}
                   marks={currentQuestion.marks}
                   data={currentQuestion.steps as SteppedQuestion}
+                  tier={config.tier}
                   onComplete={(m) => completeStepped(currentQuestion, m)}
                   onJamHelp={(args) =>
                     handleSteppedJamHelp(currentQuestion, args)

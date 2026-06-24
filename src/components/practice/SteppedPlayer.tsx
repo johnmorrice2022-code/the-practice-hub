@@ -1,27 +1,38 @@
 // Student-facing player for stepped_calculation questions.
 //
-// Reveals steps one at a time (guided): each step appears only once the previous
-// is correct. The platform checks every step deterministically via the pure
-// checker in src/lib/steppedQuestion.ts — no AI decides right or wrong here. A
-// wrong step shows its pre-written hint and lets the student retry; if they are
-// still stuck (or tap "I'm stuck"), JAM Help opens to coach them. Completing all
-// steps awards the question's marks in full.
+// Two entry points from one authored question (STEPPED_QUESTIONS.md §5):
+//   • Direct  — show the question + a single final-answer box. Correct → full
+//               marks. Wrong → a distractor-specific hint (deterministic) then
+//               "Break it down" unfolds the scaffold.
+//   • Stepped — the guided one-step-at-a-time scaffold; "Let me just answer"
+//               jumps to Direct.
+// Default is by tier (Higher → Direct, else Stepped) unless the question sets
+// default_mode; the student can always override either way. Every check is
+// deterministic via the pure checker — no AI decides right or wrong. A wrong
+// step shows its pre-written hint; "I'm stuck" opens JAM Help.
 
 import { useMemo, useState } from 'react';
-import { Check, MessageCircle, ArrowRight, Lightbulb } from 'lucide-react';
+import { Check, MessageCircle, ArrowRight, Lightbulb, ChevronDown } from 'lucide-react';
 import { renderMathInText } from '@/lib/renderMathInText';
 import {
   SteppedQuestion,
   Step,
+  NumericStep,
   checkStep,
+  checkNumeric,
+  numericDistractorHint,
   StepResponse,
 } from '@/lib/steppedQuestion';
+
+type Mode = 'direct' | 'stepped';
 
 interface SteppedPlayerProps {
   questionText: string;
   marks: number;
   data: SteppedQuestion;
-  /** Called once, when every step has been answered correctly. */
+  /** Student's tier — drives the default entry mode when the question doesn't set one. */
+  tier?: string;
+  /** Called once, when the question is completed (full marks). */
   onComplete: (marksAwarded: number) => void;
   /** Open JAM Help for the step the student is stuck on. */
   onJamHelp: (args: { studentAttempt: string; criterion: string }) => void;
@@ -43,6 +54,8 @@ function criterionFor(step: Step): string {
       return `Work out the final value${
         step.unit ? ` and give the unit (${step.unit})` : ''
       }`;
+    case 'select_steps':
+      return `Select the correct points for: ${step.prompt}`;
   }
 }
 
@@ -50,11 +63,29 @@ export function SteppedPlayer({
   questionText,
   marks,
   data,
+  tier,
   onComplete,
   onJamHelp,
 }: SteppedPlayerProps) {
+  // Direct mode answers the LAST numeric step; if there's none it isn't offered.
+  const lastNumericIdx = useMemo(() => {
+    for (let i = data.steps.length - 1; i >= 0; i--) {
+      if (data.steps[i].kind === 'numeric') return i;
+    }
+    return -1;
+  }, [data.steps]);
+  const canDirect = lastNumericIdx !== -1;
+
+  const isHigher = (tier ?? '').toLowerCase() === 'higher';
+  const showGivens = data.show_givens ?? !isHigher;
+  const tierDefault: Mode = isHigher ? 'direct' : 'stepped';
+
+  const [mode, setMode] = useState<Mode>(
+    canDirect ? data.default_mode ?? tierDefault : 'stepped'
+  );
   const [stepIndex, setStepIndex] = useState(0);
   const [done, setDone] = useState(false);
+
   const step = data.steps[stepIndex];
 
   return (
@@ -64,7 +95,7 @@ export function SteppedPlayer({
         className="text-base sm:text-lg leading-relaxed text-foreground mb-3"
         dangerouslySetInnerHTML={{ __html: renderMathInText(questionText) }}
       />
-      {data.given.length > 0 && (
+      {showGivens && data.given.length > 0 && (
         <div className="flex flex-wrap gap-2 mb-6">
           {data.given.map((g, i) => (
             <span
@@ -79,64 +110,186 @@ export function SteppedPlayer({
         </div>
       )}
 
-      {/* Step progress */}
-      <div className="flex items-center gap-1.5 mb-4">
-        {data.steps.map((_, i) => (
-          <div
-            key={i}
-            className="h-1.5 flex-1 rounded-full transition-colors"
-            style={{
-              background:
-                i < stepIndex || done
-                  ? '#22c55e'
-                  : i === stepIndex
-                    ? '#F5A623'
-                    : 'rgba(0,0,0,0.08)',
-            }}
-          />
-        ))}
-      </div>
-
       {done ? (
-        <div className="flex flex-col items-center justify-center py-10 gap-3 text-center">
-          <div
-            className="w-12 h-12 rounded-full flex items-center justify-center"
-            style={{ background: '#22c55e' }}
-          >
-            <Check size={24} color="white" />
-          </div>
-          <p className="text-sm font-semibold text-foreground">
-            All steps complete — {marks} mark{marks !== 1 ? 's' : ''}.
-          </p>
-          <p className="text-xs text-muted-foreground">
-            You worked through every step yourself. That's exactly how the marks
-            are earned in the exam.
-          </p>
-        </div>
-      ) : (
-        <StepView
-          key={step.id}
-          step={step}
-          index={stepIndex}
-          total={data.steps.length}
+        <DoneCard marks={marks} />
+      ) : mode === 'direct' ? (
+        <DirectAnswer
+          step={data.steps[lastNumericIdx] as NumericStep}
           onCorrect={() => {
-            if (stepIndex < data.steps.length - 1) {
-              setStepIndex(stepIndex + 1);
-            } else {
-              setDone(true);
-              onComplete(marks);
-            }
+            setDone(true);
+            onComplete(marks);
           }}
-          onJamHelp={(studentAttempt) =>
-            onJamHelp({ studentAttempt, criterion: criterionFor(step) })
+          onBreakDown={() => {
+            setMode('stepped');
+            setStepIndex(0);
+          }}
+          onJamHelp={(attempt) =>
+            onJamHelp({
+              studentAttempt: attempt,
+              criterion: criterionFor(data.steps[lastNumericIdx]),
+            })
           }
         />
+      ) : (
+        <>
+          {/* Step progress */}
+          <div className="flex items-center gap-1.5 mb-4">
+            {data.steps.map((_, i) => (
+              <div
+                key={i}
+                className="h-1.5 flex-1 rounded-full transition-colors"
+                style={{
+                  background:
+                    i < stepIndex
+                      ? '#22c55e'
+                      : i === stepIndex
+                        ? '#F5A623'
+                        : 'rgba(0,0,0,0.08)',
+                }}
+              />
+            ))}
+          </div>
+
+          <StepView
+            key={step.id}
+            step={step}
+            index={stepIndex}
+            total={data.steps.length}
+            onCorrect={() => {
+              if (stepIndex < data.steps.length - 1) {
+                setStepIndex(stepIndex + 1);
+              } else {
+                setDone(true);
+                onComplete(marks);
+              }
+            }}
+            onJamHelp={(studentAttempt) =>
+              onJamHelp({ studentAttempt, criterion: criterionFor(step) })
+            }
+          />
+
+          {canDirect && (
+            <button
+              onClick={() => setMode('direct')}
+              className="mt-4 text-[11px] text-muted-foreground hover:text-[#E23D28] transition-colors"
+            >
+              Confident? Let me just answer →
+            </button>
+          )}
+        </>
       )}
     </div>
   );
 }
 
-// ─── A single step ────────────────────────────────────────────────────────────
+function DoneCard({ marks }: { marks: number }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-10 gap-3 text-center">
+      <div
+        className="w-12 h-12 rounded-full flex items-center justify-center"
+        style={{ background: '#22c55e' }}
+      >
+        <Check size={24} color="white" />
+      </div>
+      <p className="text-sm font-semibold text-foreground">
+        Complete — {marks} mark{marks !== 1 ? 's' : ''}.
+      </p>
+    </div>
+  );
+}
+
+// ─── Direct mode — answer first ───────────────────────────────────────────────
+
+function DirectAnswer({
+  step,
+  onCorrect,
+  onBreakDown,
+  onJamHelp,
+}: {
+  step: NumericStep;
+  onCorrect: () => void;
+  onBreakDown: () => void;
+  onJamHelp: (studentAttempt: string) => void;
+}) {
+  const [value, setValue] = useState('');
+  const [unit, setUnit] = useState('');
+  const [hint, setHint] = useState<string | null>(null);
+  const [offerBreakdown, setOfferBreakdown] = useState(false);
+
+  function handleCheck() {
+    const res = checkNumeric(step, {
+      kind: 'numeric',
+      value: value.trim() === '' ? null : Number(value),
+      unit,
+    });
+    if (res.correct) {
+      onCorrect();
+      return;
+    }
+    const dHint =
+      value.trim() !== '' ? numericDistractorHint(step, Number(value)) : null;
+    setHint(dHint ?? 'Not quite — check your value and unit.');
+    setOfferBreakdown(true);
+  }
+
+  const canCheck = value.trim() !== '';
+
+  return (
+    <div>
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-3">
+        Your answer
+      </p>
+      <NumericInput
+        step={step}
+        value={value}
+        unit={unit}
+        disabled={false}
+        onValue={setValue}
+        onUnit={setUnit}
+      />
+
+      {hint && (
+        <div className="mt-4 flex items-start gap-2 rounded-lg bg-amber-50 border border-amber-100 p-3">
+          <Lightbulb size={14} className="text-amber-500 mt-0.5 shrink-0" />
+          <p className="text-xs text-amber-800 leading-relaxed">{hint}</p>
+        </div>
+      )}
+
+      <div className="mt-5 flex items-center justify-between gap-3">
+        <button
+          onClick={() => onJamHelp(`${value || '?'} ${unit}`.trim())}
+          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-[#E23D28] transition-colors"
+        >
+          <MessageCircle size={12} /> JAM Help
+        </button>
+
+        <button
+          onClick={handleCheck}
+          disabled={!canCheck}
+          className="flex items-center gap-2 text-xs font-semibold px-4 py-2 rounded-lg transition-all disabled:opacity-40 active:scale-[0.97]"
+          style={{
+            color: '#fff',
+            background: 'linear-gradient(135deg, #E23D28 0%, #F5A623 100%)',
+            boxShadow: '0 2px 10px rgba(226,61,40,0.30)',
+          }}
+        >
+          <Check size={12} /> Check answer
+        </button>
+      </div>
+
+      {offerBreakdown && (
+        <button
+          onClick={onBreakDown}
+          className="mt-4 w-full flex items-center justify-center gap-1.5 text-xs font-medium px-4 py-2.5 rounded-lg border border-[#E23D28]/30 text-[#E23D28] hover:bg-[#E23D28]/5 transition-colors"
+        >
+          <ChevronDown size={14} /> Break it down into steps
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ─── A single guided step ─────────────────────────────────────────────────────
 
 function StepView({
   step,
@@ -155,7 +308,6 @@ function StepView({
   const [attempts, setAttempts] = useState(0);
   const [solved, setSolved] = useState(false);
 
-  // Per-kind response state.
   const [optionId, setOptionId] = useState<string | null>(null);
   const [assignments, setAssignments] = useState<Record<string, number | null>>(
     {}
@@ -176,15 +328,15 @@ function StepView({
           value: numValue.trim() === '' ? null : Number(numValue),
           unit: numUnit,
         };
+      case 'select_steps':
+        return { kind: 'select_steps', selected: [] };
     }
   }
 
   function describeAttempt(): string {
     switch (step.kind) {
       case 'choose_equation': {
-        const o = step.kind === 'choose_equation'
-          ? step.options.find((x) => x.id === optionId)
-          : null;
+        const o = step.options.find((x) => x.id === optionId);
         return o ? `chose ${o.latex}` : 'made no choice';
       }
       case 'substitute':
@@ -193,6 +345,8 @@ function StepView({
           .join(', ');
       case 'numeric':
         return `${numValue || '?'} ${numUnit}`.trim();
+      case 'select_steps':
+        return '(selection)';
     }
   }
 
@@ -205,7 +359,6 @@ function StepView({
     }
     setAttempts((a) => a + 1);
     setHint(result.hint ?? 'Not quite — take another look.');
-    // Clear wrong substitution tiles so the student can retry cleanly.
     if (step.kind === 'substitute' && result.wrongSlots) {
       setAssignments((prev) => {
         const next = { ...prev };
@@ -221,7 +374,9 @@ function StepView({
       ? optionId !== null
       : step.kind === 'substitute'
         ? step.slots.every((s) => assignments[s.slot] != null)
-        : numValue.trim() !== '';
+        : step.kind === 'numeric'
+          ? numValue.trim() !== ''
+          : false;
 
   return (
     <div>
@@ -277,7 +432,6 @@ function StepView({
         />
       )}
 
-      {/* Hint */}
       {hint && !solved && (
         <div className="mt-4 flex items-start gap-2 rounded-lg bg-amber-50 border border-amber-100 p-3">
           <Lightbulb size={14} className="text-amber-500 mt-0.5 shrink-0" />
@@ -285,7 +439,6 @@ function StepView({
         </div>
       )}
 
-      {/* Actions */}
       <div className="mt-5 flex items-center justify-between">
         {!solved && (
           <button
@@ -391,7 +544,6 @@ function SubstituteInput({
   onPlace: (value: number) => void;
   onClearSlot: (slot: string) => void;
 }) {
-  // Split the expression into literal segments and [slot] placeholders.
   const segments = useMemo(
     () => step.expression.split(/(\[[^\]]+\])/).filter((s) => s !== ''),
     [step.expression]
@@ -401,7 +553,6 @@ function SubstituteInput({
       ...step.slots.map((s) => s.value),
       ...(step.distractorValues ?? []),
     ];
-    // Stable shuffle per mount.
     return vals
       .map((v) => ({ v, r: Math.random() }))
       .sort((a, b) => a.r - b.r)
