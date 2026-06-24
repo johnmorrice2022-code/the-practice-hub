@@ -135,6 +135,20 @@ working; this teaches exam technique even when the answer was right):
 6. Genuine prose ("show that"/"prove that" in Maths, Phase 4) is the one exception —
    scaffold mandatory or self-assessment reveal; not in scope for Physics.
 
+## Live test content (24/06/2026)
+Four `stepped_calculation` rows are published in **Electrical Power and Energy
+Transfers** (`subtopic_id 7f35c052-3376-458c-bbbf-7092d09c5659`) for
+pressure-testing the player — they exercise the full spread:
+- **P = I × V** (3m, mode auto) — the original; carries 3 Direct-mode distractors.
+- **Find the current** (3m, Direct, `show_givens:false`) — rearrangement I = P/V, prose extraction.
+- **Energy chain** (6m, Direct) — two equations P=IV → E=Pt, intermediate numeric step.
+- **Heater energy** (4m, Stepped) — minutes→seconds unit-conversion step first.
+
+These are **test rows in the live `questions` table** (inserted via service-role
+script, `source: 'reviewed'`). Delete or keep as wanted; they are not part of a
+real published set. **Pending: a couple of slight player UI tweaks John flagged
+after testing (to be specified).**
+
 ## Build order (next)
 1. ~~`select_steps` kind: type + `checkSelectSteps` + validation + vitest (pure, no UI).~~ **DONE 24/06/2026** — `checkSelectSteps` + 9 tests in `steppedQuestion.ts`/`.test.ts`.
 2. Player input for `select_steps` + the §7 ordered-steps reveal. **(next)**

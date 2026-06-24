@@ -612,7 +612,24 @@ See [SECURITY_AUDIT.md](SECURITY_AUDIT.md) — living checklist of all known sec
 
 ---
 
-## Current Priorities (as of 18/06/2026)
+## Current Priorities (as of 24/06/2026)
+
+### Recently completed (24/06/2026 — deterministic marking, Phase 0 + Phase 1)
+Started the move **off AI marking**: the platform now checks answers deterministically and the AI only coaches. **Full spec + locked decisions: [STEPPED_QUESTIONS.md](STEPPED_QUESTIONS.md).** The detail lives in Architecture Patterns → "Marking philosophy"; in brief:
+- **Phase 0:** `answer_model` column on the 3 question tables (default `ai_freeresponse`); backfilled the previously-untracked question-pipeline tables + `tier` column into the migration history (reset-clean, live untouched).
+- **`steps` jsonb column** + **`src/lib/steppedQuestion.ts`** — pure deterministic checker for `choose_equation` / `substitute` / `numeric` / `select_steps`, plus `buildWorking` and `numericDistractorHint`. **36 vitest tests.**
+- **Review Queue step editor** (`SteppedQuestionEditor` + preview) — author scaffolds by hand; answer-model selector; save blocked on validation.
+- **Student step player** (`SteppedPlayer`) — guided one-step-at-a-time, deterministic checks, pre-written hints → JAM Help on "I'm stuck" (reuses `jam-help`, no edge deploy).
+- **Adaptive answer-first modes (§5/§7):** Direct vs Stepped by tier (overridable), `show_givens`, distractor hints on a wrong Direct answer, full working assembled on the mark screen every path.
+- **`select_steps`** (deterministic 6-markers): pure checker shipped + tested; **its player/editor UI is the next build.**
+- **Live test content:** 4 stepped questions in **Electrical Power and Energy Transfers** (`7f35c052-…`) for pressure-testing — P=IV (auto), find-current (direct, rearrangement), energy chain (direct, 6-step), heater (stepped, unit conversion). **These are test rows in the live `questions` table — delete when done.**
+- All work pushed to `main` (commits up to `5f3066a`) and deployed via Netlify. Pre-launch standing permission to push straight to live (no students, test Stripe).
+
+### Immediate next session (25/06/2026+) — deterministic marking
+- [ ] **Apply John's couple of slight UI tweaks to the step player** (to be specified — flagged 24/06/2026 after the pressure-test).
+- [ ] **`select_steps` UI** — player input (tappable checklist) + the §7 ordered-method reveal, then the Review Queue editor panel. (Pure checker already done.)
+- [ ] Then **Phase 2 generator** edge function — proposes stepped drafts (steps + distractors) into the Review Queue. **Needs an edge-function deploy → remind John to reset Verify JWT to ON afterwards.**
+- [ ] Clean up / keep the 4 test stepped questions in Electrical Power and Energy Transfers as desired.
 
 ### Recently completed (18/06/2026 — circuit symbols prompt + tier tagging + Review Queue fix)
 - **Circuit Symbols and Components `prompt_config` fully rewritten** using John's tier distinction document. Full AQA spec knowledge (all 13 components + functions, LDR/thermistor/diode/filament lamp behaviour, meter connections). Foundation: recall, symbol ID, one idea at a time. Higher: misconception correction, cause-and-effect chains (resistance→current via V=IR), multi-part component behaviour. 6 few-shot examples (3 Foundation + 3 Higher). Both tiers include "Name component X" with circuit diagrams. Forbidden list preserved.
