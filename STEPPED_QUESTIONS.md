@@ -195,7 +195,11 @@ DRAFTS into `pending_questions` for review. Physics-calculation focused
 (choose-equation → substitute → numeric, with misconception distractors + hints);
 "Both" tier splits Foundation + Higher (Higher = rearrangement / multi-equation
 chains / unit conversion). Structural validation drops malformed drafts; numeric
-strings are coerced. Triggered by the **"Generate 6 stepped"** button on Physics
+strings are coerced. **Substitute expressions must be fully substitutable — a bare
+non-slot symbol on the RHS is rejected (the validator), and the prompt tells the
+model to rearrange so the unknown is the subject (e.g. "a = \frac{[F]}{[m]}")
+rather than leave "F = [m] × a"** — found + fixed in the 25/06 pressure test.
+Triggered by the **"Generate 6 stepped"** button on Physics
 subtopics in the Review Queue. Deployed `--no-verify-jwt`. **model id `claude-sonnet-4-6`
 — now the 6th place the id lives.** Verified live against Electrical Power and Energy
 Transfers (valid Foundation P=IV + a Higher P=IV→E=Pt chain, arithmetic correct).

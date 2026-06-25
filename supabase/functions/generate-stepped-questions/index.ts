@@ -83,6 +83,7 @@ The "steps.steps" array is the scaffold. For a calculation use this order:
 
 RULES — read carefully:
 - INTERNAL CONSISTENCY IS CRITICAL: every given value = its substitute slot value; the numeric "value" = the correct computation of the substituted expression. Double-check the arithmetic before writing the line.
+- THE SUBSTITUTE EXPRESSION MUST BE FULLY SUBSTITUTABLE: every quantity on the right-hand side MUST be a [slot]. NEVER leave a bare symbol (e.g. do not write "F = [m] \\\\times a"). If the unknown is NOT the subject of the standard formula (e.g. you are given F and m and must find a), REARRANGE first: make the correct choose_equation option the rearranged form (e.g. "a = \\\\frac{F}{m}") and substitute into THAT, so the expression becomes "a = \\\\frac{[F]}{[m]}". This applies at Foundation too — present the equation already rearranged for the unknown.
 - A calculation MUST end with a numeric step.
 - For a multi-equation Higher question, include more than one (choose_equation -> substitute -> numeric) group; the intermediate numeric result becomes a "given" value feeding the next substitute. The final step is still numeric.
 - "marks" = what AQA would award: typically 2-3 for a single calculation, up to 5-6 for a multi-equation chain.
@@ -225,6 +226,21 @@ function validateStepped(q: any): string[] {
             if (typeof s.value !== 'number')
               errors.push(`${where}: slot "${s.slot}" value must be a number`);
           }
+          // The right-hand side must be fully substitutable: every value-carrying
+          // symbol is a [slot]. A bare leftover variable (e.g. "F = [m] \times a"
+          // when solving for a non-subject quantity) is un-fillable and confusing
+          // — reject it. Strip placeholders, LaTeX commands, numbers and operators;
+          // any remaining letter is an unfilled variable.
+          const rhs = String(step.expression || '').split('=').slice(1).join('=');
+          const residue = rhs
+            .replace(/\[[^\]]*\]/g, '') // [slot] placeholders
+            .replace(/\\[a-zA-Z]+/g, '') // \times, \frac, \Delta, …
+            .replace(/[0-9.]/g, '')
+            .replace(/[+\-*/()=^_{}\s,]/g, '');
+          if (/[a-zA-Z]/.test(residue))
+            errors.push(
+              `${where}: expression has a non-slot symbol "${residue}" — every value on the right must be a [slot] (rearrange the equation so the unknown is the subject)`
+            );
         }
         break;
       case 'numeric':
