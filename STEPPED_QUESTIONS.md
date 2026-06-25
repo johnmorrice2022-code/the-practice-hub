@@ -6,7 +6,7 @@ coaches and never delivers a verdict.** No function that decides right/wrong cal
 an LLM. Read this before touching `src/lib/steppedQuestion.ts`, `SteppedPlayer`,
 or the Review Queue step editor.
 
-Status: **§1–§5 shipped + §7 for calculations (24/06/2026). Player UX revised + validated 25/06/2026 (see §5 — answer-box-first for all, givens inside stepped help). `select_steps` pure checker (§6) shipped + tested; its UI (player input + editor panel) and ordered-steps reveal are the only parts left.**
+Status: **§1–§7 shipped (Phase 1 complete, 25/06/2026). Player UX revised + validated 25/06/2026 (see §5 — answer-box-first for all, givens inside stepped help). `select_steps` (§6) now has its player checklist + §7 ordered reveal + Review Queue editor. Phase 2 generator (`generate-stepped-questions`) shipped + deployed 25/06/2026.**
 
 ---
 
@@ -175,14 +175,31 @@ marks pill, answer-box-first for all, givens inside stepped help, two explicit
 help buttons, and the mark screen drops the summary line (straight to breakdown +
 worked solution). John: "far more supportive for students."
 
-## Build order (next)
-1. ~~`select_steps` kind: type + `checkSelectSteps` + validation + vitest (pure, no UI).~~ **DONE 24/06/2026** — `checkSelectSteps` + 9 tests in `steppedQuestion.ts`/`.test.ts`.
-2. Player input for `select_steps` + the §7 ordered-steps reveal. **(next)**
-3. Review Queue editor panel for `select_steps`.
-4. ~~Adaptive modes (§5)~~ **DONE 24/06/2026** — `default_mode`/`show_givens` on the
-   `SteppedQuestion` root + editor controls; Direct entry reuses the final `numeric`
-   step; "Break it down" / "Let me just answer" overrides; `numericDistractorHint`
-   fires a misconception nudge on a wrong Direct answer.
-5. ~~Workings reveal (§7) on the calculation mark screen~~ **DONE 24/06/2026** —
-   `buildWorking()` assembles equation→substitution→answer from the steps into the
-   completion `worked_solution`, shown on every path.
+## Build order
+1. ~~`select_steps` kind: type + `checkSelectSteps` + validation + vitest.~~ **DONE 24/06/2026.**
+2. ~~Player input for `select_steps` + the §7 ordered-steps reveal.~~ **DONE 25/06/2026** —
+   `SelectStepsView` checklist in `SteppedPlayer` (single-`select_steps` questions;
+   partial-marks Submit, no advance-gating); `buildSelectStepsReveal` (pure + tested)
+   maps correct points in `order` (hit/missed) + flagged wrong picks onto the
+   FeedbackCard breakdown; `completeStepped` records partial marks; FeedbackCard hides
+   the empty Worked-solution block.
+3. ~~Review Queue editor panel for `select_steps`.~~ **DONE 25/06/2026** —
+   `SelectStepsFields` in `SteppedQuestionEditor` (max marks, statements with
+   correct/order/distractor) + preview.
+4. ~~Adaptive modes (§5)~~ **DONE 24/06, revised 25/06/2026** — answer-box-first for all.
+5. ~~Workings reveal (§7) on the calculation mark screen~~ **DONE 24/06/2026.**
+
+## Phase 2 — generator (DONE 25/06/2026)
+`supabase/functions/generate-stepped-questions` proposes `stepped_calculation`
+DRAFTS into `pending_questions` for review. Physics-calculation focused
+(choose-equation → substitute → numeric, with misconception distractors + hints);
+"Both" tier splits Foundation + Higher (Higher = rearrangement / multi-equation
+chains / unit conversion). Structural validation drops malformed drafts; numeric
+strings are coerced. Triggered by the **"Generate 6 stepped"** button on Physics
+subtopics in the Review Queue. Deployed `--no-verify-jwt`. **model id `claude-sonnet-4-6`
+— now the 6th place the id lives.** Verified live against Electrical Power and Energy
+Transfers (valid Foundation P=IV + a Higher P=IV→E=Pt chain, arithmetic correct).
+
+**Next (Phase 3+):** select_steps generation (currently calc-only); regenerate
+legacy AI-marked Physics as stepped (Phase 3); Edexcel Maths `numeric_single` /
+`numeric_with_working` (Phase 4).
