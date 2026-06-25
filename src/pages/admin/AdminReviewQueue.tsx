@@ -1601,7 +1601,7 @@ export default function AdminReviewQueue() {
                     <div className="flex-1 min-w-0">
                       <button
                         onClick={() => s.pending > 0 && enterReview(s)}
-                        className={`text-sm font-semibold text-left ${s.pending > 0 ? 'text-gray-800 hover:text-amber-600 cursor-pointer' : 'text-gray-400 cursor-default'}`}
+                        className={`block w-full truncate text-sm font-semibold text-left ${s.pending > 0 ? 'text-gray-800 hover:text-amber-600 cursor-pointer' : 'text-gray-400 cursor-default'}`}
                       >
                         {s.subtopic_name}
                       </button>
@@ -1698,14 +1698,14 @@ export default function AdminReviewQueue() {
                           onClick={() => handleConvertLegacy(s)}
                           disabled={convertingFor === s.id}
                           title={`Convert this subtopic's ${s.liveAi} live AI-marked question(s) — calculations become stepped and update in place on publish`}
-                          className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-emerald-200 text-emerald-600 hover:bg-emerald-50 transition-colors disabled:opacity-50"
+                          className="flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-lg border border-emerald-200 text-emerald-600 hover:bg-emerald-50 transition-colors disabled:opacity-50"
                         >
                           {convertingFor === s.id ? (
                             <Loader2 size={11} className="animate-spin" />
                           ) : (
                             <Wand2 size={11} />
                           )}
-                          Convert calc → stepped
+                          Convert Calc
                         </button>
                       )}
                     </div>
