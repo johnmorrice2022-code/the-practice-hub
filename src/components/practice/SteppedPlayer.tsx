@@ -76,13 +76,15 @@ export function SteppedPlayer({
   }, [data.steps]);
   const canDirect = lastNumericIdx !== -1;
 
-  const isHigher = (tier ?? '').toLowerCase() === 'higher';
-  const showGivens = data.show_givens ?? !isHigher;
-  const tierDefault: Mode = isHigher ? 'direct' : 'stepped';
+  // Givens are part of the *stepped help* now — never shown up front. In a real
+  // exam the student must extract the variables (I, V, …) from the prose, so the
+  // given chips appear only once they open the scaffold, unless an author
+  // explicitly suppresses them.
+  const showGivens = data.show_givens ?? true;
 
-  const [mode, setMode] = useState<Mode>(
-    canDirect ? data.default_mode ?? tierDefault : 'stepped'
-  );
+  // Every question opens on the single answer box (Direct). The scaffold is
+  // opt-in help, reached via "Provide stepped help".
+  const [mode, setMode] = useState<Mode>(canDirect ? 'direct' : 'stepped');
   const [stepIndex, setStepIndex] = useState(0);
   const [done, setDone] = useState(false);
 
@@ -90,25 +92,25 @@ export function SteppedPlayer({
 
   return (
     <div>
+      {/* Marks */}
+      <div className="flex justify-end mb-3">
+        <span
+          className="text-[11px] font-semibold px-2.5 py-1 rounded-full"
+          style={{
+            color: '#E23D28',
+            background: 'rgba(226,61,40,0.08)',
+            letterSpacing: '0.02em',
+          }}
+        >
+          {marks} mark{marks !== 1 ? 's' : ''}
+        </span>
+      </div>
+
       {/* Question stem */}
       <div
-        className="text-base sm:text-lg leading-relaxed text-foreground mb-3"
+        className="text-base sm:text-lg leading-relaxed text-foreground mb-6"
         dangerouslySetInnerHTML={{ __html: renderMathInText(questionText) }}
       />
-      {showGivens && data.given.length > 0 && (
-        <div className="flex flex-wrap gap-2 mb-6">
-          {data.given.map((g, i) => (
-            <span
-              key={i}
-              className="text-xs font-mono px-2.5 py-1 rounded-md bg-muted text-muted-foreground"
-            >
-              {g.symbol} = {g.value}
-              {g.unit ? ` ${g.unit}` : ''}
-              {g.label ? ` (${g.label})` : ''}
-            </span>
-          ))}
-        </div>
-      )}
 
       {done ? (
         <DoneCard marks={marks} />
@@ -132,6 +134,22 @@ export function SteppedPlayer({
         />
       ) : (
         <>
+          {/* Givens — revealed as part of the stepped help */}
+          {showGivens && data.given.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-5">
+              {data.given.map((g, i) => (
+                <span
+                  key={i}
+                  className="text-xs font-mono px-2.5 py-1 rounded-md bg-muted text-muted-foreground"
+                >
+                  {g.symbol} = {g.value}
+                  {g.unit ? ` ${g.unit}` : ''}
+                  {g.label ? ` (${g.label})` : ''}
+                </span>
+              ))}
+            </div>
+          )}
+
           {/* Step progress */}
           <div className="flex items-center gap-1.5 mb-4">
             {data.steps.map((_, i) => (
@@ -214,7 +232,6 @@ function DirectAnswer({
   const [value, setValue] = useState('');
   const [unit, setUnit] = useState('');
   const [hint, setHint] = useState<string | null>(null);
-  const [offerBreakdown, setOfferBreakdown] = useState(false);
 
   function handleCheck() {
     const res = checkNumeric(step, {
@@ -229,7 +246,6 @@ function DirectAnswer({
     const dHint =
       value.trim() !== '' ? numericDistractorHint(step, Number(value)) : null;
     setHint(dHint ?? 'Not quite — check your value and unit.');
-    setOfferBreakdown(true);
   }
 
   const canCheck = value.trim() !== '';
@@ -255,14 +271,7 @@ function DirectAnswer({
         </div>
       )}
 
-      <div className="mt-5 flex items-center justify-between gap-3">
-        <button
-          onClick={() => onJamHelp(`${value || '?'} ${unit}`.trim())}
-          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-[#E23D28] transition-colors"
-        >
-          <MessageCircle size={12} /> JAM Help
-        </button>
-
+      <div className="mt-5 flex justify-end">
         <button
           onClick={handleCheck}
           disabled={!canCheck}
@@ -277,14 +286,26 @@ function DirectAnswer({
         </button>
       </div>
 
-      {offerBreakdown && (
-        <button
-          onClick={onBreakDown}
-          className="mt-4 w-full flex items-center justify-center gap-1.5 text-xs font-medium px-4 py-2.5 rounded-lg border border-[#E23D28]/30 text-[#E23D28] hover:bg-[#E23D28]/5 transition-colors"
-        >
-          <ChevronDown size={14} /> Break it down into steps
-        </button>
-      )}
+      {/* Explicit help — discuss the question, or unfold the scaffold */}
+      <div className="mt-6 pt-5 border-t border-border/50">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-2.5">
+          Need a hand?
+        </p>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <button
+            onClick={() => onJamHelp(`${value || '?'} ${unit}`.trim())}
+            className="flex-1 flex items-center justify-center gap-1.5 text-xs font-medium px-4 py-2.5 rounded-lg border border-border text-muted-foreground hover:border-[#E23D28]/40 hover:text-[#E23D28] transition-colors"
+          >
+            <MessageCircle size={14} /> JAM Help — discuss this question
+          </button>
+          <button
+            onClick={onBreakDown}
+            className="flex-1 flex items-center justify-center gap-1.5 text-xs font-medium px-4 py-2.5 rounded-lg border border-[#E23D28]/30 text-[#E23D28] hover:bg-[#E23D28]/5 transition-colors"
+          >
+            <ChevronDown size={14} /> Provide stepped help
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

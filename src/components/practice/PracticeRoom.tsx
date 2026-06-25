@@ -624,8 +624,7 @@ export function PracticeRoom({
           comment: '',
         })),
         error_type: 'none',
-        feedback_summary:
-          'Full marks. Here is the full working — set it out like this in the exam.',
+        feedback_summary: 'How does your answer compare?',
         // Assemble the canonical working from the steps so it shows on every
         // path (including a correct Direct-mode answer). STEPPED_QUESTIONS.md §7.
         worked_solution: q.steps ? buildWorking(q.steps) : '',
