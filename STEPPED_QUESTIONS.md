@@ -34,7 +34,8 @@ Each step is checked in isolation by a pure function in `steppedQuestion.ts`.
 
 ### `choose_equation` (shipped)
 Pick the correct equation from options. Exact match on the `correct` option.
-Per-option `hint` is a misconception-specific nudge.
+Per-option `hint` is a misconception-specific nudge. Options are **shuffled
+randomly** on mount so the correct answer isn't always in the same position.
 
 ### `substitute` (shipped)
 Tap given values into `[slot]` blanks in `expression`. Correct ⇔ every slot holds
