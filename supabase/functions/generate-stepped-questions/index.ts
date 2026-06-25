@@ -74,9 +74,9 @@ ${
     : ''
 }
 OUTPUT — one JSON object PER LINE (NDJSON). No array, no markdown, no preamble. Each object EXACTLY:
-{"question_text":"<exam-style prose containing the numbers and units>","marks":<int>,"steps":{"given":[{"symbol":"I","value":2,"unit":"A","label":"current"}],"show_givens":true,"steps":[ <ordered steps> ]}}
+{"question_text":"<exam-style prose containing the numbers and units>","marks":<int>,"worked_solution":"<full method, one line per step, $…$ LaTeX, \\n between lines>","mark_scheme":[{"mark":"step","criterion":"..."}],"steps":{"given":[{"symbol":"I","value":2,"unit":"A","label":"current"}],"show_givens":true,"steps":[ <ordered steps> ]}}
 
-The "steps.steps" array is the scaffold. For a calculation use this order:
+The "steps.steps" array is the scaffold. For a calculation use this order (ending in ONE numeric final answer):
 
 1) choose_equation — pick the correct formula:
 {"id":"equation","kind":"choose_equation","prompt":"Which equation links power, current and potential difference?","options":[{"id":"o1","latex":"P = I \\\\times V","correct":true},{"id":"o2","latex":"P = \\\\frac{V}{I}","hint":"Power isn't a ratio here — look at how the two quantities combine."},{"id":"o3","latex":"P = I^2 R","hint":"That one needs resistance — check what the question actually gives you."}],"hint":"Look at the two quantities you are given and the one you need."}
@@ -88,7 +88,7 @@ The "steps.steps" array is the scaffold. For a calculation use this order:
 - EVERY [slot] in "expression" MUST appear in "slots" with its correct value (= the matching given value).
 - "distractorValues" are extra wrong number tiles (common slips), not the right values.
 
-3) numeric — the final answer and its unit:
+3) numeric — the ONE final answer and its unit (this is the ONLY numeric step):
 {"id":"answer","kind":"numeric","prompt":"Calculate the power. Give the unit.","value":24,"tolerance":0,"unit":"W","acceptedUnits":["W","watt","watts"],"hint":"Multiply your two numbers, then give the unit of power.","distractors":[{"value":6,"hint":"Check whether you divided — power here multiplies the two quantities."}]}
 - "value" MUST be the correct arithmetic result of the substitution.
 - "acceptedUnits" lists accepted spellings of the unit.
@@ -97,9 +97,12 @@ The "steps.steps" array is the scaffold. For a calculation use this order:
 RULES — read carefully:
 - INTERNAL CONSISTENCY IS CRITICAL: every given value = its substitute slot value; the numeric "value" = the correct computation of the substituted expression. Double-check the arithmetic before writing the line.
 - THE SUBSTITUTE EXPRESSION MUST BE FULLY SUBSTITUTABLE: every quantity on the right-hand side MUST be a [slot]. NEVER leave a bare symbol (e.g. do not write "F = [m] \\\\times a"). If the unknown is NOT the subject of the standard formula (e.g. you are given F and m and must find a), REARRANGE first: make the correct choose_equation option the rearranged form (e.g. "a = \\\\frac{F}{m}") and substitute into THAT, so the expression becomes "a = \\\\frac{[F]}{[m]}". This applies at Foundation too — present the equation already rearranged for the unknown.
-- A calculation MUST end with a numeric step.
-- For a multi-equation Higher question, include more than one (choose_equation -> substitute -> numeric) group; the intermediate numeric result becomes a "given" value feeding the next substitute. The final step is still numeric.
-- "marks" = what AQA would award: typically 2-3 for a single calculation, up to 5-6 for a multi-equation chain.
+- EXACTLY ONE FINAL ANSWER: the scaffold contains exactly ONE numeric step — the final answer. A 5-6 mark question STILL has only ONE final answer; the extra marks reward the WORKING (more than one equation, or a rearrangement), NOT extra answers. NEVER add a numeric step for an intermediate value.
+- INTERMEDIATE VALUES ARE WORKING, NOT ANSWERS: a temperature change (Δθ = T2 − T1), a unit conversion (minutes → seconds, g → kg), or a first-equation result (P before E) is working. Compute it YOURSELF and put the RESULT straight into the substitute slot value, adding a distractor tile for the common wrong value (e.g. the final temperature instead of Δθ, or 650 instead of 0.65). Show that computation in worked_solution — never as a numeric step.
+- COMBINE multi-equation methods into ONE expression wherever clean: find E from I, V, t with "E = [I] \\\\times [V] \\\\times [t]" (one substitute, one answer), NOT P=IV then E=Pt as two answers; find F from m, v, u, t with "F = \\\\frac{[m] \\\\times ([v] - [u])}{[t]}". One choose_equation (the combined/rearranged form), one substitute, one numeric.
+- worked_solution = the FULL method as the breakdown: one line per step, $…$ LaTeX, \\n between lines — state the equation, show the substitution with the real numbers (including any Δθ / conversion working), then the final answer with unit. This is what the student sees on the mark screen.
+- mark_scheme = AQA style, ONE mark per genuine step, as an array of {"mark":"step","criterion":"..."} (e.g. computes Δθ; substitutes into the equation; correct final answer with unit). The count of marking points should equal "marks".
+- "marks" = what AQA would award: typically 2-3 for a one-equation calculation, 4-6 for a method needing a rearrangement or two combined equations — but always ONE final answer.
 - Misconception hints must NEVER reveal the answer — they nudge. Where a KNOWN MISCONCEPTION is listed above, your distractors and hints must reflect it.
 - "question_text" is natural exam prose that contains the numbers and units. Do NOT pre-label them as "given: I = 2 A" — the student extracts them. Still list them in "given" for the scaffold.
 - LaTeX in JSON: EVERY backslash MUST be doubled — write "\\\\times", "\\\\frac{a}{b}", "\\\\Delta", "\\\\Omega". Never a single backslash.
@@ -274,8 +277,14 @@ function validateStepped(q: any): string[] {
     }
   });
 
+  // Exactly ONE final answer — intermediate values are working, not answers.
+  const numericCount = sq.steps.filter((s: any) => s?.kind === 'numeric').length;
+  if (numericCount !== 1)
+    errors.push(
+      `a calculation must have exactly one numeric (final answer) step — found ${numericCount}`
+    );
   if (sq.steps[sq.steps.length - 1]?.kind !== 'numeric')
-    errors.push('a calculation must end with a numeric step');
+    errors.push('the final step must be the numeric answer');
 
   return errors;
 }
@@ -375,8 +384,10 @@ serve(async (req) => {
       subtopic_id: subtopicId,
       question_text: q.question_text,
       marks: q.marks,
-      mark_scheme: [],
-      worked_solution: '',
+      // Store the authored examiner breakdown so the mark screen shows the full
+      // method (the question itself has ONE final answer).
+      mark_scheme: Array.isArray(q.mark_scheme) ? q.mark_scheme : [],
+      worked_solution: typeof q.worked_solution === 'string' ? q.worked_solution : '',
       parts: [],
       // Stepped questions are calculator-agnostic; the player bypasses the
       // calculator filter regardless of this flag.

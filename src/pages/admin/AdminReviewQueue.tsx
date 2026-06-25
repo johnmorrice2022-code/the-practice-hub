@@ -1468,10 +1468,10 @@ export default function AdminReviewQueue() {
           marks: q.marks,
           answer_model: q.answer_model ?? 'stepped_calculation',
           steps: q.steps ?? null,
-          // The original AI mark scheme / worked solution are unused once stepped
-          // (the player builds the working) — clear them so nothing stale lingers.
-          mark_scheme: [],
-          worked_solution: '',
+          // Carry the stepped breakdown (one final answer; mark scheme + worked
+          // solution show the method on the mark screen).
+          mark_scheme: q.mark_scheme ?? [],
+          worked_solution: q.worked_solution ?? '',
           tier: q.tier ?? null,
         })
         .eq('id', q.source_question_id);
@@ -1940,11 +1940,59 @@ export default function AdminReviewQueue() {
 
           {!editMode &&
             currentQuestion.answer_model === 'stepped_calculation' && (
-              <div className="bg-white/70 rounded-xl border border-black/5 p-5">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 mb-3">
-                  Stepped scaffold
-                </p>
-                <SteppedQuestionPreview value={currentQuestion.steps} />
+              <div className="bg-white/70 rounded-xl border border-black/5 p-5 space-y-5">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 mb-3">
+                    Stepped scaffold (one final answer)
+                  </p>
+                  <SteppedQuestionPreview value={currentQuestion.steps} />
+                </div>
+
+                {/* The breakdown shown to the student on the mark screen. */}
+                {Array.isArray(currentQuestion.mark_scheme) &&
+                  currentQuestion.mark_scheme.length > 0 && (
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 mb-2">
+                        Mark scheme (breakdown)
+                      </p>
+                      <div className="space-y-1">
+                        {(currentQuestion.mark_scheme as any[]).map((m, i) => (
+                          <div key={i} className="flex items-start gap-2 text-sm text-gray-700">
+                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 shrink-0 mt-0.5">
+                              {m?.mark ?? m?.mark_type ?? '1'}
+                            </span>
+                            <span
+                              dangerouslySetInnerHTML={{
+                                __html: renderMathInText(m?.criterion ?? ''),
+                              }}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                {currentQuestion.worked_solution?.trim() && (
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 mb-2">
+                      Worked solution (breakdown)
+                    </p>
+                    <div className="space-y-0.5">
+                      {currentQuestion.worked_solution
+                        .split('\n')
+                        .filter((l) => l.trim())
+                        .map((line, i) => (
+                          <div
+                            key={i}
+                            className="text-sm text-gray-700"
+                            dangerouslySetInnerHTML={{
+                              __html: renderMathInText(line),
+                            }}
+                          />
+                        ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 

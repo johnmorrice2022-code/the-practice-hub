@@ -368,7 +368,27 @@ describe('validateSteppedQuestion', () => {
     expect(validateSteppedQuestion(bad).some((e) => e.includes('unknown step kind'))).toBe(true);
   });
 
-  it('passes a well-formed select_steps step', () => {
+  it('rejects a calculation with more than one numeric step', () => {
+    const twoAnswers = {
+      ...valid,
+      steps: [equationStep, substituteStep, numericStep, { ...numericStep, id: 'answer2' }],
+    };
+    expect(
+      validateSteppedQuestion(twoAnswers).some((e) =>
+        e.includes('exactly one numeric')
+      )
+    ).toBe(true);
+  });
+
+  it('rejects a calculation with no numeric (final answer) step', () => {
+    expect(
+      validateSteppedQuestion({ given: [], steps: [equationStep, substituteStep] }).some(
+        (e) => e.includes('exactly one numeric')
+      )
+    ).toBe(true);
+  });
+
+  it('passes a well-formed select_steps step (no numeric required)', () => {
     expect(validateSteppedQuestion({ given: [], steps: [methodStep] })).toEqual([]);
   });
 

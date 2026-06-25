@@ -32,11 +32,11 @@ const SCHEMA_SPEC = `A stepped scaffold breaks a calculation into deterministic 
 - EVERY [slot] in "expression" MUST appear in "slots" with its correct value.
 - EVERY value-carrying symbol on the right MUST be a [slot] — NEVER leave a bare symbol. If the unknown is not the subject, REARRANGE first so the chosen equation and the expression are already solved for the unknown (e.g. "a = \\\\frac{[F]}{[m]}").
 
-3) numeric (a calculation MUST end with this):
+3) numeric — the ONE final answer (the ONLY numeric step):
 {"id":"answer","kind":"numeric","prompt":"Calculate ... Give the unit.","value":24,"tolerance":0,"unit":"W","acceptedUnits":["W","watt","watts"],"hint":"...","distractors":[{"value":6,"hint":"<misconception nudge>"}]}
 - "value" = the correct arithmetic result. "distractors" are common WRONG answers, each with a hint.
 
-For a multi-equation question, include more than one (choose_equation -> substitute -> numeric) group; an intermediate numeric result feeds the next substitute. Add a numeric step for any unit conversion (e.g. minutes -> seconds) before it is used.
+EXACTLY ONE FINAL ANSWER — the scaffold has exactly ONE numeric step. Even a 5-6 mark question has ONE final answer; the marks are for the working, not extra answers. Intermediate values (a temperature change Δθ = T2 − T1, a unit conversion, a first-equation result like P before E) are WORKING: compute the value yourself, put the RESULT straight into the substitute slot (with a distractor tile for the common wrong value), and show it in worked_solution — NEVER add a numeric step for it. COMBINE multi-equation methods into one expression where clean (e.g. "E = [I] \\\\times [V] \\\\times [t]", not P=IV then E=Pt).
 
 LaTeX in JSON: EVERY backslash doubled — "\\\\times", "\\\\frac{a}{b}", "\\\\Delta", "\\\\Omega".
 
@@ -58,8 +58,8 @@ function buildConvertPrompt(
 ${SCHEMA_SPEC}
 
 YOUR TASK: For each numbered question below, decide if it is a SINGLE-ANSWER NUMERIC CALCULATION.
-- If YES: author a stepped scaffold for it, using the SAME numbers, equation and final answer as the original (take them from the worked solution). Output ONE line: {"index":<N>,"steps":{ ... }}
-- If NO (it asks to explain / describe / state / name / compare, has no single numeric answer, or is multi-part with several answers): output ONE line: {"index":<N>,"skip":true}
+- If YES: author a stepped scaffold for it, using the SAME numbers, equation and final answer as the original (take them from the worked solution). Also write a "worked_solution" (the full method as the breakdown — one line per step, $…$ LaTeX, \\n between lines, including any Δθ / conversion working) and a "mark_scheme" (AQA style, ONE mark per genuine step, array of {"mark":"step","criterion":"..."}, count matching the marks). Output ONE line: {"index":<N>,"worked_solution":"...","mark_scheme":[...],"steps":{ ... }}
+- If NO (it asks to explain / describe / state / name / compare, or has no single numeric answer): output ONE line: {"index":<N>,"skip":true}
 
 CRITICAL:
 - Keep the original question's numbers and final answer EXACTLY — you are scaffolding the existing question, not inventing a new one.
@@ -192,8 +192,13 @@ function validateSteps(sq: any): string[] {
         errors.push(`${where}: unsupported step kind "${step.kind}"`);
     }
   });
+  const numericCount = sq.steps.filter((s: any) => s?.kind === 'numeric').length;
+  if (numericCount !== 1)
+    errors.push(
+      `a calculation must have exactly one numeric (final answer) step — found ${numericCount}`
+    );
   if (sq.steps[sq.steps.length - 1]?.kind !== 'numeric')
-    errors.push('a calculation must end with a numeric step');
+    errors.push('the final step must be the numeric answer');
   return errors;
 }
 
@@ -315,8 +320,14 @@ serve(async (req) => {
             subtopic_id: subtopicId,
             question_text: orig.question_text,
             marks: orig.marks,
-            mark_scheme: [],
-            worked_solution: '',
+            // Authored breakdown for the mark screen (the question has ONE answer).
+            mark_scheme: Array.isArray(parsed.mark_scheme)
+              ? parsed.mark_scheme
+              : [],
+            worked_solution:
+              typeof parsed.worked_solution === 'string'
+                ? parsed.worked_solution
+                : '',
             parts: [],
             calculator_allowed: true,
             answer_model: 'stepped_calculation',

@@ -645,16 +645,31 @@ export function PracticeRoom({
         : {
             marks_awarded: marksAwarded,
             marks_available: q.marks,
-            step_breakdown: (q.steps?.steps ?? []).map((s) => ({
-              criterion: s.prompt,
-              status: 'awarded' as const,
-              comment: '',
-            })),
+            // Prefer the authored examiner breakdown (mark_scheme) — the question
+            // has ONE final answer; this shows the full method. Fall back to the
+            // step prompts only if no mark scheme was stored.
+            step_breakdown:
+              Array.isArray(q.mark_scheme) && q.mark_scheme.length > 0
+                ? q.mark_scheme
+                    .filter((m: any) => (m?.mark ?? m?.mark_type) !== 'TOTAL')
+                    .map((m: any) => ({
+                      mark_type: m?.mark_type ?? m?.mark,
+                      criterion: m?.criterion ?? '',
+                      status: 'awarded' as const,
+                      comment: '',
+                    }))
+                : (q.steps?.steps ?? []).map((s) => ({
+                    criterion: s.prompt,
+                    status: 'awarded' as const,
+                    comment: '',
+                  })),
             error_type: 'none',
             feedback_summary: '',
-            // Assemble the canonical working from the steps so it shows on every
-            // path (including a correct Direct-mode answer). STEPPED_QUESTIONS.md §7.
-            worked_solution: q.steps ? buildWorking(q.steps) : '',
+            // Prefer the authored worked solution (the multi-equation breakdown);
+            // fall back to assembling it from the steps. STEPPED_QUESTIONS.md §7.
+            worked_solution:
+              q.worked_solution?.trim() ||
+              (q.steps ? buildWorking(q.steps) : ''),
             revision_focus: '',
           },
     }));

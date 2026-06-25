@@ -427,5 +427,21 @@ export function validateSteppedQuestion(q: unknown): string[] {
     }
   });
 
+  // A CALCULATION must resolve to exactly ONE final answer. Intermediate values
+  // (a temperature change, a unit conversion, a P-before-E value) are working —
+  // they belong in the substitute slots and the worked solution, never as extra
+  // numeric "answer" steps. select_steps questions have no numeric step and are
+  // exempt. (STEPPED_QUESTIONS.md — one final answer, breakdown in the working.)
+  const numericCount = sq.steps.filter((s) => s && s.kind === 'numeric').length;
+  const hasCalcSteps = sq.steps.some(
+    (s) =>
+      s && (s.kind === 'numeric' || s.kind === 'substitute' || s.kind === 'choose_equation')
+  );
+  if (hasCalcSteps && numericCount !== 1) {
+    errors.push(
+      `a calculation must have exactly one numeric (final answer) step — found ${numericCount}; fold intermediate values into the working`
+    );
+  }
+
   return errors;
 }
