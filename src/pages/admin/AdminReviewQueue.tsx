@@ -1597,8 +1597,8 @@ export default function AdminReviewQueue() {
             <div className="space-y-2">
               {subtopics.map((s) => (
                 <div key={s.id}>
-                  <div className="bg-white rounded-xl border border-black/5 shadow-sm px-5 py-4 flex items-center gap-4">
-                    <div className="flex-1 min-w-0">
+                  <div className="bg-white rounded-xl border border-black/5 shadow-sm px-5 py-4 flex flex-wrap items-center gap-x-4 gap-y-3">
+                    <div className="flex-1 min-w-[200px]">
                       <button
                         onClick={() => s.pending > 0 && enterReview(s)}
                         className={`block w-full truncate text-sm font-semibold text-left ${s.pending > 0 ? 'text-gray-800 hover:text-amber-600 cursor-pointer' : 'text-gray-400 cursor-default'}`}
@@ -1622,7 +1622,7 @@ export default function AdminReviewQueue() {
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex flex-wrap items-center justify-end gap-2 shrink-0">
                       <button
                         onClick={() => toggleSeededPanel(s.id)}
                         className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors"
