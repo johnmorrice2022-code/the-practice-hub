@@ -220,8 +220,11 @@ g→kg mass-conversion and Δθ-vs-final-temp distractors straight from the mark
 scheme). Structural validation drops malformed drafts; numeric strings are
 coerced. **Substitute expressions must be fully substitutable — a bare
 non-slot symbol on the RHS is rejected (the validator), and the prompt tells the
-model to rearrange so the unknown is the subject (e.g. "a = \frac{[F]}{[m]}")
+model to rearrange so the unknown is the subject (e.g. "a = [F] \div [m]")
 rather than leave "F = [m] × a"** — found + fixed in the 25/06 pressure test.
+**`\frac` forbidden in substitute expressions (25/06/2026):** use `\div` instead —
+LaTeX fractions break the slot rendering when the expression is split on `[slot]`
+patterns. `\frac` is fine in `prompt` text and `choose_equation` option `latex`.
 Triggered by the **"Generate 6 stepped"** button on Physics
 subtopics in the Review Queue. Deployed `--no-verify-jwt`. **model id `claude-sonnet-4-6`
 — now the 6th place the id lives.** Verified live against Electrical Power and Energy
@@ -254,16 +257,46 @@ Converts EXISTING live AI-marked calculation questions to `stepped_calculation`,
   `num()` now coerces standard-form text to a real number, and the prompt mandates
   plain JSON numbers (334000 / 3.34e5). Recovered all drops.
 - **KNOWN GAPS (still AI-marked):**
-  - **Multi-part calcs** — the converter only handles single-answer questions
-    (`parts` empty). ~6 multi-part calcs remain (mostly **Series/Parallel** V=IR
-    chains). Converting these needs a multi-part stepped capability (the
-    `SteppedQuestion` model is single-question) — not built. Decision pending: build
-    multi-part stepped, split each part into its own stepped question, or leave
-    AI-marked.
   - **Circuit Symbols** (and other recall/explain) — no calculations; correctly
     stay AI-marked until `select_steps` generation exists.
 
-**Next:** finish the Phase 3 rollout to the other calc subtopics; `select_steps`
-*generation* (generator is calc-only); Phase 4 Edexcel Maths `numeric_single` /
-`numeric_with_working`. Recall/explain legacy questions (e.g. all 39 Circuit
-Symbols) stay AI-marked until select_steps generation exists.
+## Deliverable 2 — stepped inside multi-part questions (DONE 25/06/2026)
+Multi-part Physics calc questions (V=IR chains, parallel current splitting, etc.)
+now get **per-part deterministic checking**: calc parts render `SteppedPlayer` with
+the full answer-first + JAM Help + "Provide stepped help" UX; non-calc parts
+(explain/state/reason) stay AI-marked. No database migration — `parts` is already
+jsonb; per-part `answer_model`, `steps`, `mark_scheme`, `worked_solution` are just
+new fields within each part object.
+
+- **`SteppedPlayer` `compact` prop** — hides the marks pill and question stem so
+  the player can be embedded inside a multi-part layout without duplicating headers.
+- **`SteppedPlayer` diagram rendering** — `diagramComponent`/`diagramParams` props;
+  renders registered diagrams (e.g. `circuit-diagram`) after the question stem.
+  Previously diagrams were missing on all stepped questions.
+- **`MultiPartSteppedView`** in `PracticeRoom.tsx` — renders shared stem + diagram,
+  then each part as either `SteppedPlayer` (calc) or `MathEditor` (non-calc). New
+  `steppedPartResults` state tracks per-part completion. Hybrid marking: only
+  non-stepped parts go to the AI marker; results are merged with deterministic
+  stepped results. All-stepped multi-part questions skip the AI call entirely.
+- **Review Queue** — per-part "Stepped" / "AI marked" badges with
+  `SteppedQuestionPreview` per calc part. `handlePublish` carries `parts` through
+  the in-place update.
+- **Converter** — `convert-legacy-to-stepped` now handles multi-part questions:
+  sends all parts to Claude in one call; per-part scaffold validation; non-calc
+  parts preserved as `ai_freeresponse` with original mark scheme and worked
+  solution. Uses `prompt_version: 'convert-stepped-v2-multipart'`.
+- **Substitute expression LaTeX fix** — `SubstituteInput` now renders the full
+  expression as one KaTeX block (handles `\frac`, `\div` etc. correctly). Slot
+  values show in green when filled. Both prompts (generator + converter) now forbid
+  `\frac` in substitute `expression` fields (use `\div` instead); `\frac` remains
+  fine in `prompt` text and `choose_equation` option `latex`.
+- **Series/Parallel rollout:** 5 multi-part conversions (3 Foundation, 2 Higher)
+  created and tier-tagged. John reviewed and approved in the Review Queue.
+
+**The stepped system is now generic across all Physics subtopics.** No code is
+hardcoded to specific subtopics — the generator reads `prompt_config`, the converter
+reads `worked_solution`, the player checks `answer_model`+`steps`. New subtopics
+get stepped support automatically.
+
+**Next:** `select_steps` *generation* (generator is calc-only); Phase 4 Edexcel
+Maths `numeric_single` / `numeric_with_working`.
