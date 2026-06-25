@@ -4,6 +4,7 @@ import { QuestionCard } from './QuestionCard';
 import { FeedbackCard, MarkingFeedback } from './FeedbackCard';
 import { JamHelpPanel } from './JamHelpPanel';
 import { SteppedPlayer } from './SteppedPlayer';
+import { MathEditor } from './MathEditor';
 import { SessionConfig } from './SessionSetup';
 import { TreeAnswers } from '@/components/diagrams/InteractiveProbabilityTree';
 import {
@@ -11,6 +12,11 @@ import {
   type SteppedQuestion,
   type SelectRevealEntry,
 } from '@/lib/steppedQuestion';
+import { renderMathInText } from '@/lib/renderMathInText';
+import {
+  getQuestionDiagram,
+  isQuestionSafe,
+} from '@/components/diagrams/questionDiagramRegistry';
 import {
   ChevronLeft,
   ChevronRight,
@@ -19,6 +25,7 @@ import {
   Sparkles,
   Send,
   MessageCircle,
+  Check,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
@@ -27,6 +34,10 @@ interface QuestionPart {
   part_label: string;
   part_text: string;
   marks: number;
+  mark_scheme?: any[];
+  worked_solution?: string;
+  answer_model?: string;
+  steps?: SteppedQuestion | null;
 }
 interface Question {
   id: string;
@@ -139,6 +150,202 @@ function SessionProgress({
   );
 }
 
+// ─── Multi-part question with some stepped (calc) parts ─────────────────────
+// Renders the shared stem + diagram, then each part as either a SteppedPlayer
+// (for calc parts) or a text input (for non-calc parts). JAM Help + "Provide
+// stepped help" are available on every calc part.
+
+function MultiPartSteppedView({
+  question,
+  questionNumber,
+  totalQuestions,
+  tier,
+  phase,
+  partResults,
+  partAnswers: textAnswers,
+  markingId,
+  onPartAnswerChange,
+  onSteppedPartComplete,
+  onJamHelp,
+  onSteppedJamHelp,
+  onMark,
+  hasAnswer: hasAny,
+}: {
+  question: Question;
+  questionNumber: number;
+  totalQuestions: number;
+  tier?: string;
+  phase: SessionPhase;
+  partResults: Record<string, { marksAwarded: number; stepBreakdown: any[]; workedSolution: string }>;
+  partAnswers: Record<string, string>;
+  markingId: string | null;
+  onPartAnswerChange: (partLabel: string, value: string) => void;
+  onSteppedPartComplete: (partLabel: string, part: QuestionPart, marksAwarded: number) => void;
+  onJamHelp: (answer: string, feedback?: MarkingFeedback | null) => void;
+  onSteppedJamHelp: (args: { studentAttempt: string; criterion: string }) => void;
+  onMark: () => void;
+  hasAnswer: boolean;
+}) {
+  const q = question;
+
+  const questionSafe = isQuestionSafe(q.diagram_component, q.diagram_params);
+  const RegisteredDiagram = questionSafe
+    ? getQuestionDiagram(q.diagram_component)
+    : null;
+
+  const isPartCalc = (p: QuestionPart): boolean =>
+    p.answer_model === 'stepped_calculation' &&
+    !!p.steps &&
+    typeof p.steps === 'object' &&
+    Array.isArray((p.steps as any).steps) &&
+    (p.steps as any).steps.length > 0;
+
+  const hasTextParts = q.parts.some((p) => !isPartCalc(p));
+
+  return (
+    <div className="space-y-8">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+          Question {questionNumber}
+          <span className="mx-1.5 opacity-40">/</span>
+          {totalQuestions}
+        </span>
+        <span
+          className="text-[11px] font-semibold px-2.5 py-1 rounded-full"
+          style={{
+            color: '#E23D28',
+            background: 'rgba(226,61,40,0.08)',
+            letterSpacing: '0.02em',
+          }}
+        >
+          {q.marks} mark{q.marks !== 1 ? 's' : ''}
+        </span>
+      </div>
+
+      {/* Shared question stem */}
+      <div
+        className="text-foreground leading-[1.85] text-[15px] question-text"
+        dangerouslySetInnerHTML={{ __html: renderMathInText(q.question_text) }}
+      />
+
+      {/* Shared diagram */}
+      {RegisteredDiagram && q.diagram_params && (
+        <div className="flex justify-center py-2">
+          <div
+            className="bg-[#FAF7F2] border border-border/40 rounded-xl p-5 w-full"
+            style={{ maxWidth: 680, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}
+          >
+            <RegisteredDiagram params={q.diagram_params} mode="question" />
+          </div>
+        </div>
+      )}
+
+      {/* Parts */}
+      <div className="space-y-6">
+        {q.parts.map((part) => {
+          const calc = isPartCalc(part);
+          const completed = calc && !!partResults[part.part_label];
+
+          return (
+            <div key={part.part_label} className="space-y-3">
+              <div className="border-t border-border/50" />
+              <div className="flex items-center justify-between">
+                <span
+                  className="text-[11px] font-semibold uppercase tracking-widest"
+                  style={{ color: '#78716C' }}
+                >
+                  Part ({part.part_label})
+                </span>
+                <span
+                  className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
+                  style={{
+                    color: completed ? '#2D9A5F' : '#E23D28',
+                    background: completed
+                      ? 'rgba(45,154,95,0.08)'
+                      : 'rgba(226,61,40,0.08)',
+                  }}
+                >
+                  {completed
+                    ? `${partResults[part.part_label].marksAwarded}/${part.marks} marks`
+                    : `${part.marks} mark${part.marks !== 1 ? 's' : ''}`}
+                </span>
+              </div>
+              <div
+                className="text-foreground leading-[1.85] text-[15px] question-text"
+                dangerouslySetInnerHTML={{
+                  __html: renderMathInText(part.part_text),
+                }}
+              />
+
+              {calc ? (
+                completed ? (
+                  <div className="flex items-center gap-2 py-3 px-4 rounded-lg bg-emerald-50 border border-emerald-100">
+                    <Check size={14} className="text-emerald-600" />
+                    <span className="text-xs font-medium text-emerald-700">
+                      Complete — {partResults[part.part_label].marksAwarded}/{part.marks} marks
+                    </span>
+                  </div>
+                ) : (
+                  <SteppedPlayer
+                    compact
+                    questionText=""
+                    marks={part.marks}
+                    data={part.steps as SteppedQuestion}
+                    tier={tier}
+                    onComplete={(m) =>
+                      onSteppedPartComplete(part.part_label, part, m)
+                    }
+                    onJamHelp={onSteppedJamHelp}
+                  />
+                )
+              ) : (
+                <MathEditor
+                  value={textAnswers[part.part_label] ?? ''}
+                  onChange={(v) => onPartAnswerChange(part.part_label, v)}
+                  placeholder={`Working for part (${part.part_label})…`}
+                />
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Mark button + JAM Help — only shown during answering phase */}
+      {phase === 'answering' && (
+        <div className="mt-4 flex items-center justify-between">
+          <button
+            onClick={() => onJamHelp('', null)}
+            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-[#E23D28] transition-colors"
+          >
+            <MessageCircle size={12} /> JAM Help
+          </button>
+
+          {hasAny && hasTextParts && (
+            <button
+              onClick={onMark}
+              disabled={!!markingId}
+              className="flex items-center gap-2 text-xs font-semibold px-4 py-2 rounded-lg transition-all duration-150 disabled:opacity-40 active:scale-[0.97]"
+              style={{
+                color: '#fff',
+                background: 'linear-gradient(135deg, #E23D28 0%, #F5A623 100%)',
+                boxShadow: '0 2px 10px rgba(226,61,40,0.30)',
+              }}
+            >
+              {markingId ? (
+                <Loader2 size={12} className="animate-spin" />
+              ) : (
+                <Send size={12} />
+              )}
+              Mark this question
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function PracticeRoom({
   config,
   calculatorAllowed,
@@ -168,6 +375,16 @@ export function PracticeRoom({
   const [jamHelpFeedback, setJamHelpFeedback] =
     useState<MarkingFeedback | null>(null);
 
+  // Per-part stepped results for multi-part questions with stepped calc parts.
+  // questionId → partLabel → { marksAwarded, stepBreakdown, workedSolution }
+  const [steppedPartResults, setSteppedPartResults] = useState<
+    Record<string, Record<string, {
+      marksAwarded: number;
+      stepBreakdown: any[];
+      workedSolution: string;
+    }>>
+  >({});
+
   useEffect(() => {
     loadQuestions();
   }, [config.subtopicId]);
@@ -176,6 +393,7 @@ export function PracticeRoom({
     setCurrentIndex(0);
     setAnswers({});
     setPartAnswers({});
+    setSteppedPartResults({});
     setTreeAnswers({});
     setFeedbacks({});
     setPhase('answering');
@@ -416,7 +634,13 @@ export function PracticeRoom({
 
     if (isMultiPart) {
       const parts = partAnswers[q.id] || {};
-      return q.parts
+      // For multi-part with stepped calc parts, only include non-stepped parts
+      // in the answer string sent to the AI marker — stepped parts are checked
+      // deterministically and their results are merged in separately.
+      const partsToMark = hasSteppedParts(q)
+        ? q.parts.filter((p) => !isPartStepped(p))
+        : q.parts;
+      return partsToMark
         .map(
           (p) =>
             `Part (${p.part_label}): ${parts[p.part_label] || '(no answer)'}`
@@ -443,6 +667,14 @@ export function PracticeRoom({
 
     const isMultiPart = q.parts && q.parts.length > 0;
     if (isMultiPart) {
+      if (hasSteppedParts(q)) {
+        const partResults = steppedPartResults[q.id] || {};
+        const textParts = partAnswers[q.id] || {};
+        return (
+          q.parts.some((p) => isPartStepped(p) && partResults[p.part_label]) ||
+          q.parts.some((p) => !isPartStepped(p) && textParts[p.part_label]?.trim())
+        );
+      }
       const parts = partAnswers[q.id] || {};
       return q.parts.some((p) => parts[p.part_label]?.trim());
     }
@@ -481,9 +713,18 @@ export function PracticeRoom({
     // Stepped questions are never sent to the AI marker — they are checked
     // deterministically by SteppedPlayer.
     if (isStepped(q)) return;
+
+    // Multi-part with ALL parts stepped — combine stepped results directly,
+    // no AI call needed.
+    if (hasSteppedParts(q) && q.parts.every(isPartStepped)) {
+      buildCombinedFeedbackForSteppedParts(q);
+      return;
+    }
+
     setMarkingId(questionId);
     try {
       const isMultiPart = q.parts && q.parts.length > 0;
+      const hasMixedStepped = isMultiPart && hasSteppedParts(q);
 
       let effectiveMarkScheme = q.mark_scheme;
       let effectiveWorkedSolution = q.worked_solution;
@@ -491,7 +732,11 @@ export function PracticeRoom({
         const topScheme = Array.isArray(q.mark_scheme) ? q.mark_scheme as any[] : [];
         if (topScheme.filter((m: any) => m.mark !== 'TOTAL').length === 0) {
           const aggregated: any[] = [];
-          for (const p of q.parts as any[]) {
+          // For hybrid multi-part, only send non-stepped parts' schemes to AI
+          const partsToAggregate = hasMixedStepped
+            ? q.parts.filter((p) => !isPartStepped(p))
+            : q.parts;
+          for (const p of partsToAggregate as any[]) {
             const ps = Array.isArray(p.mark_scheme) ? p.mark_scheme : [];
             for (const entry of ps) {
               if (entry.mark === 'TOTAL') continue;
@@ -501,21 +746,32 @@ export function PracticeRoom({
           effectiveMarkScheme = aggregated;
         }
         if (!q.worked_solution?.trim()) {
-          effectiveWorkedSolution = (q.parts as any[])
+          const partsForSolution = hasMixedStepped
+            ? q.parts.filter((p) => !isPartStepped(p))
+            : q.parts;
+          effectiveWorkedSolution = (partsForSolution as any[])
             .filter((p: any) => p.worked_solution?.trim())
             .map((p: any) => `Part (${p.part_label}):\n${p.worked_solution}`)
             .join('\n\n');
         }
       }
 
+      // For hybrid multi-part, only send non-stepped parts to AI
+      const partsForAi = hasMixedStepped
+        ? q.parts.filter((p) => !isPartStepped(p))
+        : q.parts;
+      const marksForAi = hasMixedStepped
+        ? partsForAi.reduce((s, p) => s + p.marks, 0)
+        : q.marks;
+
       const { data, error } = await supabase.functions.invoke('mark-answer', {
         body: {
           questionText: q.question_text,
-          parts: q.parts,
+          parts: partsForAi,
           markScheme: effectiveMarkScheme,
           workedSolution: effectiveWorkedSolution,
           studentAnswer: buildAnswerForMarking(q),
-          marks: q.marks,
+          marks: marksForAi,
           markingGuidance,
           subject: config.subject,
           examBoard: config.examBoard,
@@ -524,7 +780,46 @@ export function PracticeRoom({
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      setFeedbacks((prev) => ({ ...prev, [questionId]: data.feedback }));
+
+      if (hasMixedStepped) {
+        // Merge AI feedback (text parts) with stepped results (calc parts)
+        const aiFeedback = data.feedback as MarkingFeedback;
+        const partResults = steppedPartResults[questionId] || {};
+
+        const steppedBreakdown: any[] = [];
+        let steppedMarks = 0;
+        let steppedWorkedSolution = '';
+        for (const p of q.parts.filter(isPartStepped)) {
+          const res = partResults[p.part_label];
+          if (res) {
+            steppedMarks += res.marksAwarded;
+            steppedBreakdown.push(...res.stepBreakdown.map((s: any) => ({
+              ...s, part: p.part_label,
+            })));
+            if (res.workedSolution) {
+              steppedWorkedSolution += `Part (${p.part_label}):\n${res.workedSolution}\n\n`;
+            }
+          }
+        }
+
+        setFeedbacks((prev) => ({
+          ...prev,
+          [questionId]: {
+            marks_awarded: steppedMarks + aiFeedback.marks_awarded,
+            marks_available: q.marks,
+            step_breakdown: [
+              ...steppedBreakdown,
+              ...aiFeedback.step_breakdown,
+            ],
+            error_type: aiFeedback.error_type,
+            feedback_summary: aiFeedback.feedback_summary,
+            worked_solution: steppedWorkedSolution + (aiFeedback.worked_solution || ''),
+            revision_focus: aiFeedback.revision_focus,
+          },
+        }));
+      } else {
+        setFeedbacks((prev) => ({ ...prev, [questionId]: data.feedback }));
+      }
     } catch (e: any) {
       toast({
         title: 'Marking failed',
@@ -613,6 +908,18 @@ export function PracticeRoom({
     Array.isArray(q.steps.steps) &&
     q.steps.steps.length > 0;
 
+  const isPartStepped = (p: QuestionPart): boolean =>
+    p.answer_model === 'stepped_calculation' &&
+    !!p.steps &&
+    typeof p.steps === 'object' &&
+    Array.isArray((p.steps as any).steps) &&
+    (p.steps as any).steps.length > 0;
+
+  const hasSteppedParts = (q: Question | null | undefined): boolean =>
+    !!q &&
+    q.parts.length > 0 &&
+    q.parts.some(isPartStepped);
+
   // A stepped question is checked deterministically by SteppedPlayer; on
   // completion we record a feedback so progress, session saving and the review
   // phase all work through the existing feedback path. Calculations award full
@@ -691,6 +998,94 @@ export function PracticeRoom({
       worked_solution: '',
       revision_focus: '',
     });
+  };
+
+  // Record the completion of a single stepped part within a multi-part question.
+  const completeSteppedPart = (
+    q: Question,
+    partLabel: string,
+    part: QuestionPart,
+    marksAwarded: number,
+  ) => {
+    const steppedData = part.steps as SteppedQuestion;
+    const breakdown = Array.isArray(part.mark_scheme) && part.mark_scheme.length > 0
+      ? part.mark_scheme
+          .filter((m: any) => (m?.mark ?? m?.mark_type) !== 'TOTAL')
+          .map((m: any) => ({
+            mark_type: m?.mark_type ?? m?.mark,
+            criterion: m?.criterion ?? '',
+            status: 'awarded' as const,
+            comment: '',
+            part: partLabel,
+          }))
+      : (steppedData?.steps ?? []).map((s) => ({
+          criterion: s.prompt,
+          status: 'awarded' as const,
+          comment: '',
+          part: partLabel,
+        }));
+
+    const workedSolution =
+      part.worked_solution?.trim() ||
+      (steppedData ? buildWorking(steppedData) : '');
+
+    setSteppedPartResults((prev) => ({
+      ...prev,
+      [q.id]: {
+        ...(prev[q.id] || {}),
+        [partLabel]: { marksAwarded, stepBreakdown: breakdown, workedSolution },
+      },
+    }));
+
+    // If every part of this question is now accounted for (all stepped parts
+    // complete, and no text parts exist), auto-create combined feedback.
+    const updatedResults = {
+      ...(steppedPartResults[q.id] || {}),
+      [partLabel]: { marksAwarded, stepBreakdown: breakdown, workedSolution },
+    };
+    const allSteppedDone = q.parts
+      .filter(isPartStepped)
+      .every((p) => updatedResults[p.part_label]);
+    const hasTextParts = q.parts.some((p) => !isPartStepped(p));
+
+    if (allSteppedDone && !hasTextParts) {
+      buildCombinedFeedbackForSteppedParts(q, updatedResults);
+    }
+  };
+
+  // Combine all per-part stepped results into a single feedback entry.
+  const buildCombinedFeedbackForSteppedParts = (
+    q: Question,
+    results?: Record<string, { marksAwarded: number; stepBreakdown: any[]; workedSolution: string }>,
+  ) => {
+    const partResults = results || steppedPartResults[q.id] || {};
+    let totalMarksAwarded = 0;
+    const allBreakdown: any[] = [];
+    let allWorkedSolution = '';
+
+    for (const p of q.parts.filter(isPartStepped)) {
+      const res = partResults[p.part_label];
+      if (res) {
+        totalMarksAwarded += res.marksAwarded;
+        allBreakdown.push(...res.stepBreakdown);
+        if (res.workedSolution) {
+          allWorkedSolution += `Part (${p.part_label}):\n${res.workedSolution}\n\n`;
+        }
+      }
+    }
+
+    setFeedbacks((prev) => ({
+      ...prev,
+      [q.id]: {
+        marks_awarded: totalMarksAwarded,
+        marks_available: q.marks,
+        step_breakdown: allBreakdown,
+        error_type: 'none',
+        feedback_summary: '',
+        worked_solution: allWorkedSolution.trim(),
+        revision_focus: '',
+      },
+    }));
   };
 
   const allAnswered =
@@ -952,12 +1347,60 @@ export function PracticeRoom({
                   marks={currentQuestion.marks}
                   data={currentQuestion.steps as SteppedQuestion}
                   tier={config.tier}
+                  diagramComponent={currentQuestion.diagram_component}
+                  diagramParams={currentQuestion.diagram_params}
                   onComplete={(m, reveal) =>
                     completeStepped(currentQuestion, m, reveal)
                   }
                   onJamHelp={(args) =>
                     handleSteppedJamHelp(currentQuestion, args)
                   }
+                />
+              )
+            ) : currentQuestion && hasSteppedParts(currentQuestion) ? (
+              feedbacks[currentQuestion.id] ? (
+                <FeedbackCard
+                  feedback={feedbacks[currentQuestion.id]}
+                  questionNumber={currentIndex + 1}
+                  onJamHelp={() =>
+                    handleJamHelp(
+                      currentQuestion,
+                      buildAnswerForMarking(currentQuestion),
+                      feedbacks[currentQuestion.id]
+                    )
+                  }
+                  questionId={currentQuestion.id}
+                  subtopicId={config.subtopicId}
+                  questionText={currentQuestion.question_text}
+                  studentAnswer={buildAnswerForMarking(currentQuestion)}
+                  diagramComponent={currentQuestion.diagram_component}
+                  diagramParams={currentQuestion.diagram_params}
+                />
+              ) : (
+                <MultiPartSteppedView
+                  key={currentQuestion.id}
+                  question={currentQuestion}
+                  questionNumber={currentIndex + 1}
+                  totalQuestions={questions.length}
+                  tier={config.tier}
+                  phase={phase}
+                  partResults={steppedPartResults[currentQuestion.id] || {}}
+                  partAnswers={partAnswers[currentQuestion.id] || {}}
+                  markingId={markingId}
+                  onPartAnswerChange={(label, val) =>
+                    handlePartAnswerChange(label, val)
+                  }
+                  onSteppedPartComplete={(partLabel, part, marks) =>
+                    completeSteppedPart(currentQuestion, partLabel, part, marks)
+                  }
+                  onJamHelp={(answer, feedback) =>
+                    handleJamHelp(currentQuestion, answer, feedback)
+                  }
+                  onSteppedJamHelp={(args) =>
+                    handleSteppedJamHelp(currentQuestion, args)
+                  }
+                  onMark={() => markAnswer(currentQuestion.id)}
+                  hasAnswer={hasAnswer(currentQuestion)}
                 />
               )
             ) : (

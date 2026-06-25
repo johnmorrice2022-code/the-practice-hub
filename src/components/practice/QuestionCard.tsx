@@ -18,6 +18,10 @@ export interface QuestionPart {
   part_label: string;
   part_text: string;
   marks: number;
+  mark_scheme?: any[];
+  worked_solution?: string;
+  answer_model?: string;
+  steps?: unknown;
 }
 
 interface QuestionCardProps {

@@ -1468,8 +1468,7 @@ export default function AdminReviewQueue() {
           marks: q.marks,
           answer_model: q.answer_model ?? 'stepped_calculation',
           steps: q.steps ?? null,
-          // Carry the stepped breakdown (one final answer; mark scheme + worked
-          // solution show the method on the mark screen).
+          parts: q.parts ?? [],
           mark_scheme: q.mark_scheme ?? [],
           worked_solution: q.worked_solution ?? '',
           tier: q.tier ?? null,
@@ -1996,8 +1995,94 @@ export default function AdminReviewQueue() {
               </div>
             )}
 
+          {/* Per-part stepped preview — multi-part questions where some parts are stepped */}
           {!editMode &&
             currentQuestion.answer_model !== 'stepped_calculation' &&
+            currentQuestion.parts?.length > 0 &&
+            currentQuestion.parts.some((p: any) => p.answer_model === 'stepped_calculation' && p.steps) &&
+            (() => {
+            return (
+              <div className="bg-white/70 rounded-xl border border-black/5 p-5 space-y-5">
+                {currentQuestion.parts.map((part: any) => {
+                  const isStepped = part.answer_model === 'stepped_calculation' && part.steps;
+                  return (
+                    <div key={part.part_label}>
+                      <div className="flex items-center gap-2 mb-2">
+                        <p className="text-[11px] font-semibold text-gray-500">
+                          Part ({part.part_label}) — {part.marks} mark{part.marks !== 1 ? 's' : ''}
+                        </p>
+                        <span
+                          className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full uppercase tracking-wide"
+                          style={{
+                            color: isStepped ? '#E23D28' : '#78716C',
+                            background: isStepped ? 'rgba(226,61,40,0.08)' : 'rgba(0,0,0,0.05)',
+                          }}
+                        >
+                          {isStepped ? 'Stepped' : 'AI marked'}
+                        </span>
+                      </div>
+                      {isStepped ? (
+                        <>
+                          <SteppedQuestionPreview value={part.steps} />
+                          {Array.isArray(part.mark_scheme) && part.mark_scheme.length > 0 && (
+                            <div className="mt-2 space-y-1">
+                              <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+                                Mark scheme
+                              </p>
+                              {part.mark_scheme.map((m: any, i: number) => (
+                                <div key={i} className="flex items-start gap-2 text-sm text-gray-700">
+                                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 shrink-0 mt-0.5">
+                                    {m?.mark ?? m?.mark_type ?? '1'}
+                                  </span>
+                                  <span dangerouslySetInnerHTML={{ __html: renderMathInText(m?.criterion ?? '') }} />
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {part.worked_solution?.trim() && (
+                            <div className="mt-2">
+                              <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 mb-1">
+                                Worked solution
+                              </p>
+                              <div className="space-y-0.5">
+                                {part.worked_solution.split('\n').filter((l: string) => l.trim()).map((line: string, i: number) => (
+                                  <div key={i} className="text-sm text-gray-700" dangerouslySetInnerHTML={{ __html: renderMathInText(line) }} />
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          {Array.isArray(part.mark_scheme) && part.mark_scheme.length > 0 && (
+                            <div className="space-y-1">
+                              {part.mark_scheme.map((item: any, i: number) => (
+                                <div key={i} className="flex items-start gap-3 text-sm">
+                                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 shrink-0 mt-0.5">
+                                    {item.mark_type ?? item.mark}
+                                  </span>
+                                  <span className="text-gray-700">{item.criterion}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {part.worked_solution?.trim() && (
+                            <pre className="text-sm text-gray-700 whitespace-pre-wrap font-mono leading-relaxed mt-1">
+                              {part.worked_solution}
+                            </pre>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
+
+          {!editMode &&
+            currentQuestion.answer_model !== 'stepped_calculation' &&
+            !(currentQuestion.parts?.some((p: any) => p.answer_model === 'stepped_calculation' && p.steps)) &&
             (() => {
             const hasTopLevel = currentQuestion.mark_scheme && currentQuestion.mark_scheme.length > 0;
             const hasParts = currentQuestion.parts && currentQuestion.parts.length > 0;
@@ -2045,6 +2130,7 @@ export default function AdminReviewQueue() {
 
           {!editMode &&
             currentQuestion.answer_model !== 'stepped_calculation' &&
+            !(currentQuestion.parts?.some((p: any) => p.answer_model === 'stepped_calculation' && p.steps)) &&
             (() => {
             const hasTopLevel = currentQuestion.worked_solution && currentQuestion.worked_solution.trim();
             const hasParts = currentQuestion.parts && currentQuestion.parts.length > 0 &&

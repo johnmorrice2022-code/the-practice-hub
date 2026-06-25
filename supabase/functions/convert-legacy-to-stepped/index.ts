@@ -202,6 +202,51 @@ function validateSteps(sq: any): string[] {
   return errors;
 }
 
+function buildConvertMultiPartPrompt(
+  subtopic: any,
+  batch: { index: number; question_text: string; marks: number; parts: any[] }[]
+): string {
+  const list = batch
+    .map((b) => {
+      const partsList = b.parts
+        .map(
+          (p: any) =>
+            `  Part (${p.part_label}) [${p.marks} marks]: ${p.part_text}\n  WORKED SOLUTION: ${p.worked_solution || '(none provided)'}`
+        )
+        .join('\n');
+      return `--- QUESTION ${b.index} (${b.marks} total marks) ---\nSTEM: ${b.question_text}\nPARTS:\n${partsList}`;
+    })
+    .join('\n\n');
+
+  return `You are a senior AQA GCSE Physics examiner converting EXISTING multi-part questions for The Hub Jam into deterministic stepped scaffolds — AQA 8463, topic "${subtopic.topic}", subtopic "${subtopic.subtopic_name}".
+
+${SCHEMA_SPEC}
+
+YOUR TASK: For each numbered question below, inspect EVERY PART and decide if it is a SINGLE-ANSWER NUMERIC CALCULATION.
+- If a part IS a calculation: author a stepped scaffold for it, using the SAME numbers and equation from the worked solution.
+- If a part is NOT a calculation (explain / describe / state / compare): mark it with "skip":true — it stays AI-marked.
+
+For each question, output ONE line of JSON:
+{"index":<N>,"parts":[
+  {"part_label":"a","answer_model":"stepped_calculation","steps":{...},"mark_scheme":[...],"worked_solution":"..."},
+  {"part_label":"b","skip":true},
+  {"part_label":"c","answer_model":"stepped_calculation","steps":{...},"mark_scheme":[...],"worked_solution":"..."}
+]}
+
+If ALL parts are skipped (no calcs at all), output: {"index":<N>,"skip":true}
+
+CRITICAL:
+- Keep the original numbers and final answer for EACH PART EXACTLY — you are scaffolding the existing question, not inventing a new one.
+- Each calculation part has its OWN scaffold with ONE numeric step (final answer).
+- "mark_scheme" per calc part: AQA style, ONE mark per genuine step, array of {"mark":"step","criterion":"..."}.
+- "worked_solution" per calc part: the full method breakdown (one line per step, $…$ LaTeX, \\n between lines).
+- Internal consistency: given values = substitute slot values; numeric "value" = the correct computation.
+- Output one JSON object per line (NDJSON), one per question, no array, no markdown, no preamble. Cover every question index ${batch[0].index} to ${batch[batch.length - 1].index}.
+
+QUESTIONS:
+${list}`;
+}
+
 function chunk<T>(arr: T[], size: number): T[][] {
   const out: T[][] = [];
   for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
@@ -247,33 +292,37 @@ serve(async (req) => {
       (existingPending ?? []).map((r: any) => r.source_question_id)
     );
 
-    const candidates = (liveQs ?? []).filter(
+    // Separate single-answer and multi-part candidates.
+    const singleCandidates = (liveQs ?? []).filter(
       (q: any) =>
         (!q.parts || (Array.isArray(q.parts) && q.parts.length === 0)) &&
         !alreadyPending.has(q.id)
     );
+    const multiPartCandidates = (liveQs ?? []).filter(
+      (q: any) =>
+        Array.isArray(q.parts) &&
+        q.parts.length > 0 &&
+        !alreadyPending.has(q.id)
+    );
 
-    if (candidates.length === 0) {
+    if (singleCandidates.length === 0 && multiPartCandidates.length === 0) {
       return new Response(
         JSON.stringify({
           converted: 0,
           skipped: 0,
           dropped: 0,
-          message: 'No new single-answer AI-marked questions to convert.',
+          message: 'No new AI-marked questions to convert.',
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    const indexed = candidates.map((q: any, i: number) => ({ ...q, index: i }));
-    const byIndex = new Map(indexed.map((q: any) => [q.index, q]));
 
     const batch = await supabase
       .from('generation_batches')
       .insert({
         subtopic_id: subtopicId,
         tier: subtopic.tier,
-        prompt_version: 'convert-stepped-v1',
+        prompt_version: 'convert-stepped-v2',
         question_count: 0,
         status: 'pending',
       })
@@ -281,65 +330,181 @@ serve(async (req) => {
       .single();
     const batchId = batch.data?.id ?? null;
 
-    // Author scaffolds in small chunks so each Claude response stays within tokens.
     let converted = 0;
     let skipped = 0;
     const dropped: string[] = [];
     const rows: any[] = [];
 
     try {
-      for (const group of chunk(indexed, 5)) {
-        const raw = await callClaude(buildConvertPrompt(subtopic, group));
-        for (const line of raw.split('\n')) {
-          const t = line.trim();
-          if (!t) continue;
-          let parsed: any;
-          try {
-            parsed = JSON.parse(t);
-          } catch {
-            continue;
-          }
-          if (typeof parsed.index !== 'number') continue;
-          const orig: any = byIndex.get(parsed.index);
-          if (!orig) continue;
+      // ─── Single-answer questions (existing path) ──────────────────────────
+      if (singleCandidates.length > 0) {
+        const indexed = singleCandidates.map((q: any, i: number) => ({ ...q, index: i }));
+        const byIndex = new Map(indexed.map((q: any) => [q.index, q]));
 
-          if (parsed.skip) {
-            skipped += 1;
-            continue;
+        for (const group of chunk(indexed, 5)) {
+          const raw = await callClaude(buildConvertPrompt(subtopic, group));
+          for (const line of raw.split('\n')) {
+            const t = line.trim();
+            if (!t) continue;
+            let parsed: any;
+            try {
+              parsed = JSON.parse(t);
+            } catch {
+              continue;
+            }
+            if (typeof parsed.index !== 'number') continue;
+            const orig: any = byIndex.get(parsed.index);
+            if (!orig) continue;
+
+            if (parsed.skip) {
+              skipped += 1;
+              continue;
+            }
+            const steps = normaliseSteps(parsed.steps);
+            const errs = validateSteps(steps);
+            if (errs.length) {
+              dropped.push(
+                `"${(orig.question_text || '').slice(0, 40)}…": ${errs.join('; ')}`
+              );
+              continue;
+            }
+            rows.push({
+              batch_id: batchId,
+              subtopic_id: subtopicId,
+              question_text: orig.question_text,
+              marks: orig.marks,
+              mark_scheme: Array.isArray(parsed.mark_scheme)
+                ? parsed.mark_scheme
+                : [],
+              worked_solution:
+                typeof parsed.worked_solution === 'string'
+                  ? parsed.worked_solution
+                  : '',
+              parts: [],
+              calculator_allowed: true,
+              answer_model: 'stepped_calculation',
+              steps,
+              tier: orig.tier ?? null,
+              diagram_component: orig.diagram_component ?? null,
+              diagram_params: orig.diagram_params ?? null,
+              source_question_id: orig.id,
+              status: 'pending',
+              prompt_version: 'convert-stepped-v1',
+            });
+            converted += 1;
           }
-          const steps = normaliseSteps(parsed.steps);
-          const errs = validateSteps(steps);
-          if (errs.length) {
-            dropped.push(
-              `"${(orig.question_text || '').slice(0, 40)}…": ${errs.join('; ')}`
+        }
+      }
+
+      // ─── Multi-part questions (new path) ──────────────────────────────────
+      if (multiPartCandidates.length > 0) {
+        const indexed = multiPartCandidates.map((q: any, i: number) => ({ ...q, index: i }));
+        const byIndex = new Map(indexed.map((q: any) => [q.index, q]));
+
+        for (const group of chunk(indexed, 3)) {
+          const raw = await callClaude(
+            buildConvertMultiPartPrompt(subtopic, group)
+          );
+          for (const line of raw.split('\n')) {
+            const t = line.trim();
+            if (!t) continue;
+            let parsed: any;
+            try {
+              parsed = JSON.parse(t);
+            } catch {
+              continue;
+            }
+            if (typeof parsed.index !== 'number') continue;
+            const orig: any = byIndex.get(parsed.index);
+            if (!orig) continue;
+
+            if (parsed.skip) {
+              skipped += 1;
+              continue;
+            }
+            if (!Array.isArray(parsed.parts)) {
+              skipped += 1;
+              continue;
+            }
+
+            // Check if any part was actually converted to stepped.
+            const hasAnyStepped = parsed.parts.some(
+              (p: any) => !p.skip && p.answer_model === 'stepped_calculation'
             );
-            continue;
+            if (!hasAnyStepped) {
+              skipped += 1;
+              continue;
+            }
+
+            // Validate each calc part's scaffold.
+            let anyFailed = false;
+            const newParts: any[] = [];
+            for (const pp of parsed.parts) {
+              const origPart = (orig.parts as any[]).find(
+                (op: any) => op.part_label === pp.part_label
+              );
+              if (!origPart) {
+                dropped.push(
+                  `"${(orig.question_text || '').slice(0, 40)}…": part "${pp.part_label}" not found in original`
+                );
+                anyFailed = true;
+                break;
+              }
+
+              if (pp.skip || pp.answer_model !== 'stepped_calculation') {
+                // Non-calc part — keep original data, tag as AI-marked.
+                newParts.push({
+                  ...origPart,
+                  answer_model: 'ai_freeresponse',
+                });
+                continue;
+              }
+
+              const steps = normaliseSteps(pp.steps);
+              const errs = validateSteps(steps);
+              if (errs.length) {
+                dropped.push(
+                  `"${(orig.question_text || '').slice(0, 40)}…" part (${pp.part_label}): ${errs.join('; ')}`
+                );
+                anyFailed = true;
+                break;
+              }
+
+              newParts.push({
+                ...origPart,
+                answer_model: 'stepped_calculation',
+                steps,
+                mark_scheme: Array.isArray(pp.mark_scheme)
+                  ? pp.mark_scheme
+                  : origPart.mark_scheme ?? [],
+                worked_solution:
+                  typeof pp.worked_solution === 'string'
+                    ? pp.worked_solution
+                    : origPart.worked_solution ?? '',
+              });
+            }
+            if (anyFailed) continue;
+
+            rows.push({
+              batch_id: batchId,
+              subtopic_id: subtopicId,
+              question_text: orig.question_text,
+              marks: orig.marks,
+              mark_scheme: [],
+              worked_solution: '',
+              parts: newParts,
+              calculator_allowed: true,
+              answer_model: 'ai_freeresponse',
+              steps: null,
+              tier: orig.tier ?? null,
+              diagram_component: orig.diagram_component ?? null,
+              diagram_params: orig.diagram_params ?? null,
+              source_question_id: orig.id,
+              status: 'pending',
+              prompt_version: 'convert-stepped-v2-multipart',
+            });
+            converted += 1;
           }
-          rows.push({
-            batch_id: batchId,
-            subtopic_id: subtopicId,
-            question_text: orig.question_text,
-            marks: orig.marks,
-            // Authored breakdown for the mark screen (the question has ONE answer).
-            mark_scheme: Array.isArray(parsed.mark_scheme)
-              ? parsed.mark_scheme
-              : [],
-            worked_solution:
-              typeof parsed.worked_solution === 'string'
-                ? parsed.worked_solution
-                : '',
-            parts: [],
-            calculator_allowed: true,
-            answer_model: 'stepped_calculation',
-            steps,
-            tier: orig.tier ?? null,
-            diagram_component: orig.diagram_component ?? null,
-            diagram_params: orig.diagram_params ?? null,
-            source_question_id: orig.id,
-            status: 'pending',
-            prompt_version: 'convert-stepped-v1',
-          });
-          converted += 1;
         }
       }
     } catch (genErr) {
@@ -380,7 +545,8 @@ serve(async (req) => {
         skipped,
         dropped: dropped.length,
         droppedReasons: dropped,
-        candidates: candidates.length,
+        singleCandidates: singleCandidates.length,
+        multiPartCandidates: multiPartCandidates.length,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

@@ -15,6 +15,10 @@ import { useMemo, useState } from 'react';
 import { Check, MessageCircle, ArrowRight, Lightbulb, ChevronDown } from 'lucide-react';
 import { renderMathInText } from '@/lib/renderMathInText';
 import {
+  getQuestionDiagram,
+  isQuestionSafe,
+} from '@/components/diagrams/questionDiagramRegistry';
+import {
   SteppedQuestion,
   Step,
   NumericStep,
@@ -36,6 +40,12 @@ interface SteppedPlayerProps {
   data: SteppedQuestion;
   /** Student's tier — drives the default entry mode when the question doesn't set one. */
   tier?: string;
+  /** When true, skip rendering the marks pill and question stem (used inside multi-part questions where the parent renders those). */
+  compact?: boolean;
+  /** Diagram registry key (e.g. 'circuit-diagram') — rendered after the question stem. */
+  diagramComponent?: string | null;
+  /** Diagram params passed to the registered component. */
+  diagramParams?: Record<string, unknown> | null;
   /**
    * Called once, when the question is completed. `marksAwarded` is the full marks
    * for calculations (completing the scaffold / a correct Direct answer) or the
@@ -73,6 +83,9 @@ export function SteppedPlayer({
   marks,
   data,
   tier,
+  compact,
+  diagramComponent,
+  diagramParams,
   onComplete,
   onJamHelp,
 }: SteppedPlayerProps) {
@@ -107,25 +120,45 @@ export function SteppedPlayer({
 
   return (
     <div>
-      {/* Marks */}
-      <div className="flex justify-end mb-3">
-        <span
-          className="text-[11px] font-semibold px-2.5 py-1 rounded-full"
-          style={{
-            color: '#E23D28',
-            background: 'rgba(226,61,40,0.08)',
-            letterSpacing: '0.02em',
-          }}
-        >
-          {marks} mark{marks !== 1 ? 's' : ''}
-        </span>
-      </div>
+      {!compact && (
+        <>
+          {/* Marks */}
+          <div className="flex justify-end mb-3">
+            <span
+              className="text-[11px] font-semibold px-2.5 py-1 rounded-full"
+              style={{
+                color: '#E23D28',
+                background: 'rgba(226,61,40,0.08)',
+                letterSpacing: '0.02em',
+              }}
+            >
+              {marks} mark{marks !== 1 ? 's' : ''}
+            </span>
+          </div>
 
-      {/* Question stem */}
-      <div
-        className="text-base sm:text-lg leading-relaxed text-foreground mb-6"
-        dangerouslySetInnerHTML={{ __html: renderMathInText(questionText) }}
-      />
+          {/* Question stem */}
+          <div
+            className="text-base sm:text-lg leading-relaxed text-foreground mb-6"
+            dangerouslySetInnerHTML={{ __html: renderMathInText(questionText) }}
+          />
+
+          {/* Diagram (e.g. circuit-diagram) */}
+          {(() => {
+            const safe = isQuestionSafe(diagramComponent, diagramParams);
+            const Diagram = safe ? getQuestionDiagram(diagramComponent) : null;
+            return Diagram && diagramParams ? (
+              <div className="flex justify-center py-2 mb-6">
+                <div
+                  className="bg-[#FAF7F2] border border-border/40 rounded-xl p-5 w-full"
+                  style={{ maxWidth: 680, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}
+                >
+                  <Diagram params={diagramParams} mode="question" />
+                </div>
+              </div>
+            ) : null;
+          })()}
+        </>
+      )}
 
       {done ? (
         <DoneCard marks={marks} />
