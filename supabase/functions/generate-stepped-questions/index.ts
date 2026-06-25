@@ -103,6 +103,7 @@ RULES — read carefully:
 - Misconception hints must NEVER reveal the answer — they nudge. Where a KNOWN MISCONCEPTION is listed above, your distractors and hints must reflect it.
 - "question_text" is natural exam prose that contains the numbers and units. Do NOT pre-label them as "given: I = 2 A" — the student extracts them. Still list them in "given" for the scaffold.
 - LaTeX in JSON: EVERY backslash MUST be doubled — write "\\\\times", "\\\\frac{a}{b}", "\\\\Delta", "\\\\Omega". Never a single backslash.
+- ALL numeric values — every given "value", substitute slot "value", "distractorValues", numeric "value"/"tolerance", and distractor "value" — MUST be plain JSON numbers, e.g. 334000 or 3.34e5. NEVER write a value as LaTeX or standard-form text such as "3.34 \\\\times 10^5" (common for specific latent heat / large quantities — use 334000 or 3.34e5 instead).
 - step "id"s must be unique within a question.
 - Output EXACTLY ${count} objects, one per line.`;
 }
@@ -170,8 +171,16 @@ function parseStepped(raw: string): any[] {
 // (strict ===) matches student input. Leaves genuine non-numbers untouched so
 // validation can still reject them.
 function num(v: any): any {
-  if (typeof v === 'string' && v.trim() !== '' && !Number.isNaN(Number(v)))
-    return Number(v);
+  if (typeof v === 'number') return v;
+  if (typeof v === 'string') {
+    const t = v.trim();
+    if (t !== '' && !Number.isNaN(Number(t))) return Number(t); // "334000", "3.34e5"
+    // Standard form written as text: "3.34 \times 10^5", "3.34 × 10^{-3}".
+    const m = t.match(
+      /^(-?\d*\.?\d+)\s*(?:\\times|×|x|\*)\s*10\s*\^?\s*\{?(-?\d+)\}?$/i
+    );
+    if (m) return Number(m[1]) * Math.pow(10, Number(m[2]));
+  }
   return v;
 }
 function normaliseStepped(q: any): any {

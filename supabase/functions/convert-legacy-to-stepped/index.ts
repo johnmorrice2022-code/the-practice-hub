@@ -38,7 +38,9 @@ const SCHEMA_SPEC = `A stepped scaffold breaks a calculation into deterministic 
 
 For a multi-equation question, include more than one (choose_equation -> substitute -> numeric) group; an intermediate numeric result feeds the next substitute. Add a numeric step for any unit conversion (e.g. minutes -> seconds) before it is used.
 
-LaTeX in JSON: EVERY backslash doubled — "\\\\times", "\\\\frac{a}{b}", "\\\\Delta", "\\\\Omega".`;
+LaTeX in JSON: EVERY backslash doubled — "\\\\times", "\\\\frac{a}{b}", "\\\\Delta", "\\\\Omega".
+
+ALL numeric values — every given "value", substitute slot "value", "distractorValues", numeric "value"/"tolerance", and distractor "value" — MUST be plain JSON numbers, e.g. 334000 or 3.34e5. NEVER write a value as LaTeX or standard-form text such as "3.34 \\\\times 10^5". For specific latent heat / large quantities use the plain number (334000) or e-notation (3.34e5).`;
 
 function buildConvertPrompt(
   subtopic: any,
@@ -102,8 +104,16 @@ async function callClaude(systemPrompt: string): Promise<string> {
 }
 
 function num(v: any): any {
-  if (typeof v === 'string' && v.trim() !== '' && !Number.isNaN(Number(v)))
-    return Number(v);
+  if (typeof v === 'number') return v;
+  if (typeof v === 'string') {
+    const t = v.trim();
+    if (t !== '' && !Number.isNaN(Number(t))) return Number(t); // "334000", "3.34e5"
+    // Standard form written as text: "3.34 \times 10^5", "3.34 × 10^{-3}".
+    const m = t.match(
+      /^(-?\d*\.?\d+)\s*(?:\\times|×|x|\*)\s*10\s*\^?\s*\{?(-?\d+)\}?$/i
+    );
+    if (m) return Number(m[1]) * Math.pow(10, Number(m[2]));
+  }
   return v;
 }
 function normaliseSteps(sq: any): any {
@@ -358,6 +368,7 @@ serve(async (req) => {
         converted,
         skipped,
         dropped: dropped.length,
+        droppedReasons: dropped,
         candidates: candidates.length,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
