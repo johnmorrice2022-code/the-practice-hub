@@ -100,6 +100,9 @@ interface PendingQuestion {
   tier: string | null;
   answer_model: string;
   steps: SteppedQuestion | null;
+  /** Phase 3: when set, this draft converts the live questions row with this id
+   *  in place (no duplicate) on publish. */
+  source_question_id: string | null;
 }
 
 interface SeededQuestion {
@@ -1078,6 +1081,7 @@ export default function AdminReviewQueue() {
   const [generatingSteppedFor, setGeneratingSteppedFor] = useState<
     string | null
   >(null);
+  const [convertingFor, setConvertingFor] = useState<string | null>(null);
   const [seededPanelOpenFor, setSeededPanelOpenFor] = useState<string | null>(
     null
   );
@@ -1220,6 +1224,47 @@ export default function AdminReviewQueue() {
       );
     } finally {
       setGeneratingSteppedFor(null);
+    }
+  }
+
+  // Phase 3 — convert this subtopic's existing AI-marked calculation questions to
+  // stepped drafts (same numbers) into the queue; approving updates each live row
+  // in place. Non-calculations are skipped server-side.
+  async function handleConvertLegacy(subtopic: SubtopicWithCounts) {
+    setConvertingFor(subtopic.id);
+    try {
+      const res = await fetch(
+        `${SUPABASE_URL}/functions/v1/convert-legacy-to-stepped`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            apikey: SUPABASE_ANON_KEY,
+            Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+          },
+          body: JSON.stringify({ subtopicId: subtopic.id }),
+        }
+      );
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body?.error || 'Conversion failed');
+      await loadSubtopics();
+      alert(
+        `Converted ${body.converted ?? 0} calc question${
+          body.converted === 1 ? '' : 's'
+        } to stepped drafts` +
+          ` (skipped ${body.skipped ?? 0} non-calc, dropped ${
+            body.dropped ?? 0
+          }). Review them in the queue — approving updates each live question in place.`
+      );
+    } catch (e) {
+      console.error(e);
+      alert(
+        `Conversion failed — ${
+          e instanceof Error ? e.message : 'check console'
+        }`
+      );
+    } finally {
+      setConvertingFor(null);
     }
   }
 
@@ -1397,26 +1442,53 @@ export default function AdminReviewQueue() {
       return;
     }
 
-    const liveRows = approved.map((q) => ({
-      subtopic_id: q.subtopic_id,
-      question_text: q.question_text,
-      marks: q.marks,
-      mark_scheme: q.mark_scheme ?? [],
-      worked_solution: q.worked_solution ?? '',
-      parts: q.parts ?? [],
-      calculator_allowed: q.calculator_allowed,
-      diagram_component: q.diagram_component ?? null,
-      diagram_params: q.diagram_params ?? null,
-      tier: q.tier ?? null,
-      answer_model: q.answer_model ?? 'ai_freeresponse',
-      steps: q.steps ?? null,
-      source: 'reviewed',
-    }));
+    // Phase 3: a draft with source_question_id converts an existing live question
+    // IN PLACE (update, no duplicate); everything else is inserted as a new row.
+    const conversions = approved.filter((q) => q.source_question_id);
+    const fresh = approved.filter((q) => !q.source_question_id);
 
-    const { error } = await supabase.from('questions').insert(liveRows);
-    if (error) {
-      alert(`Publish failed: ${error.message}`);
-      return;
+    for (const q of conversions) {
+      const { error } = await supabase
+        .from('questions')
+        .update({
+          question_text: q.question_text,
+          marks: q.marks,
+          answer_model: q.answer_model ?? 'stepped_calculation',
+          steps: q.steps ?? null,
+          // The original AI mark scheme / worked solution are unused once stepped
+          // (the player builds the working) — clear them so nothing stale lingers.
+          mark_scheme: [],
+          worked_solution: '',
+          tier: q.tier ?? null,
+        })
+        .eq('id', q.source_question_id);
+      if (error) {
+        alert(`In-place update failed: ${error.message}`);
+        return;
+      }
+    }
+
+    if (fresh.length) {
+      const liveRows = fresh.map((q) => ({
+        subtopic_id: q.subtopic_id,
+        question_text: q.question_text,
+        marks: q.marks,
+        mark_scheme: q.mark_scheme ?? [],
+        worked_solution: q.worked_solution ?? '',
+        parts: q.parts ?? [],
+        calculator_allowed: q.calculator_allowed,
+        diagram_component: q.diagram_component ?? null,
+        diagram_params: q.diagram_params ?? null,
+        tier: q.tier ?? null,
+        answer_model: q.answer_model ?? 'ai_freeresponse',
+        steps: q.steps ?? null,
+        source: 'reviewed',
+      }));
+      const { error } = await supabase.from('questions').insert(liveRows);
+      if (error) {
+        alert(`Publish failed: ${error.message}`);
+        return;
+      }
     }
 
     await supabase
@@ -1427,7 +1499,7 @@ export default function AdminReviewQueue() {
 
     await loadSubtopics();
     alert(
-      `Published ${approved.length} questions for ${subtopic.subtopic_name}.`
+      `Published ${fresh.length} new + converted ${conversions.length} existing in place for ${subtopic.subtopic_name}.`
     );
   }
 
@@ -1608,6 +1680,21 @@ export default function AdminReviewQueue() {
                           Generate 6 stepped
                         </button>
                       )}
+                      {subjectFilter === 'Physics' && (
+                        <button
+                          onClick={() => handleConvertLegacy(s)}
+                          disabled={convertingFor === s.id}
+                          title="Convert existing AI-marked calculation questions to stepped (updates them in place on publish)"
+                          className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-emerald-200 text-emerald-600 hover:bg-emerald-50 transition-colors disabled:opacity-50"
+                        >
+                          {convertingFor === s.id ? (
+                            <Loader2 size={11} className="animate-spin" />
+                          ) : (
+                            <Wand2 size={11} />
+                          )}
+                          Convert calc → stepped
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -1672,11 +1759,20 @@ export default function AdminReviewQueue() {
         <div className="max-w-3xl mx-auto px-6 py-8 space-y-8">
           {(currentQuestion.calculator_allowed !== null ||
             currentQuestion.tier ||
+            currentQuestion.source_question_id ||
             currentQuestion.answer_model === 'stepped_calculation') && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               {currentQuestion.answer_model === 'stepped_calculation' && (
                 <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wide bg-amber-50 text-amber-600">
                   Stepped
+                </span>
+              )}
+              {currentQuestion.source_question_id && (
+                <span
+                  title="Approving this updates an existing live question in place — no new row is created."
+                  className="text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wide bg-emerald-50 text-emerald-600"
+                >
+                  Converts live ✓ in place
                 </span>
               )}
               {currentQuestion.tier && (
