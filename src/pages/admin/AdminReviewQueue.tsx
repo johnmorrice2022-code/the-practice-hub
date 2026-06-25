@@ -45,6 +45,7 @@ import {
   LayoutDashboard,
   ChevronRight,
   RefreshCw,
+  Wand2,
   BookOpen,
   Trash2,
   Eye,
@@ -1074,6 +1075,9 @@ export default function AdminReviewQueue() {
   const [selectedSubtopic, setSelectedSubtopic] =
     useState<SubtopicWithCounts | null>(null);
   const [generatingFor, setGeneratingFor] = useState<string | null>(null);
+  const [generatingSteppedFor, setGeneratingSteppedFor] = useState<
+    string | null
+  >(null);
   const [seededPanelOpenFor, setSeededPanelOpenFor] = useState<string | null>(
     null
   );
@@ -1179,6 +1183,43 @@ export default function AdminReviewQueue() {
       alert('Generation failed — check console');
     } finally {
       setGeneratingFor(null);
+    }
+  }
+
+  // Phase 2 — propose stepped_calculation drafts (deterministic scaffolds) into
+  // the queue. Smaller batch than AI questions: they're denser and need a close
+  // review. Physics-calculation focused (see generate-stepped-questions).
+  async function handleGenerateStepped(subtopic: SubtopicWithCounts) {
+    setGeneratingSteppedFor(subtopic.id);
+    try {
+      const res = await fetch(
+        `${SUPABASE_URL}/functions/v1/generate-stepped-questions`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            apikey: SUPABASE_ANON_KEY,
+            Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+          },
+          body: JSON.stringify({ subtopicId: subtopic.id, count: 6 }),
+        }
+      );
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body?.error || 'Stepped generation failed');
+      await loadSubtopics();
+      if (body?.dropped)
+        alert(
+          `Generated ${body.questionCount} stepped drafts (${body.dropped} malformed drafts dropped). Review them in the queue.`
+        );
+    } catch (e) {
+      console.error(e);
+      alert(
+        `Stepped generation failed — ${
+          e instanceof Error ? e.message : 'check console'
+        }`
+      );
+    } finally {
+      setGeneratingSteppedFor(null);
     }
   }
 
@@ -1552,6 +1593,21 @@ export default function AdminReviewQueue() {
                         )}
                         Generate 20
                       </button>
+                      {subjectFilter === 'Physics' && (
+                        <button
+                          onClick={() => handleGenerateStepped(s)}
+                          disabled={generatingSteppedFor === s.id}
+                          title="Propose deterministic stepped-calculation drafts"
+                          className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-amber-200 text-amber-600 hover:bg-amber-50 transition-colors disabled:opacity-50"
+                        >
+                          {generatingSteppedFor === s.id ? (
+                            <Loader2 size={11} className="animate-spin" />
+                          ) : (
+                            <Wand2 size={11} />
+                          )}
+                          Generate 6 stepped
+                        </button>
+                      )}
                     </div>
                   </div>
 
