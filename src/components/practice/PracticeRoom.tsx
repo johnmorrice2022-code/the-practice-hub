@@ -422,7 +422,7 @@ export function PracticeRoom({
     setLoading(false);
 
     try {
-      const [seededRes, reviewedRes, subtopicRes] = await Promise.all([
+      const [seededRes, reviewedRes, subtopicRes, profileRes] = await Promise.all([
         supabase
           .from('seeded_questions')
           .select(
@@ -433,7 +433,7 @@ export function PracticeRoom({
         supabase
           .from('questions')
           .select(
-            'id, question_text, marks, mark_scheme, worked_solution, parts, calculator_allowed, diagram_component, diagram_params, answer_model, steps'
+            'id, question_text, marks, mark_scheme, worked_solution, parts, calculator_allowed, diagram_component, diagram_params, answer_model, steps, tier'
           )
           .eq('subtopic_id', config.subtopicId),
         supabase
@@ -441,11 +441,25 @@ export function PracticeRoom({
           .select('prompt_config')
           .eq('id', config.subtopicId)
           .single(),
+        user
+          ? supabase
+              .from('profiles')
+              .select('maths_tier, physics_tier')
+              .eq('id', user.id)
+              .maybeSingle()
+          : Promise.resolve({ data: null }),
       ]);
 
       const guidance =
         (subtopicRes.data?.prompt_config as any)?.marking_guidance || null;
       setMarkingGuidance(guidance);
+
+      // Student's tier for this subject — used to filter "Both" subtopics so
+      // Foundation students only see Foundation questions and vice versa.
+      const studentTier =
+        config.subject === 'Maths'
+          ? profileRes.data?.maths_tier
+          : profileRes.data?.physics_tier;
 
       const seededNormalised = (seededRes.data ?? []).map((q) => ({
         ...q,
@@ -461,9 +475,15 @@ export function PracticeRoom({
           // Stepped questions are calculator-agnostic — never filter them out on
           // the calculator flag (otherwise Physics' always-"no calculator" mode
           // would hide every stepped question).
-          (q as any).answer_model === 'stepped_calculation' ||
+          ((q as any).answer_model === 'stepped_calculation' ||
           q.calculator_allowed === null ||
-          q.calculator_allowed === calculatorAllowed
+          q.calculator_allowed === calculatorAllowed) &&
+          // Tier filter: for "Both" subtopics, only show questions matching the
+          // student's tier. Questions with null tier (pre-tagging) are shown to all.
+          (config.tier !== 'Both' ||
+           !studentTier ||
+           !(q as any).tier ||
+           (q as any).tier === studentTier)
       );
       const reviewedNormalised = reviewedPool.map((q, i) => ({
         ...q,
