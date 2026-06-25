@@ -82,6 +82,8 @@ interface SubtopicWithCounts extends Subtopic {
   pending: number;
   approved: number;
   published: number;
+  /** Live AI-marked questions — drives whether "Convert calc → stepped" shows. */
+  liveAi: number;
 }
 
 interface PendingQuestion {
@@ -1136,11 +1138,22 @@ export default function AdminReviewQueue() {
         if (row.status === 'published') countMap[row.subtopic_id].published++;
       }
 
+      // Count live AI-marked questions per subtopic so the "Convert calc →
+      // stepped" button only shows where there's a back-catalogue to convert.
+      const { data: liveAiRows } = await supabase
+        .from('questions')
+        .select('subtopic_id')
+        .eq('answer_model', 'ai_freeresponse');
+      const liveAiMap: Record<string, number> = {};
+      for (const row of liveAiRows ?? [])
+        liveAiMap[row.subtopic_id] = (liveAiMap[row.subtopic_id] ?? 0) + 1;
+
       const withCounts: SubtopicWithCounts[] = subs.map((s) => ({
         ...s,
         pending: countMap[s.id]?.pending ?? 0,
         approved: countMap[s.id]?.approved ?? 0,
         published: countMap[s.id]?.published ?? 0,
+        liveAi: liveAiMap[s.id] ?? 0,
       }));
 
       setSubtopics(withCounts);
@@ -1680,11 +1693,11 @@ export default function AdminReviewQueue() {
                           Generate 6 stepped
                         </button>
                       )}
-                      {subjectFilter === 'Physics' && (
+                      {subjectFilter === 'Physics' && s.liveAi > 0 && (
                         <button
                           onClick={() => handleConvertLegacy(s)}
                           disabled={convertingFor === s.id}
-                          title="Convert existing AI-marked calculation questions to stepped (updates them in place on publish)"
+                          title={`Convert this subtopic's ${s.liveAi} live AI-marked question(s) — calculations become stepped and update in place on publish`}
                           className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-emerald-200 text-emerald-600 hover:bg-emerald-50 transition-colors disabled:opacity-50"
                         >
                           {convertingFor === s.id ? (
