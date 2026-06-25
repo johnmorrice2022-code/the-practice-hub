@@ -194,8 +194,14 @@ worked solution). John: "far more supportive for students."
 DRAFTS into `pending_questions` for review. Physics-calculation focused
 (choose-equation → substitute → numeric, with misconception distractors + hints);
 "Both" tier splits Foundation + Higher (Higher = rearrangement / multi-equation
-chains / unit conversion). Structural validation drops malformed drafts; numeric
-strings are coerced. **Substitute expressions must be fully substitutable — a bare
+chains / unit conversion). It reads the subtopic's `prompt_config.system_prompt`
+as the spec/equation/vocabulary context, and (25/06/2026) its
+`marking_guidance` + `common_mistakes` as **KNOWN MISCONCEPTIONS** that seed the
+distractor equations, distractor tiles and wrong-answer hints — so the nudges
+reflect the mistakes a real AQA examiner flags (verified on SHC: it produced the
+g→kg mass-conversion and Δθ-vs-final-temp distractors straight from the mark
+scheme). Structural validation drops malformed drafts; numeric strings are
+coerced. **Substitute expressions must be fully substitutable — a bare
 non-slot symbol on the RHS is rejected (the validator), and the prompt tells the
 model to rearrange so the unknown is the subject (e.g. "a = \frac{[F]}{[m]}")
 rather than leave "F = [m] × a"** — found + fixed in the 25/06 pressure test.

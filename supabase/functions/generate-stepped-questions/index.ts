@@ -35,6 +35,15 @@ function buildSteppedPrompt(
   const promptConfig = subtopic.prompt_config || {};
   const tierLabel = tier === 'higher' ? 'Higher' : 'Foundation';
 
+  // The examiner-flagged misconceptions for this subtopic — the best source for
+  // spec-accurate distractor equations, distractor tiles and wrong-answer hints.
+  const misconceptions = [
+    promptConfig.marking_guidance,
+    promptConfig.common_mistakes,
+  ]
+    .filter((x: any) => typeof x === 'string' && x.trim())
+    .join('\n');
+
   const tierGuidance =
     tier === 'higher'
       ? `These are HIGHER tier. Challenge through the PHYSICS, never by removing the scaffold:
@@ -59,7 +68,11 @@ ${tierGuidance}
 
 PHYSICS CONTEXT FOR THIS SUBTOPIC (equations, vocabulary, scope):
 ${promptConfig.system_prompt || `Calculations within ${subtopic.subtopic_name}.`}
-
+${
+  misconceptions
+    ? `\nKNOWN MISCONCEPTIONS FOR THIS SUBTOPIC (from the subtopic's marking guidance) — base your DISTRACTORS and HINTS on these so they target the mistakes a real AQA examiner sees, not generic ones: the wrong choose_equation options, the substitute distractorValues, and the numeric "distractors"/"hint" text should reflect a misconception listed here whenever a relevant one exists:\n${misconceptions}\n`
+    : ''
+}
 OUTPUT — one JSON object PER LINE (NDJSON). No array, no markdown, no preamble. Each object EXACTLY:
 {"question_text":"<exam-style prose containing the numbers and units>","marks":<int>,"steps":{"given":[{"symbol":"I","value":2,"unit":"A","label":"current"}],"show_givens":true,"steps":[ <ordered steps> ]}}
 
@@ -87,7 +100,7 @@ RULES — read carefully:
 - A calculation MUST end with a numeric step.
 - For a multi-equation Higher question, include more than one (choose_equation -> substitute -> numeric) group; the intermediate numeric result becomes a "given" value feeding the next substitute. The final step is still numeric.
 - "marks" = what AQA would award: typically 2-3 for a single calculation, up to 5-6 for a multi-equation chain.
-- Misconception hints must NEVER reveal the answer — they nudge.
+- Misconception hints must NEVER reveal the answer — they nudge. Where a KNOWN MISCONCEPTION is listed above, your distractors and hints must reflect it.
 - "question_text" is natural exam prose that contains the numbers and units. Do NOT pre-label them as "given: I = 2 A" — the student extracts them. Still list them in "given" for the scaffold.
 - LaTeX in JSON: EVERY backslash MUST be doubled — write "\\\\times", "\\\\frac{a}{b}", "\\\\Delta", "\\\\Omega". Never a single backslash.
 - step "id"s must be unique within a question.
