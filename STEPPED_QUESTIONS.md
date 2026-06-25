@@ -141,6 +141,23 @@ working; this teaches exam technique even when the answer was right):
 
 ---
 
+## One final answer per calculation (LOCKED 25/06/2026)
+A stepped **calculation** has **exactly ONE numeric (final answer) step** — enforced
+by `validateSteppedQuestion` (calc = has any choose_equation/substitute/numeric; must
+have exactly one numeric) and by both edge functions. A 5–6 mark question still has
+ONE answer; the marks reward the *working* (rearrangement, multiple equations), not
+extra answers. Intermediate values (a temperature change Δθ = T₂−T₁, a unit
+conversion, a P-before-E result) are **working**: their result goes straight into the
+substitute slot value (with a distractor tile for the common wrong value), and the
+full method is shown in the **stored `worked_solution`** (line-per-step LaTeX
+breakdown) + **stored `mark_scheme`** (AQA 1-mark-per-step). Multi-equation methods
+are **combined into one expression** where clean (E = IVt, not P=IV then E=Pt). The
+generator + converter author the `worked_solution`/`mark_scheme`; the mark screen
+prefers them (falls back to `buildWorking`); the in-place publish carries them onto
+the live row; the Review Queue stepped view displays them. `select_steps` is exempt
+(no numeric step). Reason (John, 25/06/2026): asking ~3 answers in one question breaks
+exam authenticity.
+
 ## Locked decisions (24/06/2026; #1–#2 revised 25/06/2026)
 1. Answer-first is the standard model. **Every question opens on the Direct answer
    box, all tiers** (no tier-based default mode). The scaffold is opt-in via
