@@ -204,6 +204,31 @@ subtopics in the Review Queue. Deployed `--no-verify-jwt`. **model id `claude-so
 — now the 6th place the id lives.** Verified live against Electrical Power and Energy
 Transfers (valid Foundation P=IV + a Higher P=IV→E=Pt chain, arithmetic correct).
 
-**Next (Phase 3+):** select_steps generation (currently calc-only); regenerate
-legacy AI-marked Physics as stepped (Phase 3); Edexcel Maths `numeric_single` /
-`numeric_with_working` (Phase 4).
+## Phase 3 — convert legacy AI-marked calc questions to stepped (PILOT DONE 25/06/2026)
+Converts EXISTING live AI-marked calculation questions to `stepped_calculation`,
+**in place** (no duplicate), preserving the original prose and numbers.
+
+- **`pending_questions.source_question_id`** (uuid, nullable, FK→`questions`, migration
+  `20260625120000`): when set, the draft is a conversion of that live row.
+- **`supabase/functions/convert-legacy-to-stepped`**: reads a subtopic's live
+  AI-marked single-answer questions; for each calculation, authors a stepped
+  scaffold using the question's OWN numbers (its `worked_solution` is the source of
+  truth); skips explain/recall/multi-part (returns `{skip:true}`); same validation +
+  bare-non-slot-symbol guard as the generator; inserts drafts tagged with
+  `source_question_id`. Idempotent (skips questions that already have a pending
+  conversion). model `claude-sonnet-4-6` (**7th place the id lives**). Deployed
+  `--no-verify-jwt` → confirm Verify JWT OFF.
+- **Review Queue**: green **"Convert calc → stepped"** button (Physics); a
+  **"Converts live ✓ in place"** badge in review; `handlePublish` branches — a draft
+  with `source_question_id` **UPDATEs the original live row** (answer_model→stepped,
+  steps→scaffold, stale AI mark-scheme/worked-solution cleared) instead of inserting.
+- **Pilot — Specific Heat Capacity (`…114c`):** 16 AI-marked candidates → **11
+  converted, 5 non-calc skipped, 0 dropped**; all 11 link to a live row; 12/12
+  arithmetic links verified against the originals' answers. Drafts await John's
+  review → approve → publish (which does the in-place swap). Roll out to Internal
+  Energy, Wave Properties, Series/Parallel next.
+
+**Next:** finish the Phase 3 rollout to the other calc subtopics; `select_steps`
+*generation* (generator is calc-only); Phase 4 Edexcel Maths `numeric_single` /
+`numeric_with_working`. Recall/explain legacy questions (e.g. all 39 Circuit
+Symbols) stay AI-marked until select_steps generation exists.
