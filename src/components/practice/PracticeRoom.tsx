@@ -624,7 +624,7 @@ export function PracticeRoom({
           comment: '',
         })),
         error_type: 'none',
-        feedback_summary: 'How does your answer compare?',
+        feedback_summary: '',
         // Assemble the canonical working from the steps so it shows on every
         // path (including a correct Direct-mode answer). STEPPED_QUESTIONS.md §7.
         worked_solution: q.steps ? buildWorking(q.steps) : '',
