@@ -228,11 +228,23 @@ Converts EXISTING live AI-marked calculation questions to `stepped_calculation`,
   **"Converts live ✓ in place"** badge in review; `handlePublish` branches — a draft
   with `source_question_id` **UPDATEs the original live row** (answer_model→stepped,
   steps→scaffold, stale AI mark-scheme/worked-solution cleared) instead of inserting.
-- **Pilot — Specific Heat Capacity (`…114c`):** 16 AI-marked candidates → **11
-  converted, 5 non-calc skipped, 0 dropped**; all 11 link to a live row; 12/12
-  arithmetic links verified against the originals' answers. Drafts await John's
-  review → approve → publish (which does the in-place swap). Roll out to Internal
-  Energy, Wave Properties, Series/Parallel next.
+- **Rollout (25/06/2026): 27 single-answer calc conversions across 4 subtopics**,
+  all verified (27/27 source links resolve, 30/30 arithmetic links correct against
+  the originals): Specific Heat Capacity 11, Internal Energy 8, Wave Properties 6,
+  Series/Parallel 2. All await John's review → approve → publish (the in-place swap).
+- **Standard-form fix (25/06/2026):** specific-latent-heat conversions first dropped
+  because the model wrote large values (L = 3.34×10⁵) as LaTeX/standard-form strings.
+  `num()` now coerces standard-form text to a real number, and the prompt mandates
+  plain JSON numbers (334000 / 3.34e5). Recovered all drops.
+- **KNOWN GAPS (still AI-marked):**
+  - **Multi-part calcs** — the converter only handles single-answer questions
+    (`parts` empty). ~6 multi-part calcs remain (mostly **Series/Parallel** V=IR
+    chains). Converting these needs a multi-part stepped capability (the
+    `SteppedQuestion` model is single-question) — not built. Decision pending: build
+    multi-part stepped, split each part into its own stepped question, or leave
+    AI-marked.
+  - **Circuit Symbols** (and other recall/explain) — no calculations; correctly
+    stay AI-marked until `select_steps` generation exists.
 
 **Next:** finish the Phase 3 rollout to the other calc subtopics; `select_steps`
 *generation* (generator is calc-only); Phase 4 Edexcel Maths `numeric_single` /
