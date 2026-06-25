@@ -675,9 +675,18 @@ function ChooseEquationInput({
   disabled: boolean;
   onSelect: (id: string) => void;
 }) {
+  const shuffled = useMemo(
+    () =>
+      step.options
+        .map((o) => ({ o, r: Math.random() }))
+        .sort((a, b) => a.r - b.r)
+        .map((x) => x.o),
+    [step]
+  );
+
   return (
     <div className="space-y-2">
-      {step.options.map((o) => {
+      {shuffled.map((o) => {
         const active = selected === o.id;
         return (
           <button
