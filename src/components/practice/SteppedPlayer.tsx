@@ -18,9 +18,13 @@ import {
   SteppedQuestion,
   Step,
   NumericStep,
+  SelectStepsStep,
   checkStep,
   checkNumeric,
+  checkSelectSteps,
   numericDistractorHint,
+  buildSelectStepsReveal,
+  SelectRevealEntry,
   StepResponse,
 } from '@/lib/steppedQuestion';
 
@@ -32,8 +36,13 @@ interface SteppedPlayerProps {
   data: SteppedQuestion;
   /** Student's tier — drives the default entry mode when the question doesn't set one. */
   tier?: string;
-  /** Called once, when the question is completed (full marks). */
-  onComplete: (marksAwarded: number) => void;
+  /**
+   * Called once, when the question is completed. `marksAwarded` is the full marks
+   * for calculations (completing the scaffold / a correct Direct answer) or the
+   * partial total for a select_steps question. `reveal` carries the §7 ordered
+   * marking-point breakdown for select_steps so the mark screen can show it.
+   */
+  onComplete: (marksAwarded: number, reveal?: SelectRevealEntry[]) => void;
   /** Open JAM Help for the step the student is stuck on. */
   onJamHelp: (args: { studentAttempt: string; criterion: string }) => void;
 }
@@ -76,6 +85,12 @@ export function SteppedPlayer({
   }, [data.steps]);
   const canDirect = lastNumericIdx !== -1;
 
+  // A select_steps question (extended response / required-practical 6-marker) is
+  // its own flow: a tappable checklist, partial marks, submit to complete — no
+  // Direct/Stepped split (STEPPED_QUESTIONS.md §6).
+  const isSelectSteps =
+    data.steps.length === 1 && data.steps[0].kind === 'select_steps';
+
   // Givens are part of the *stepped help* now — never shown up front. In a real
   // exam the student must extract the variables (I, V, …) from the prose, so the
   // given chips appear only once they open the scaffold, unless an author
@@ -114,6 +129,25 @@ export function SteppedPlayer({
 
       {done ? (
         <DoneCard marks={marks} />
+      ) : isSelectSteps ? (
+        <SelectStepsView
+          step={data.steps[0] as SelectStepsStep}
+          onJamHelp={(attempt) =>
+            onJamHelp({
+              studentAttempt: attempt,
+              criterion: criterionFor(data.steps[0]),
+            })
+          }
+          onSubmit={(selected) => {
+            const s = data.steps[0] as SelectStepsStep;
+            const res = checkSelectSteps(s, {
+              kind: 'select_steps',
+              selected,
+            });
+            setDone(true);
+            onComplete(res.marksAwarded ?? 0, buildSelectStepsReveal(s, res));
+          }}
+        />
       ) : mode === 'direct' ? (
         <DirectAnswer
           step={data.steps[lastNumericIdx] as NumericStep}
@@ -305,6 +339,101 @@ function DirectAnswer({
             <ChevronDown size={14} /> Provide stepped help
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── select_steps — build the answer by choosing the marking points ───────────
+
+function SelectStepsView({
+  step,
+  onSubmit,
+  onJamHelp,
+}: {
+  step: SelectStepsStep;
+  onSubmit: (selected: string[]) => void;
+  onJamHelp: (attempt: string) => void;
+}) {
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  // Shuffle once so the correct points aren't all grouped at the top.
+  const options = useMemo(
+    () =>
+      step.options
+        .map((o) => ({ o, r: Math.random() }))
+        .sort((a, b) => a.r - b.r)
+        .map((x) => x.o),
+    [step]
+  );
+
+  function toggle(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  return (
+    <div>
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-3">
+        Select every correct point ({step.maxMarks} mark
+        {step.maxMarks !== 1 ? 's' : ''})
+      </p>
+
+      <div className="space-y-2">
+        {options.map((o) => {
+          const active = selected.has(o.id);
+          return (
+            <button
+              key={o.id}
+              onClick={() => toggle(o.id)}
+              className="w-full text-left flex items-start gap-3 rounded-xl border-2 px-4 py-3 transition-colors"
+              style={{
+                borderColor: active ? '#E23D28' : 'rgba(0,0,0,0.10)',
+                background: active ? 'rgba(226,61,40,0.04)' : 'white',
+              }}
+            >
+              <span
+                className="w-5 h-5 rounded-md border-2 shrink-0 mt-0.5 flex items-center justify-center"
+                style={{
+                  borderColor: active ? '#E23D28' : 'rgba(0,0,0,0.25)',
+                  background: active ? '#E23D28' : 'transparent',
+                }}
+              >
+                {active && <Check size={12} color="white" />}
+              </span>
+              <span
+                className="text-sm text-foreground leading-relaxed"
+                dangerouslySetInnerHTML={{ __html: renderMathInText(o.text) }}
+              />
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="mt-5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        <button
+          onClick={() => onJamHelp('(selection)')}
+          className="flex items-center justify-center gap-1.5 text-xs font-medium px-4 py-2.5 rounded-lg border border-border text-muted-foreground hover:border-[#E23D28]/40 hover:text-[#E23D28] transition-colors"
+        >
+          <MessageCircle size={14} /> JAM Help — discuss this question
+        </button>
+
+        <button
+          onClick={() => onSubmit([...selected])}
+          disabled={selected.size === 0}
+          className="flex items-center justify-center gap-2 text-xs font-semibold px-4 py-2.5 rounded-lg transition-all disabled:opacity-40 active:scale-[0.97]"
+          style={{
+            color: '#fff',
+            background: 'linear-gradient(135deg, #E23D28 0%, #F5A623 100%)',
+            boxShadow: '0 2px 10px rgba(226,61,40,0.30)',
+          }}
+        >
+          <Check size={12} /> Submit answer
+        </button>
       </div>
     </div>
   );

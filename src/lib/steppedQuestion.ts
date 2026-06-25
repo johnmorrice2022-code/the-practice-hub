@@ -314,6 +314,46 @@ export function buildWorking(data: SteppedQuestion): string {
   return lines.join('\n');
 }
 
+/**
+ * One row of the select_steps feedback reveal (§7): the correct marking points in
+ * their canonical `order`, each flagged as the student's hit/miss, followed by any
+ * distractors they wrongly selected. Order is shown for teaching even though it is
+ * never graded. Pure — maps cleanly onto the FeedbackCard step breakdown.
+ */
+export interface SelectRevealEntry {
+  text: string;
+  status: 'awarded' | 'not_awarded';
+  /** A distractor the student wrongly selected (not a marking point). */
+  wronglySelected?: boolean;
+}
+
+export function buildSelectStepsReveal(
+  step: SelectStepsStep,
+  result: StepCheckResult
+): SelectRevealEntry[] {
+  const hits = new Set(result.hits ?? []);
+  const wrong = new Set(result.wrongPicks ?? []);
+
+  const correct: SelectRevealEntry[] = step.options
+    .filter((o) => o.correct)
+    .slice()
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+    .map((o) => ({
+      text: o.text,
+      status: hits.has(o.id) ? 'awarded' : 'not_awarded',
+    }));
+
+  const wrongPicked: SelectRevealEntry[] = step.options
+    .filter((o) => !o.correct && wrong.has(o.id))
+    .map((o) => ({
+      text: o.text,
+      status: 'not_awarded',
+      wronglySelected: true,
+    }));
+
+  return [...correct, ...wrongPicked];
+}
+
 /** The misconception hint for a wrong Direct-mode value, if it matches one. */
 export function numericDistractorHint(
   step: NumericStep,

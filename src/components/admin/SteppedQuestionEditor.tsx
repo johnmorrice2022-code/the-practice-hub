@@ -23,7 +23,9 @@ import {
   ChooseEquationStep,
   SubstituteStep,
   NumericStep,
+  SelectStepsStep,
   ChoiceOption,
+  SelectStepOption,
   validateSteppedQuestion,
 } from '@/lib/steppedQuestion';
 
@@ -39,6 +41,7 @@ const KIND_LABEL: Record<Step['kind'], string> = {
   choose_equation: 'Choose equation',
   substitute: 'Substitute values',
   numeric: 'Final answer',
+  select_steps: 'Select steps',
 };
 
 // The canonical P = I × V pilot scaffold — one tap to start from.
@@ -116,6 +119,18 @@ function emptyStep(kind: Step['kind']): Step {
       };
     case 'numeric':
       return { id: newId('answer'), kind, prompt: '', value: 0 };
+    case 'select_steps':
+      return {
+        id: newId('select'),
+        kind,
+        prompt: '',
+        maxMarks: 6,
+        options: [
+          { id: newId('pt'), text: '', correct: true, order: 1 },
+          { id: newId('pt'), text: '', correct: true, order: 2 },
+          { id: newId('pt'), text: '', correct: false },
+        ],
+      };
   }
 }
 
@@ -304,7 +319,9 @@ export function SteppedQuestionEditor({ value, onChange }: EditorProps) {
 
       {/* Add step */}
       <div className="flex flex-wrap gap-2">
-        {(['choose_equation', 'substitute', 'numeric'] as const).map((k) => (
+        {(
+          ['choose_equation', 'substitute', 'numeric', 'select_steps'] as const
+        ).map((k) => (
           <button
             key={k}
             type="button"
@@ -452,6 +469,9 @@ function StepEditor({
       )}
       {step.kind === 'numeric' && (
         <NumericFields step={step} onChange={onChange} />
+      )}
+      {step.kind === 'select_steps' && (
+        <SelectStepsFields step={step} onChange={onChange} />
       )}
 
       <TextField
@@ -772,6 +792,123 @@ function NumericFields({
   );
 }
 
+function SelectStepsFields({
+  step,
+  onChange,
+}: {
+  step: SelectStepsStep;
+  onChange: (s: SelectStepsStep) => void;
+}) {
+  function setOption(i: number, next: SelectStepOption) {
+    onChange({
+      ...step,
+      options: step.options.map((o, idx) => (idx === i ? next : o)),
+    });
+  }
+  // Toggling correct on assigns the next free order number; off clears it.
+  function toggleCorrect(i: number) {
+    const o = step.options[i];
+    if (o.correct) {
+      setOption(i, { ...o, correct: false, order: undefined });
+    } else {
+      const nextOrder =
+        Math.max(0, ...step.options.map((x) => x.order ?? 0)) + 1;
+      setOption(i, { ...o, correct: true, order: nextOrder });
+    }
+  }
+  return (
+    <div className="space-y-3">
+      <div className="w-32">
+        <label className={labelCls}>Max marks</label>
+        <input
+          className={inputCls}
+          type="number"
+          value={Number.isNaN(step.maxMarks) ? '' : step.maxMarks}
+          onChange={(e) =>
+            onChange({ ...step, maxMarks: Number(e.target.value) })
+          }
+        />
+      </div>
+
+      <div>
+        <label className={labelCls}>
+          Statements — tick each correct marking point and set its order (order is
+          shown in the reveal but never graded). Unticked = distractor.
+        </label>
+        {step.options.map((o, i) => (
+          <div key={o.id} className="flex items-start gap-2 mb-2">
+            <input
+              type="checkbox"
+              className="mt-2.5 accent-emerald-500"
+              checked={!!o.correct}
+              onChange={() => toggleCorrect(i)}
+            />
+            <div className="flex-1 space-y-1">
+              <textarea
+                className={`${inputCls} resize-y min-h-[40px]`}
+                value={o.text}
+                placeholder={
+                  o.correct ? 'Correct marking point' : 'Distractor statement'
+                }
+                onChange={(e) => setOption(i, { ...o, text: e.target.value })}
+              />
+              {o.text.trim() && (
+                <div
+                  className="text-sm text-gray-700 px-1"
+                  dangerouslySetInnerHTML={{
+                    __html: renderMathInText(o.text),
+                  }}
+                />
+              )}
+            </div>
+            {o.correct && (
+              <div className="w-16">
+                <label className={labelCls}>Order</label>
+                <input
+                  className={inputCls}
+                  type="number"
+                  value={o.order ?? ''}
+                  onChange={(e) =>
+                    setOption(i, { ...o, order: Number(e.target.value) })
+                  }
+                />
+              </div>
+            )}
+            <button
+              type="button"
+              disabled={step.options.length <= 2}
+              onClick={() =>
+                onChange({
+                  ...step,
+                  options: step.options.filter((_, idx) => idx !== i),
+                })
+              }
+              className="p-2 mt-5 text-gray-300 hover:text-red-500 disabled:opacity-30"
+            >
+              <Trash2 size={14} />
+            </button>
+          </div>
+        ))}
+        <button
+          type="button"
+          onClick={() =>
+            onChange({
+              ...step,
+              options: [
+                ...step.options,
+                { id: newId('pt'), text: '', correct: false },
+              ],
+            })
+          }
+          className="flex items-center gap-1 text-[11px] text-amber-600 hover:text-amber-700"
+        >
+          <Plus size={12} /> Add statement
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── Read-only preview (reviewer's "what the scaffold looks like" view) ───────
 
 export function SteppedQuestionPreview({
@@ -843,6 +980,37 @@ export function SteppedQuestionPreview({
               Answer: <span className="font-semibold">{step.value}</span>
               {step.unit ? ` ${step.unit}` : ''}
               {step.tolerance ? ` (±${step.tolerance})` : ''}
+            </div>
+          )}
+          {step.kind === 'select_steps' && (
+            <div className="space-y-1">
+              <div className="text-[11px] text-gray-400">
+                {step.maxMarks} mark{step.maxMarks !== 1 ? 's' : ''} ·{' '}
+                {step.options.filter((o) => o.correct).length} correct ·{' '}
+                {step.options.filter((o) => !o.correct).length} distractors
+              </div>
+              {step.options
+                .slice()
+                .sort(
+                  (a, b) =>
+                    (a.correct ? a.order ?? 0 : 999) -
+                    (b.correct ? b.order ?? 0 : 999)
+                )
+                .map((o) => (
+                  <div key={o.id} className="flex items-start gap-2 text-sm">
+                    <span
+                      className={`text-[10px] px-1.5 py-0.5 rounded shrink-0 ${o.correct ? 'bg-emerald-50 text-emerald-600 font-semibold' : 'bg-gray-50 text-gray-400'}`}
+                    >
+                      {o.correct ? `#${o.order ?? '?'}` : 'distractor'}
+                    </span>
+                    <span
+                      className="text-gray-700"
+                      dangerouslySetInnerHTML={{
+                        __html: renderMathInText(o.text),
+                      }}
+                    />
+                  </div>
+                ))}
             </div>
           )}
           {step.hint && (

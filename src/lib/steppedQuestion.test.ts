@@ -6,6 +6,7 @@ import {
   checkSelectSteps,
   checkStep,
   buildWorking,
+  buildSelectStepsReveal,
   numericDistractorHint,
   validateSteppedQuestion,
   type ChooseEquationStep,
@@ -228,6 +229,50 @@ describe('checkSelectSteps', () => {
     expect(r.marksAwarded).toBe(2);
     expect(r.correct).toBe(false);
     expect(r.missed).toEqual(['s3', 's4']);
+  });
+});
+
+describe('buildSelectStepsReveal', () => {
+  it('lists correct points in canonical order, marking hits and misses', () => {
+    const r = checkSelectSteps(methodStep, {
+      kind: 'select_steps',
+      selected: ['s3', 's1'],
+    });
+    const reveal = buildSelectStepsReveal(methodStep, r);
+    // Correct points always shown in order regardless of selection order.
+    expect(reveal.slice(0, 4).map((x) => x.text)).toEqual([
+      'Set up the thermistor in series with an ammeter.',
+      'Heat the thermistor in a water bath.',
+      'Record current and temperature at intervals.',
+      'Repeat and calculate resistance with R = V/I.',
+    ]);
+    expect(reveal[0].status).toBe('awarded'); // s1 hit
+    expect(reveal[1].status).toBe('not_awarded'); // s2 missed
+    expect(reveal[2].status).toBe('awarded'); // s3 hit
+    expect(reveal[3].status).toBe('not_awarded'); // s4 missed
+  });
+
+  it('appends wrongly-selected distractors, flagged', () => {
+    const r = checkSelectSteps(methodStep, {
+      kind: 'select_steps',
+      selected: ['s1', 's2', 's3', 's4', 'd1'],
+    });
+    const reveal = buildSelectStepsReveal(methodStep, r);
+    expect(reveal).toHaveLength(5); // 4 correct + 1 wrong pick
+    const wrong = reveal[4];
+    expect(wrong.text).toBe('Measure the mass of the water.');
+    expect(wrong.status).toBe('not_awarded');
+    expect(wrong.wronglySelected).toBe(true);
+  });
+
+  it('does not list distractors the student did not pick', () => {
+    const r = checkSelectSteps(methodStep, {
+      kind: 'select_steps',
+      selected: ['s1', 's2', 's3', 's4'],
+    });
+    const reveal = buildSelectStepsReveal(methodStep, r);
+    expect(reveal).toHaveLength(4);
+    expect(reveal.every((x) => !x.wronglySelected)).toBe(true);
   });
 });
 

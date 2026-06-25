@@ -6,7 +6,11 @@ import { JamHelpPanel } from './JamHelpPanel';
 import { SteppedPlayer } from './SteppedPlayer';
 import { SessionConfig } from './SessionSetup';
 import { TreeAnswers } from '@/components/diagrams/InteractiveProbabilityTree';
-import { buildWorking, type SteppedQuestion } from '@/lib/steppedQuestion';
+import {
+  buildWorking,
+  type SteppedQuestion,
+  type SelectRevealEntry,
+} from '@/lib/steppedQuestion';
 import {
   ChevronLeft,
   ChevronRight,
@@ -610,26 +614,49 @@ export function PracticeRoom({
     q.steps.steps.length > 0;
 
   // A stepped question is checked deterministically by SteppedPlayer; on
-  // completion we record a full-marks feedback so progress, session saving and
-  // the review phase all work through the existing feedback path.
-  const completeStepped = (q: Question, marksAwarded: number) => {
+  // completion we record a feedback so progress, session saving and the review
+  // phase all work through the existing feedback path. Calculations award full
+  // marks (completing the scaffold / a correct Direct answer); select_steps award
+  // partial marks and reveal the correct method points in order (§7).
+  const completeStepped = (
+    q: Question,
+    marksAwarded: number,
+    reveal?: SelectRevealEntry[]
+  ) => {
     setFeedbacks((prev) => ({
       ...prev,
-      [q.id]: {
-        marks_awarded: marksAwarded,
-        marks_available: q.marks,
-        step_breakdown: (q.steps?.steps ?? []).map((s) => ({
-          criterion: s.prompt,
-          status: 'awarded' as const,
-          comment: '',
-        })),
-        error_type: 'none',
-        feedback_summary: '',
-        // Assemble the canonical working from the steps so it shows on every
-        // path (including a correct Direct-mode answer). STEPPED_QUESTIONS.md §7.
-        worked_solution: q.steps ? buildWorking(q.steps) : '',
-        revision_focus: '',
-      },
+      [q.id]: reveal
+        ? {
+            marks_awarded: marksAwarded,
+            marks_available: q.marks,
+            // §7 reveal: correct points in order (hit/missed) + flagged wrong picks.
+            step_breakdown: reveal.map((r) => ({
+              criterion: r.text,
+              status: r.status,
+              comment: r.wronglySelected
+                ? 'You selected this — it is not a marking point.'
+                : '',
+            })),
+            error_type: 'none',
+            feedback_summary: '',
+            worked_solution: '',
+            revision_focus: '',
+          }
+        : {
+            marks_awarded: marksAwarded,
+            marks_available: q.marks,
+            step_breakdown: (q.steps?.steps ?? []).map((s) => ({
+              criterion: s.prompt,
+              status: 'awarded' as const,
+              comment: '',
+            })),
+            error_type: 'none',
+            feedback_summary: '',
+            // Assemble the canonical working from the steps so it shows on every
+            // path (including a correct Direct-mode answer). STEPPED_QUESTIONS.md §7.
+            worked_solution: q.steps ? buildWorking(q.steps) : '',
+            revision_focus: '',
+          },
     }));
   };
 
@@ -910,7 +937,9 @@ export function PracticeRoom({
                   marks={currentQuestion.marks}
                   data={currentQuestion.steps as SteppedQuestion}
                   tier={config.tier}
-                  onComplete={(m) => completeStepped(currentQuestion, m)}
+                  onComplete={(m, reveal) =>
+                    completeStepped(currentQuestion, m, reveal)
+                  }
                   onJamHelp={(args) =>
                     handleSteppedJamHelp(currentQuestion, args)
                   }

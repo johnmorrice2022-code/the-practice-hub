@@ -242,37 +242,45 @@ export function FeedbackCard({
         </div>
       </div>
 
-      <div className="border-t border-border/50" />
-
-      {/* Worked solution */}
-      <div className="space-y-3">
-        <div className="flex items-center gap-1.5">
-          <BookOpen size={13} className="text-muted-foreground" />
-          <span className="text-xs text-muted-foreground tracking-wide uppercase">
-            Worked solution
-          </span>
-        </div>
-        <div className="rounded-lg overflow-hidden">
-          {feedback.worked_solution
-            .split('\n')
-            .filter((line) => line.trim() !== '')
-            .map((line, i) => (
-              <div
-                key={i}
-                className="text-[15px] leading-[1.8] text-foreground question-text px-3 py-1.5"
-                style={{
-                  background: i % 2 === 0 ? 'rgba(0,0,0,0.03)' : 'transparent',
-                }}
-                dangerouslySetInnerHTML={{ __html: renderMath(line) }}
-              />
-            ))}
-        </div>
-        {RegisteredDiagram && diagramParams && (
-          <div className="rounded-lg border border-border/50 p-4 flex justify-center bg-card">
-            <RegisteredDiagram params={diagramParams} mode="feedback" />
+      {/* Worked solution — omitted when there's none (e.g. select_steps, where
+          the mark breakdown above is itself the correct-method reveal). */}
+      {(feedback.worked_solution.trim() ||
+        (RegisteredDiagram && diagramParams)) && (
+        <>
+          <div className="border-t border-border/50" />
+          <div className="space-y-3">
+            <div className="flex items-center gap-1.5">
+              <BookOpen size={13} className="text-muted-foreground" />
+              <span className="text-xs text-muted-foreground tracking-wide uppercase">
+                Worked solution
+              </span>
+            </div>
+            {feedback.worked_solution.trim() && (
+              <div className="rounded-lg overflow-hidden">
+                {feedback.worked_solution
+                  .split('\n')
+                  .filter((line) => line.trim() !== '')
+                  .map((line, i) => (
+                    <div
+                      key={i}
+                      className="text-[15px] leading-[1.8] text-foreground question-text px-3 py-1.5"
+                      style={{
+                        background:
+                          i % 2 === 0 ? 'rgba(0,0,0,0.03)' : 'transparent',
+                      }}
+                      dangerouslySetInnerHTML={{ __html: renderMath(line) }}
+                    />
+                  ))}
+              </div>
+            )}
+            {RegisteredDiagram && diagramParams && (
+              <div className="rounded-lg border border-border/50 p-4 flex justify-center bg-card">
+                <RegisteredDiagram params={diagramParams} mode="feedback" />
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </>
+      )}
 
       {/* Revision focus */}
       {feedback.revision_focus && (
