@@ -30,7 +30,8 @@ const SCHEMA_SPEC = `A stepped scaffold breaks a calculation into deterministic 
 2) substitute:
 {"id":"substitute","kind":"substitute","prompt":"Substitute into $P = I \\\\times V$.","expression":"P = [I] \\\\times [V]","slots":[{"slot":"I","value":2},{"slot":"V","value":12}],"distractorValues":[6,24],"hint":"..."}
 - EVERY [slot] in "expression" MUST appear in "slots" with its correct value.
-- EVERY value-carrying symbol on the right MUST be a [slot] — NEVER leave a bare symbol. If the unknown is not the subject, REARRANGE first so the chosen equation and the expression are already solved for the unknown (e.g. "a = \\\\frac{[F]}{[m]}").
+- EVERY value-carrying symbol on the right MUST be a [slot] — NEVER leave a bare symbol. If the unknown is not the subject, REARRANGE first so the chosen equation and the expression are already solved for the unknown (e.g. "a = [F] \\\\div [m]").
+- NEVER use \\\\frac{}{} in the "expression" field — use \\\\div for division (e.g. "I = [V] \\\\div [R]"). LaTeX fractions break the interactive slot rendering. \\\\frac is fine in the "prompt" and in choose_equation option "latex" fields.
 
 3) numeric — the ONE final answer (the ONLY numeric step):
 {"id":"answer","kind":"numeric","prompt":"Calculate ... Give the unit.","value":24,"tolerance":0,"unit":"W","acceptedUnits":["W","watt","watts"],"hint":"...","distractors":[{"value":6,"hint":"<misconception nudge>"}]}

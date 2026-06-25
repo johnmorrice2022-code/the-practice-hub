@@ -727,10 +727,18 @@ function SubstituteInput({
   onPlace: (value: number) => void;
   onClearSlot: (slot: string) => void;
 }) {
-  const segments = useMemo(
-    () => step.expression.split(/(\[[^\]]+\])/).filter((s) => s !== ''),
-    [step.expression]
-  );
+  // Render the full expression as one LaTeX block so \frac etc. work correctly.
+  // Slots are replaced with their assigned value or a placeholder.
+  const displayExpr = useMemo(() => {
+    return step.expression.replace(/\[([^\]]+)\]/g, (_, slot) => {
+      const val = assignments[slot];
+      if (val != null) return `\\textcolor{green}{${val}}`;
+      return selectedSlot === slot
+        ? '\\boxed{\\,?\\,}'
+        : '\\,?\\,';
+    });
+  }, [step.expression, assignments, selectedSlot]);
+
   const tiles = useMemo(() => {
     const vals = [
       ...step.slots.map((s) => s.value),
@@ -744,43 +752,39 @@ function SubstituteInput({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-2 text-lg">
-        {segments.map((seg, i) => {
-          const m = seg.match(/^\[([^\]]+)\]$/);
-          if (m) {
-            const slot = m[1];
-            const val = assignments[slot];
-            const isSelected = selectedSlot === slot;
-            return (
-              <button
-                key={i}
-                disabled={disabled}
-                onClick={() =>
-                  val != null ? onClearSlot(slot) : onSelectSlot(slot)
-                }
-                className="min-w-[3rem] h-11 px-3 rounded-lg border-2 border-dashed font-mono text-base transition-colors"
-                style={{
-                  borderColor: isSelected
-                    ? '#E23D28'
-                    : val != null
-                      ? '#22c55e'
-                      : 'rgba(0,0,0,0.25)',
-                  background:
-                    val != null ? 'rgba(34,197,94,0.08)' : 'transparent',
-                }}
-              >
-                {val != null ? val : '?'}
-              </button>
-            );
-          }
+      {/* Full equation rendered as one LaTeX block */}
+      <div
+        className="text-xl text-center py-3"
+        dangerouslySetInnerHTML={{
+          __html: renderMathInText(`$${displayExpr}$`),
+        }}
+      />
+
+      {/* Slot chips — tap to select which blank to fill, tap again to clear */}
+      <div className="flex flex-wrap gap-2 justify-center">
+        {step.slots.map((s) => {
+          const val = assignments[s.slot];
+          const isSelected = selectedSlot === s.slot;
           return (
-            <span
-              key={i}
-              className="font-mono text-foreground"
-              dangerouslySetInnerHTML={{
-                __html: renderMathInText(`$${seg}$`),
+            <button
+              key={s.slot}
+              disabled={disabled}
+              onClick={() =>
+                val != null ? onClearSlot(s.slot) : onSelectSlot(s.slot)
+              }
+              className="min-w-[3.5rem] h-10 px-3 rounded-lg border-2 border-dashed font-mono text-sm transition-colors"
+              style={{
+                borderColor: isSelected
+                  ? '#E23D28'
+                  : val != null
+                    ? '#22c55e'
+                    : 'rgba(0,0,0,0.25)',
+                background:
+                  val != null ? 'rgba(34,197,94,0.08)' : 'transparent',
               }}
-            />
+            >
+              {s.slot} = {val != null ? val : '?'}
+            </button>
           );
         })}
       </div>
