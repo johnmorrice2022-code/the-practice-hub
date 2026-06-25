@@ -6,7 +6,7 @@ coaches and never delivers a verdict.** No function that decides right/wrong cal
 an LLM. Read this before touching `src/lib/steppedQuestion.ts`, `SteppedPlayer`,
 or the Review Queue step editor.
 
-Status: **§1–§5 shipped + §7 for calculations (24/06/2026). `select_steps` pure checker (§6) shipped + tested; its UI (player input + editor panel) and ordered-steps reveal are the only parts left.**
+Status: **§1–§5 shipped + §7 for calculations (24/06/2026). Player UX revised + validated 25/06/2026 (see §5 — answer-box-first for all, givens inside stepped help). `select_steps` pure checker (§6) shipped + tested; its UI (player input + editor panel) and ordered-steps reveal are the only parts left.**
 
 ---
 
@@ -75,20 +75,38 @@ structural gate used by the Review Queue and (later) the generator.
 
 ---
 
-## 5. Modes — adaptive "answer-first" (SPEC)
+## 5. Modes — "answer-first" (SHIPPED; UX revised + validated 25/06/2026)
 One authored question, two entry points, all deterministic. Solves
 "support the nervous student → challenge the able" without ever AI-marking prose.
 
-- **Direct mode** — show the question (givens hidden if `show_givens: false`) and a
-  single **final answer + unit** box (the `numeric` step). Correct → full marks,
-  done. Wrong → offer **"Break it down"**, which unfolds the full scaffold.
-- **Stepped mode** — the guided one-step-at-a-time player (already shipped).
+- **Direct mode (the default for every question, all tiers)** — show the question
+  and a single **final answer + unit** box (the `numeric` step). The **marks** are
+  shown as a pill (e.g. "4 marks"). **Givens are NOT shown here** — the student
+  extracts the variables from the prose, as in a real exam. Correct → full marks,
+  done. A wrong value still fires its distractor-specific hint (deterministic).
+- **Stepped mode** — the guided one-step-at-a-time player. Reached on demand via
+  **"Provide stepped help"**. Opening it reveals the **given chips** (I, V, …) as
+  part of the scaffold, then the steps.
 
-**Defaults & agency:**
-- Foundation default = Stepped, `show_givens: true`.
-- Higher default = Direct, `show_givens: false`.
-- Always show both overrides: **"Break it down"** in Direct, **"Let me just answer"**
-  in Stepped. Smart default, student override.
+**Help is explicit and always available** (Direct mode, under a "Need a hand?"
+divider) — two buttons:
+- **"JAM Help — discuss this question"** → opens JAM Help (Socratic coaching, never
+  a verdict).
+- **"Provide stepped help"** → unfolds the full scaffold (= Stepped mode).
+
+In Stepped mode, **"Let me just answer"** jumps back to the Direct box.
+
+**Why this changed from the original tier-based spec (25/06/2026, John's call after
+testing):** defaulting Foundation to a fully-unfolded scaffold with givens on show
+was *too much scaffold* — students must learn to identify what's what, since exam
+questions don't label the variables. Answer-box-first with opt-in stepped help is
+the supportive-but-not-hand-holding middle. So:
+- **No tier-based default mode** — every question opens on the answer box.
+- **`show_givens`** no longer means "show up front"; it now only governs whether the
+  givens appear *inside the stepped help* (default `true`; an author can set `false`
+  to withhold them even in the scaffold).
+- **`default_mode`** is no longer read by the player (the field may remain on rows;
+  it is inert). Direct is always the entry point.
 
 **Marks (calculations):**
 - Correct final answer (Direct) → full marks. (Matches AQA: a correct calc answer
@@ -123,9 +141,15 @@ working; this teaches exam technique even when the answer was right):
 
 ---
 
-## Locked decisions (24/06/2026)
-1. Answer-first is the standard model; Direct vs Stepped default by tier, student can override either way.
-2. `show_givens` flag — off for Higher (must extract values from the prose), on for Foundation.
+## Locked decisions (24/06/2026; #1–#2 revised 25/06/2026)
+1. Answer-first is the standard model. **Every question opens on the Direct answer
+   box, all tiers** (no tier-based default mode). The scaffold is opt-in via
+   "Provide stepped help"; help is explicit and always shown (JAM Help + stepped
+   help). *(Revised 25/06/2026 — was "Direct vs Stepped default by tier".)*
+2. **Givens are shown only inside the stepped help, never up front** — students
+   extract the variables from the prose, as in an exam. `show_givens` now only
+   governs whether givens appear *within the scaffold* (default true).
+   *(Revised 25/06/2026 — was "off for Higher, on for Foundation".)*
 3. Full workings shown on the mark screen on every path, assembled from the steps.
 4. `select_steps`: **selection only, order not graded**; **partial marks** via
    `correctSelected − wrongSelected` clamped to `[0, maxMarks]`; feedback **shows the
@@ -146,8 +170,10 @@ pressure-testing the player — they exercise the full spread:
 
 These are **test rows in the live `questions` table** (inserted via service-role
 script, `source: 'reviewed'`). Delete or keep as wanted; they are not part of a
-real published set. **Pending: a couple of slight player UI tweaks John flagged
-after testing (to be specified).**
+real published set. **Player UI tweaks done + validated 25/06/2026** (§5):
+marks pill, answer-box-first for all, givens inside stepped help, two explicit
+help buttons, and the mark screen drops the summary line (straight to breakdown +
+worked solution). John: "far more supportive for students."
 
 ## Build order (next)
 1. ~~`select_steps` kind: type + `checkSelectSteps` + validation + vitest (pure, no UI).~~ **DONE 24/06/2026** — `checkSelectSteps` + 9 tests in `steppedQuestion.ts`/`.test.ts`.
