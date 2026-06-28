@@ -142,17 +142,17 @@ export function SteppedPlayer({
             dangerouslySetInnerHTML={{ __html: renderMathInText(questionText) }}
           />
 
-          {/* Diagram (e.g. circuit-diagram) */}
+          {/* Diagram (e.g. circuit-diagram, rp-resistance-of-a-wire) */}
           {(() => {
-            const safe = isQuestionSafe(diagramComponent, diagramParams);
+            const safe = isQuestionSafe(diagramComponent, diagramParams ?? {});
             const Diagram = safe ? getQuestionDiagram(diagramComponent) : null;
-            return Diagram && diagramParams ? (
+            return Diagram ? (
               <div className="flex justify-center py-2 mb-6">
                 <div
                   className="bg-[#FAF7F2] border border-border/40 rounded-xl p-5 w-full"
                   style={{ maxWidth: 680, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}
                 >
-                  <Diagram params={diagramParams} mode="question" />
+                  <Diagram params={diagramParams ?? {}} mode="question" />
                 </div>
               </div>
             ) : null;

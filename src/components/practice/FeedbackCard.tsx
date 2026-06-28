@@ -245,7 +245,7 @@ export function FeedbackCard({
       {/* Worked solution — omitted when there's none (e.g. select_steps, where
           the mark breakdown above is itself the correct-method reveal). */}
       {(feedback.worked_solution.trim() ||
-        (RegisteredDiagram && diagramParams)) && (
+        RegisteredDiagram) && (
         <>
           <div className="border-t border-border/50" />
           <div className="space-y-3">
@@ -273,9 +273,9 @@ export function FeedbackCard({
                   ))}
               </div>
             )}
-            {RegisteredDiagram && diagramParams && (
+            {RegisteredDiagram && (
               <div className="rounded-lg border border-border/50 p-4 flex justify-center bg-card">
-                <RegisteredDiagram params={diagramParams} mode="feedback" />
+                <RegisteredDiagram params={diagramParams ?? {}} mode="feedback" />
               </div>
             )}
           </div>

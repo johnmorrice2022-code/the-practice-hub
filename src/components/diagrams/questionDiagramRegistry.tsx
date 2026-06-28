@@ -34,6 +34,8 @@ import { VectorDiagram } from './VectorDiagram';
 import { WaveDiagram } from './WaveDiagram';
 import { CircuitDiagram } from './CircuitDiagram';
 import { CircuitSymbolGrid } from './CircuitSymbolGrid';
+import { RpResistanceOfAWire } from './RpResistanceOfAWire';
+import { RpSpecificHeatCapacity } from './RpSpecificHeatCapacity';
 import { WaveDiagramEditor } from './editors/WaveDiagramEditor';
 import { CircuitDiagramEditor } from './editors/CircuitDiagramEditor';
 
@@ -106,6 +108,14 @@ const CircuitSymbolGridWrapper: QuestionDiagramComponent = () => (
   <CircuitSymbolGrid />
 );
 
+const RpResistanceOfAWireWrapper: QuestionDiagramComponent = ({ params }) => (
+  <RpResistanceOfAWire params={params ?? {}} />
+);
+
+const RpSpecificHeatCapacityWrapper: QuestionDiagramComponent = ({ params }) => (
+  <RpSpecificHeatCapacity params={params ?? {}} />
+);
+
 export const QUESTION_DIAGRAM_REGISTRY: Record<
   string,
   QuestionDiagramRegistryEntry
@@ -174,6 +184,19 @@ export const QUESTION_DIAGRAM_REGISTRY: Record<
   // no params needed (pass empty object {}). Not a question diagram.
   'circuit-symbol-grid': {
     component: CircuitSymbolGridWrapper,
+    questionSafe: true,
+  },
+  // AQA Required Practical 3 — resistance of a wire apparatus diagram.
+  // Shows the setup only — question-safe, no feedback layer.
+  'rp-resistance-of-a-wire': {
+    component: RpResistanceOfAWireWrapper,
+    questionSafe: true,
+  },
+  // AQA Required Practical 1 — specific heat capacity apparatus diagram.
+  // `showInsulation` param toggles the insulation outline for evaluation variants.
+  // Shows the setup only — question-safe, no feedback layer.
+  'rp-specific-heat-capacity': {
+    component: RpSpecificHeatCapacityWrapper,
     questionSafe: true,
   },
   // Future entries (DIAGRAMS.md): 'histogram', 'vector-geometry-diagram'.
