@@ -479,10 +479,12 @@ export function PracticeRoom({
           q.calculator_allowed === null ||
           q.calculator_allowed === calculatorAllowed) &&
           // Tier filter: for "Both" subtopics, only show questions matching the
-          // student's tier. Questions with null tier (pre-tagging) are shown to all.
+          // student's tier. Questions with null tier (pre-tagging) or tier "Both"
+          // are shown to all students.
           (config.tier !== 'Both' ||
            !studentTier ||
            !(q as any).tier ||
+           (q as any).tier === 'Both' ||
            (q as any).tier === studentTier)
       );
       const reviewedNormalised = reviewedPool.map((q, i) => ({
