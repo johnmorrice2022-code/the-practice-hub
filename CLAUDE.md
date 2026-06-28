@@ -311,6 +311,8 @@ Parametric SVG diagram library. **DIAGRAMS.md** (repo root) is the source of tru
 | `wave-diagram` | true | `{ type: transverse\|longitudinal, cycles?, amplitude?, labels?, markers?, energyArrow?, secondWave?, axisLabels? }`; feedback layer: `answerLabels`. **`markers`** = lettered arrows (transverse) / section brackets (longitudinal) for "Which arrow/section shows…?" questions answered by a letter — the answerable replacement for the old "identify on a bare diagram" pattern (see DIAGRAMS.md §5). `energyArrow` (longitudinal) draws the direction-of-energy-transfer arrow. Has a composer `editor`. |
 | `circuit-diagram` | true | `{ supply:{type:cell\|battery,label?}, series?[], parallelBranches?[][], meters?[], parallelStyle? }` — AQA 8463 symbols, one series loop + optional ≤3 parallel branches (≤3 components each). Ammeters `position:'main'\|{branch:n}`, voltmeters `{across:id}` — meters go in `meters[]`, never inline in `series`. **`parallelStyle: 'inline'`** (default, compact block) **\| `'ladder'`** (full-width equal-length rungs stacked between two rails, supply on top, main ammeters on the rails — the conventional AQA parallel figure; added 16/06/2026, separate `buildLadder`). No feedback layer: answer values stay in question/solution **text**. Composer `editor` = `CircuitDiagramEditor` (label "Circuit"). Built 16/06/2026 from John's prototype. **Diode** enclosed in a circle (matching LED), corrected 17/06/2026. |
 | `circuit-symbol-grid` | true | No params (pass `{}`). 4-column reference grid of all 14 AQA circuit symbols + ammeter/voltmeter, each labelled. Learning content only — not a question diagram. Built 17/06/2026. |
+| `rp-resistance-of-a-wire` | true | No params (pass `{}`). AQA Required Practical 3 apparatus: cell, switch, ammeter, resistance wire on metre ruler, crocodile clips, voltmeter in parallel. Built 28/06/2026. |
+| `rp-specific-heat-capacity` | true | `{ showInsulation?: boolean }` (default `true`). AQA Required Practical 1 apparatus: insulated metal block, immersion heater, thermometer, joulemeter, power supply. `showInsulation: false` hides only the dashed insulation outline + label (evaluation variant). Built 28/06/2026. |
 
 Still to build (DIAGRAMS.md priority order): `histogram`, `vector-geometry-diagram`.
 
@@ -476,6 +478,8 @@ src/
       WaveDiagram.tsx              -- transverse/longitudinal waves; markers (lettered arrows/section brackets), energyArrow
       CircuitDiagram.tsx           -- AQA 8463 circuits; series loop + ≤3 parallel branches; ammeters/voltmeters via meters[]
       CircuitSymbolGrid.tsx        -- 4-column reference grid of all 14 AQA circuit symbols with labels (learning content only)
+      RpResistanceOfAWire.tsx     -- AQA RP3 apparatus diagram (no params)
+      RpSpecificHeatCapacity.tsx  -- AQA RP1 apparatus diagram (showInsulation toggle)
       questionDiagramRegistry.tsx  -- registry: { component, questionSafe, editor?, editorDefaults?, label? }, mode prop
       editors/
         WaveDiagramEditor.tsx      -- touch-first params editor for the composer (wave family)
@@ -616,7 +620,19 @@ See [SECURITY_AUDIT.md](SECURITY_AUDIT.md) — living checklist of all known sec
 
 ---
 
-## Current Priorities (as of 25/06/2026, updated end-of-session 25/06/2026)
+## Current Priorities (as of 28/06/2026, updated end-of-session 28/06/2026)
+
+### Recently completed (28/06/2026 — RP apparatus diagrams + select_steps questions)
+- **Two AQA required-practical apparatus diagrams built and registered:**
+  - `rp-resistance-of-a-wire` (`RpResistanceOfAWire.tsx`) — RP3 circuit apparatus (cell, switch, ammeter, resistance wire on metre ruler, crocodile clips, voltmeter). No params.
+  - `rp-specific-heat-capacity` (`RpSpecificHeatCapacity.tsx`) — RP1 apparatus (insulated metal block, immersion heater, thermometer, joulemeter, power supply). `showInsulation: boolean` (default `true`) toggles the dashed insulation outline + label for evaluation-question variants.
+  - Both use hardcoded ink/surface constants (matching existing diagram conventions); physical material hex colours kept as-is (won't invert in dark mode).
+- **Two `select_steps` "describe the method" questions inserted** as reviewed content in the live `questions` table:
+  - RP3 → **Resistance and Potential Difference** (`1e789681-7b03-4eed-9297-fcab30520182`), question `69b408ef-…`
+  - RP1 → **Specific Heat Capacity** (`ef243d86-3744-477b-a39d-7c60a37d114c`), question `c71a1582-…`
+  - Each: 6 correct statements + 4 distractors, `maxMarks: 6`, deterministic marking via `clamp(correct − wrong, 0, 6)`. No AI involved. `tier: 'Both'`.
+- **Fixed diagram rendering for no-params diagrams** — `SteppedPlayer` and `FeedbackCard` previously required `diagramParams` to be truthy; diagrams with empty/no params (like `rp-resistance-of-a-wire` and `circuit-symbol-grid`) were silently skipped. Now defaults to `{}`.
+- **Fixed tier filter bug** — questions with `tier: 'Both'` on the question row were being dropped by `loadQuestions` because the filter only passed `null` or an exact match to the student's tier. Now also passes `'Both'`.
 
 ### Recently completed (24/06/2026 — deterministic marking, Phase 0 + Phase 1)
 Started the move **off AI marking**: the platform now checks answers deterministically and the AI only coaches. **Full spec + locked decisions: [STEPPED_QUESTIONS.md](STEPPED_QUESTIONS.md).** The detail lives in Architecture Patterns → "Marking philosophy"; in brief:

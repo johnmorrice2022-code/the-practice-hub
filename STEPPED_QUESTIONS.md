@@ -193,6 +193,25 @@ marks pill, answer-box-first for all, givens inside stepped help, two explicit
 help buttons, and the mark screen drops the summary line (straight to breakdown +
 worked solution). John: "far more supportive for students."
 
+## Live RP "describe the method" questions (28/06/2026)
+Two AQA required-practical `select_steps` questions with registered apparatus
+diagrams, inserted as reviewed content (`source: 'reviewed'`, `tier: 'Both'`):
+
+- **RP3 — Resistance of a wire** (`69b408ef-…`) in **Resistance and Potential
+  Difference** (`1e789681-…`). Diagram: `rp-resistance-of-a-wire` (no params).
+- **RP1 — Specific heat capacity** (`c71a1582-…`) in **Specific Heat Capacity**
+  (`ef243d86-…`). Diagram: `rp-specific-heat-capacity` (`showInsulation: true`).
+
+Each has 6 correct method statements + 4 distractors, `maxMarks: 6`. The diagram
+renders above the `SelectStepsView` checklist. Marking is deterministic:
+`clamp(correct − wrong, 0, 6)`. The `showInsulation` param on the SHC diagram
+gives a free evaluation variant later (hide insulation → "why was the measured c
+higher than expected?").
+
+**Diagram rendering fix (28/06/2026):** `SteppedPlayer` and `FeedbackCard`
+previously required `diagramParams` to be truthy — diagrams with no params (like
+`rp-resistance-of-a-wire`) were silently skipped. Fixed to default to `{}`.
+
 ## Build order
 1. ~~`select_steps` kind: type + `checkSelectSteps` + validation + vitest.~~ **DONE 24/06/2026.**
 2. ~~Player input for `select_steps` + the §7 ordered-steps reveal.~~ **DONE 25/06/2026** —
@@ -299,5 +318,6 @@ hardcoded to specific subtopics — the generator reads `prompt_config`, the con
 reads `worked_solution`, the player checks `answer_model`+`steps`. New subtopics
 get stepped support automatically.
 
-**Next:** `select_steps` *generation* (generator is calc-only); Phase 4 Edexcel
+**Next:** `select_steps` *generation* (generator is calc-only; hand-authored RP
+content exists as of 28/06/2026 — see "Live RP questions" above); Phase 4 Edexcel
 Maths `numeric_single` / `numeric_with_working`.
