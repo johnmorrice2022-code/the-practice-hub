@@ -186,6 +186,8 @@ export interface StepCheckResult {
   missed?: string[];
   /** distractor option ids the student wrongly selected */
   wrongPicks?: string[];
+  /** Whether the correct selections are in the canonical order (ascending `order`). */
+  orderCorrect?: boolean;
 }
 
 // ─── Pure checkers ───────────────────────────────────────────────────────────
@@ -256,13 +258,27 @@ export function checkSelectSteps(
   );
   const correct = missed.length === 0 && wrongPicks.length === 0;
 
+  // Order check: are the correct selections in ascending canonical `order`
+  // within the student's tap sequence? Distractors are ignored — only the
+  // relative order of correct hits matters.
+  const orderMap = new Map(
+    step.options.filter((o) => o.correct && o.order != null).map((o) => [o.id, o.order!])
+  );
+  const hitOrders = response.selected
+    .filter((id) => orderMap.has(id))
+    .map((id) => orderMap.get(id)!);
+  const orderCorrect =
+    hitOrders.length > 0 &&
+    hitOrders.every((v, i) => i === 0 || v > hitOrders[i - 1]);
+
   return {
-    correct,
+    correct: correct && orderCorrect,
     marksAwarded,
     maxMarks: step.maxMarks,
     hits,
     missed,
     wrongPicks,
+    orderCorrect,
     hint: correct ? undefined : step.hint,
   };
 }

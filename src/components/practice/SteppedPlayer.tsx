@@ -12,7 +12,7 @@
 // step shows its pre-written hint; "I'm stuck" opens JAM Help.
 
 import { useMemo, useState } from 'react';
-import { Check, MessageCircle, ArrowRight, Lightbulb, ChevronDown } from 'lucide-react';
+import { Check, MessageCircle, ArrowRight, Lightbulb, ChevronDown, RotateCcw } from 'lucide-react';
 import { renderMathInText } from '@/lib/renderMathInText';
 import {
   getQuestionDiagram,
@@ -177,8 +177,10 @@ export function SteppedPlayer({
               kind: 'select_steps',
               selected,
             });
+            let awarded = res.marksAwarded ?? 0;
+            if (!res.orderCorrect && awarded > 0) awarded = Math.max(0, awarded - 1);
             setDone(true);
-            onComplete(res.marksAwarded ?? 0, buildSelectStepsReveal(s, res));
+            onComplete(awarded, buildSelectStepsReveal(s, res));
           }}
         />
       ) : mode === 'direct' ? (
@@ -377,7 +379,7 @@ function DirectAnswer({
   );
 }
 
-// ─── select_steps — build the answer by choosing the marking points ───────────
+// ─── select_steps — tap statements in order, two attempts ─────────────────────
 
 function SelectStepsView({
   step,
@@ -388,7 +390,14 @@ function SelectStepsView({
   onSubmit: (selected: string[]) => void;
   onJamHelp: (attempt: string) => void;
 }) {
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  // Ordered array — the position = the student's tap sequence.
+  const [selected, setSelected] = useState<string[]>([]);
+  const [attempt, setAttempt] = useState<1 | 2>(1);
+  const [firstResult, setFirstResult] = useState<{
+    hits: number;
+    total: number;
+    orderCorrect: boolean;
+  } | null>(null);
 
   // Shuffle once so the correct points aren't all grouped at the top.
   const options = useMemo(
@@ -400,43 +409,68 @@ function SelectStepsView({
     [step]
   );
 
+  const totalCorrect = step.options.filter((o) => o.correct).length;
+
   function toggle(id: string) {
     setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
+      const idx = prev.indexOf(id);
+      if (idx !== -1) return prev.filter((x) => x !== id);
+      return [...prev, id];
     });
   }
+
+  function handleFirstAttempt() {
+    const res = checkSelectSteps(step, { kind: 'select_steps', selected });
+    setFirstResult({
+      hits: res.hits?.length ?? 0,
+      total: totalCorrect,
+      orderCorrect: res.orderCorrect ?? false,
+    });
+  }
+
+  function handleSecondAttempt() {
+    onSubmit(selected);
+  }
+
+  function handleRetry() {
+    setAttempt(2);
+    setFirstResult(null);
+  }
+
+  const showingFeedback = attempt === 1 && firstResult !== null;
 
   return (
     <div>
       <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-3">
-        Select every correct point ({step.maxMarks} mark
-        {step.maxMarks !== 1 ? 's' : ''})
+        {attempt === 1
+          ? `Select the correct steps in order (${step.maxMarks} marks)`
+          : `Adjust your answer — check your steps and order (${step.maxMarks} marks)`}
       </p>
 
       <div className="space-y-2">
         {options.map((o) => {
-          const active = selected.has(o.id);
+          const pos = selected.indexOf(o.id);
+          const active = pos !== -1;
           return (
             <button
               key={o.id}
+              disabled={showingFeedback}
               onClick={() => toggle(o.id)}
-              className="w-full text-left flex items-start gap-3 rounded-xl border-2 px-4 py-3 transition-colors"
+              className="w-full text-left flex items-start gap-3 rounded-xl border-2 px-4 py-3 transition-colors disabled:opacity-70"
               style={{
                 borderColor: active ? '#E23D28' : 'rgba(0,0,0,0.10)',
                 background: active ? 'rgba(226,61,40,0.04)' : 'white',
               }}
             >
               <span
-                className="w-5 h-5 rounded-md border-2 shrink-0 mt-0.5 flex items-center justify-center"
+                className="w-6 h-6 rounded-full border-2 shrink-0 mt-0.5 flex items-center justify-center text-xs font-bold"
                 style={{
                   borderColor: active ? '#E23D28' : 'rgba(0,0,0,0.25)',
                   background: active ? '#E23D28' : 'transparent',
+                  color: active ? 'white' : 'transparent',
                 }}
               >
-                {active && <Check size={12} color="white" />}
+                {active ? pos + 1 : ''}
               </span>
               <span
                 className="text-sm text-foreground leading-relaxed"
@@ -447,27 +481,58 @@ function SelectStepsView({
         })}
       </div>
 
-      <div className="mt-5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-        <button
-          onClick={() => onJamHelp('(selection)')}
-          className="flex items-center justify-center gap-1.5 text-xs font-medium px-4 py-2.5 rounded-lg border border-border text-muted-foreground hover:border-[#E23D28]/40 hover:text-[#E23D28] transition-colors"
-        >
-          <MessageCircle size={14} /> JAM Help — discuss this question
-        </button>
+      {/* Attempt 1 feedback */}
+      {showingFeedback && (
+        <div className="mt-4 rounded-lg bg-amber-50 border border-amber-100 p-4 space-y-2">
+          <p className="text-sm font-semibold text-amber-800">
+            You selected {firstResult.hits} out of {firstResult.total} correct
+            steps.
+          </p>
+          {firstResult.hits === firstResult.total && (
+            <p className="text-sm text-amber-700">
+              {firstResult.orderCorrect
+                ? 'Your steps are in the right order.'
+                : 'Your steps are not in the right order — think about which step comes first.'}
+            </p>
+          )}
+          <p className="text-xs text-amber-600">
+            Have another go — adjust your selections and check the order.
+          </p>
+          <button
+            onClick={handleRetry}
+            className="flex items-center gap-1.5 text-xs font-semibold px-4 py-2 rounded-lg text-white active:scale-[0.97] transition-transform mt-1"
+            style={{ background: '#F5A623' }}
+          >
+            <RotateCcw size={12} /> Try again
+          </button>
+        </div>
+      )}
 
-        <button
-          onClick={() => onSubmit([...selected])}
-          disabled={selected.size === 0}
-          className="flex items-center justify-center gap-2 text-xs font-semibold px-4 py-2.5 rounded-lg transition-all disabled:opacity-40 active:scale-[0.97]"
-          style={{
-            color: '#fff',
-            background: 'linear-gradient(135deg, #E23D28 0%, #F5A623 100%)',
-            boxShadow: '0 2px 10px rgba(226,61,40,0.30)',
-          }}
-        >
-          <Check size={12} /> Submit answer
-        </button>
-      </div>
+      {!showingFeedback && (
+        <div className="mt-5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+          <button
+            onClick={() => onJamHelp('(selection)')}
+            className="flex items-center justify-center gap-1.5 text-xs font-medium px-4 py-2.5 rounded-lg border border-border text-muted-foreground hover:border-[#E23D28]/40 hover:text-[#E23D28] transition-colors"
+          >
+            <MessageCircle size={14} /> JAM Help — discuss this question
+          </button>
+
+          <button
+            onClick={
+              attempt === 1 ? handleFirstAttempt : handleSecondAttempt
+            }
+            disabled={selected.length === 0}
+            className="flex items-center justify-center gap-2 text-xs font-semibold px-4 py-2.5 rounded-lg transition-all disabled:opacity-40 active:scale-[0.97]"
+            style={{
+              color: '#fff',
+              background: 'linear-gradient(135deg, #E23D28 0%, #F5A623 100%)',
+              boxShadow: '0 2px 10px rgba(226,61,40,0.30)',
+            }}
+          >
+            <Check size={12} /> Submit answer
+          </button>
+        </div>
+      )}
     </div>
   );
 }

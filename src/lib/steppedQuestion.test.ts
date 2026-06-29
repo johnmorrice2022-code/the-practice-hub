@@ -183,12 +183,23 @@ describe('checkSelectSteps', () => {
     expect(r.hits).toEqual(['s1', 's2', 's3', 's4']);
   });
 
-  it('order of selection does not matter', () => {
+  it('out-of-order selection awards content marks but flags orderCorrect false', () => {
     const r = checkSelectSteps(methodStep, {
       kind: 'select_steps',
       selected: ['s4', 's1', 's3', 's2'],
     });
+    expect(r.correct).toBe(false);
+    expect(r.orderCorrect).toBe(false);
+    expect(r.marksAwarded).toBe(4);
+  });
+
+  it('in-order selection is fully correct', () => {
+    const r = checkSelectSteps(methodStep, {
+      kind: 'select_steps',
+      selected: ['s1', 's2', 's3', 's4'],
+    });
     expect(r.correct).toBe(true);
+    expect(r.orderCorrect).toBe(true);
     expect(r.marksAwarded).toBe(4);
   });
 
