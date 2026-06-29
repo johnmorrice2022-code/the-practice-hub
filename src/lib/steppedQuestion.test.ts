@@ -263,23 +263,10 @@ describe('buildSelectStepsReveal', () => {
     expect(reveal[3].status).toBe('not_awarded'); // s4 missed
   });
 
-  it('appends wrongly-selected distractors, flagged', () => {
+  it('reveal shows only correct statements, not distractors', () => {
     const r = checkSelectSteps(methodStep, {
       kind: 'select_steps',
       selected: ['s1', 's2', 's3', 's4', 'd1'],
-    });
-    const reveal = buildSelectStepsReveal(methodStep, r);
-    expect(reveal).toHaveLength(5); // 4 correct + 1 wrong pick
-    const wrong = reveal[4];
-    expect(wrong.text).toBe('Measure the mass of the water.');
-    expect(wrong.status).toBe('not_awarded');
-    expect(wrong.wronglySelected).toBe(true);
-  });
-
-  it('does not list distractors the student did not pick', () => {
-    const r = checkSelectSteps(methodStep, {
-      kind: 'select_steps',
-      selected: ['s1', 's2', 's3', 's4'],
     });
     const reveal = buildSelectStepsReveal(methodStep, r);
     expect(reveal).toHaveLength(4);

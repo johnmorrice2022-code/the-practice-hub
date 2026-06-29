@@ -348,9 +348,8 @@ export function buildSelectStepsReveal(
   result: StepCheckResult
 ): SelectRevealEntry[] {
   const hits = new Set(result.hits ?? []);
-  const wrong = new Set(result.wrongPicks ?? []);
 
-  const correct: SelectRevealEntry[] = step.options
+  return step.options
     .filter((o) => o.correct)
     .slice()
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
@@ -358,16 +357,6 @@ export function buildSelectStepsReveal(
       text: o.text,
       status: hits.has(o.id) ? 'awarded' : 'not_awarded',
     }));
-
-  const wrongPicked: SelectRevealEntry[] = step.options
-    .filter((o) => !o.correct && wrong.has(o.id))
-    .map((o) => ({
-      text: o.text,
-      status: 'not_awarded',
-      wronglySelected: true,
-    }));
-
-  return [...correct, ...wrongPicked];
 }
 
 /** The misconception hint for a wrong Direct-mode value, if it matches one. */
