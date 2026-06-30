@@ -26,7 +26,6 @@ import {
   Send,
   MessageCircle,
   Check,
-  ChevronDown,
   Lightbulb,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
@@ -79,23 +78,33 @@ const SUBSCRIBER_JAM_HELP_TURNS = 5;
 // student who isn't ready to articulate a JAM Help question yet.
 function ScaffoldPanel({ scaffold }: { scaffold: ScaffoldData }) {
   return (
-    <div className="mt-3 rounded-lg bg-amber-50 border border-amber-100 p-4 space-y-2">
+    <div className="mt-3 rounded-lg bg-amber-50 border border-amber-100 p-4 space-y-3">
       {scaffold.vocabulary?.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {scaffold.vocabulary.map((v, i) => (
-            <span
-              key={i}
-              className="text-xs font-mono px-2 py-0.5 rounded-md bg-white border border-amber-200 text-amber-800"
-            >
-              {v}
-            </span>
-          ))}
+        <div>
+          <p className="text-xs font-semibold text-amber-800 mb-1.5">
+            Key words you might need:
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {scaffold.vocabulary.map((v, i) => (
+              <span
+                key={i}
+                className="text-xs font-mono px-2 py-0.5 rounded-md bg-white border border-amber-200 text-amber-800"
+              >
+                {v}
+              </span>
+            ))}
+          </div>
         </div>
       )}
       {scaffold.sentence_starter && (
-        <p className="text-sm text-amber-800 italic">
-          "{scaffold.sentence_starter}"
-        </p>
+        <div>
+          <p className="text-xs font-semibold text-amber-800 mb-1">
+            Try completing the following statement:
+          </p>
+          <p className="text-sm text-amber-900 italic">
+            "{scaffold.sentence_starter}"
+          </p>
+        </div>
       )}
     </div>
   );
@@ -1492,66 +1501,65 @@ export function PracticeRoom({
                 {phase === 'answering' &&
                   currentQuestion &&
                   !feedbacks[currentQuestion.id] && (
-                    <div className="mt-4 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <button
-                          onClick={() =>
-                            handleJamHelp(
-                              currentQuestion,
-                              buildAnswerForMarking(currentQuestion),
-                              null
-                            )
-                          }
-                          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-[#E23D28] transition-colors"
-                        >
-                          <MessageCircle size={12} /> JAM Help
-                        </button>
+                    <>
+                      {hasAnswer(currentQuestion) && (
+                        <div className="mt-4 flex justify-end">
+                          <button
+                            onClick={() => markAnswer(currentQuestion.id)}
+                            disabled={!!markingId}
+                            className="flex items-center gap-2 text-xs font-semibold px-4 py-2 rounded-lg transition-all duration-150 disabled:opacity-40 active:scale-[0.97]"
+                            style={{
+                              color: '#fff',
+                              background: 'linear-gradient(135deg, #E23D28 0%, #F5A623 100%)',
+                              boxShadow: '0 2px 10px rgba(226,61,40,0.30)',
+                            }}
+                          >
+                            {markingId === currentQuestion.id ? (
+                              <Loader2 size={12} className="animate-spin" />
+                            ) : (
+                              <Send size={12} />
+                            )}
+                            Mark this question
+                          </button>
+                        </div>
+                      )}
 
-                        {currentQuestion.scaffold && (
+                      {/* Explicit help — discuss the question, or reveal the scaffold.
+                          Mirrors the calc-question "Need a hand?" block exactly. */}
+                      <div className="mt-6 pt-5 border-t border-border/50">
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-2.5">
+                          Need a hand?
+                        </p>
+                        <div className="flex flex-col sm:flex-row gap-2">
                           <button
                             onClick={() =>
-                              setScaffoldOpen((prev) => ({
-                                ...prev,
-                                [currentQuestion.id]: !prev[currentQuestion.id],
-                              }))
+                              handleJamHelp(
+                                currentQuestion,
+                                buildAnswerForMarking(currentQuestion),
+                                null
+                              )
                             }
-                            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-[#E23D28] transition-colors"
+                            className="flex-1 flex items-center justify-center gap-1.5 text-xs font-medium px-4 py-2.5 rounded-lg border border-border text-muted-foreground hover:border-[#E23D28]/40 hover:text-[#E23D28] transition-colors"
                           >
-                            <Lightbulb size={12} />
-                            Need a hand?
-                            <ChevronDown
-                              size={12}
-                              className="transition-transform"
-                              style={{
-                                transform: scaffoldOpen[currentQuestion.id]
-                                  ? 'rotate(180deg)'
-                                  : 'none',
-                              }}
-                            />
+                            <MessageCircle size={14} /> JAM Help — discuss this question
                           </button>
-                        )}
-                      </div>
 
-                      {hasAnswer(currentQuestion) && (
-                        <button
-                          onClick={() => markAnswer(currentQuestion.id)}
-                          disabled={!!markingId}
-                          className="flex items-center gap-2 text-xs font-semibold px-4 py-2 rounded-lg transition-all duration-150 disabled:opacity-40 active:scale-[0.97]"
-                          style={{
-                            color: '#fff',
-                            background: 'linear-gradient(135deg, #E23D28 0%, #F5A623 100%)',
-                            boxShadow: '0 2px 10px rgba(226,61,40,0.30)',
-                          }}
-                        >
-                          {markingId === currentQuestion.id ? (
-                            <Loader2 size={12} className="animate-spin" />
-                          ) : (
-                            <Send size={12} />
+                          {currentQuestion.scaffold && (
+                            <button
+                              onClick={() =>
+                                setScaffoldOpen((prev) => ({
+                                  ...prev,
+                                  [currentQuestion.id]: !prev[currentQuestion.id],
+                                }))
+                              }
+                              className="flex-1 flex items-center justify-center gap-1.5 text-xs font-medium px-4 py-2.5 rounded-lg border border-[#E23D28]/30 text-[#E23D28] hover:bg-[#E23D28]/5 transition-colors"
+                            >
+                              <Lightbulb size={14} /> Need a hand
+                            </button>
                           )}
-                          Mark this question
-                        </button>
-                      )}
-                    </div>
+                        </div>
+                      </div>
+                    </>
                   )}
 
                 {phase === 'answering' &&
