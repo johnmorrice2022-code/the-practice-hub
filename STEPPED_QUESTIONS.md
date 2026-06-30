@@ -6,7 +6,7 @@ coaches and never delivers a verdict.** No function that decides right/wrong cal
 an LLM. Read this before touching `src/lib/steppedQuestion.ts`, `SteppedPlayer`,
 or the Review Queue step editor.
 
-Status: **§1–§7 shipped (Phase 1 complete, 25/06/2026). Player UX revised + validated 25/06/2026 (see §5 — answer-box-first for all, givens inside stepped help). `select_steps` (§6) now has its player checklist + §7 ordered reveal + Review Queue editor. Phase 2 generator (`generate-stepped-questions`) shipped + deployed 25/06/2026.**
+Status: **§1–§8 shipped. Phase 1 complete 25/06/2026; player UX revised + validated 25/06/2026 (see §5 — answer-box-first for all, givens inside stepped help). `select_steps` (§6) has its tap-in-sequence player + two-attempt order grading (28/06/2026) + §7 ordered reveal + Review Queue editor. Phase 2 generator (`generate-stepped-questions`) shipped + deployed 25/06/2026. Scaffold (§8) for ai_freeresponse questions shipped 28/06/2026 — AI marking is now the locked, permanent design for Explain/State/Show/Prove (locked decision #7), not a gap to close.**
 
 ---
 
@@ -118,16 +118,31 @@ the supportive-but-not-hand-holding middle. So:
 - A wrong Direct answer that matches a known distractor value fires that
   distractor's specific hint **deterministically** before unfolding the scaffold.
 
-## 6. select_steps marks (SPEC — locked)
-Partial credit, distractors cost a mark, order ignored:
+## 6. select_steps marks (SPEC — locked, order grading added 28/06/2026)
+Tap-in-sequence UI: tapping a statement numbers it (1, 2, 3…) — the tap order IS
+the student's claimed method order. Distractors are unnumbered until tapped.
+
+**Two attempts (John's call, 28/06/2026):**
+- **Attempt 1** is formative only — submitting shows "X/Y correct" and, if all
+  correct points were selected, whether they're in the right order. No marks
+  awarded. A "Try again" button lets the student adjust their selection/order.
+- **Attempt 2** awards marks:
 
 ```
-awarded = clamp( correctSelected − wrongSelected, 0, maxMarks )
+base    = clamp( correctSelected − wrongSelected, 0, maxMarks )
+awarded = orderCorrect ? base : max(0, base − 1)
 ```
 
-- Selecting some wrong steps still leaves partial marks (doesn't zero out).
-- The distractor penalty stops "select everything" winning full marks.
-- Submitting is the completion action (no per-step advance).
+- `orderCorrect` = the correct statements, taken in the student's tap sequence
+  (distractors ignored), are in ascending canonical `order`. Computed by
+  `checkSelectSteps` → `StepCheckResult.orderCorrect`.
+- Order only costs **1 mark**, not all of them — a student who knows the full
+  method but transposes two steps still passes content.
+- Reason this isn't graded on attempt 1 too: required-practical method order
+  is a genuine AQA mark (a jumbled but complete method loses marks), but
+  jumping straight to a penalty without feedback isn't supportive — the
+  two-attempt model separates "do you know the method?" (formative) from
+  "can you state it in order?" (summative).
 
 ## 7. Workings / feedback reveal (SPEC — locked)
 **Full workings are shown on the mark screen on every path** (Physics rewards
@@ -137,8 +152,10 @@ working; this teaches exam technique even when the answer was right):
   straight from the `steps` (always consistent with the scaffold). An optional
   hand-written `worked_solution` may supplement it.
 - **select_steps:** reveal the correct method points **in `order`**, marking each as
-  the student's hit / missed, and flag any distractors they wrongly picked. So even
-  though order isn't graded, the student always sees the correct ordered method.
+  the student's hit / missed. (28/06/2026: `buildSelectStepsReveal` now returns
+  only the correct statements — distractors are dropped from this reveal, since
+  by the mark screen the marks are settled and showing wrongly-picked distractors
+  added noise without teaching value.)
 
 ---
 
@@ -169,13 +186,50 @@ exam authenticity.
    governs whether givens appear *within the scaffold* (default true).
    *(Revised 25/06/2026 — was "off for Higher, on for Foundation".)*
 3. Full workings shown on the mark screen on every path, assembled from the steps.
-4. `select_steps`: **selection only, order not graded**; **partial marks** via
-   `correctSelected − wrongSelected` clamped to `[0, maxMarks]`; feedback **shows the
-   correct steps in order**.
+4. `select_steps`: tap-in-sequence selection; **content marks** via
+   `correctSelected − wrongSelected` clamped to `[0, maxMarks]`; **two attempts**
+   (attempt 1 formative-only feedback, attempt 2 awards marks); **order now costs
+   1 mark** if the correct statements aren't in canonical sequence (revised
+   28/06/2026 — was "order ignored"; required-practical method order is a genuine
+   AQA mark). Feedback reveal shows only the correct steps in order.
 5. Challenge the able through harder *physics* (rearrangement, multi-equation chains,
    unit conversion, value extraction), not by removing deterministic checks.
 6. Genuine prose ("show that"/"prove that" in Maths, Phase 4) is the one exception —
    scaffold mandatory or self-assessment reveal; not in scope for Physics.
+7. **AI marking stays for Explain/State/Show/Prove `ai_freeresponse` questions —
+   permanently, not a gap to close (decided 28/06/2026).** Writing a constructed
+   response IS the exam skill being tested; reducing it to a `select_steps`
+   checklist would test recognition instead of construction. The supportive
+   addition is the **Scaffold** (§8) — a static "Need a hand?" reveal — not a
+   conversion to deterministic marking.
+
+## 8. Scaffold for ai_freeresponse questions (NEW — 28/06/2026)
+A static, pre-written "Need a hand?" reveal for the student who can't yet write
+the answer unaided AND isn't ready to articulate a JAM Help question. **No AI
+call at render time** — authored at generation time, reviewed before publish,
+same trust model as mark_scheme/worked_solution.
+
+```jsonc
+{ "vocabulary": ["resistance", "current", "potential difference"],
+  "sentence_starter": "The current increases because..." }
+```
+
+- `vocabulary`: 3–5 key terms the answer should use (the building blocks, not
+  the content).
+- `sentence_starter`: one short opener that gets the student writing, stopping
+  *before* any content that would give the marking-point answer away.
+- Lives in a `scaffold` jsonb column on `questions` + `pending_questions`
+  (nullable; migration `20260628120000`), per-question and per-part.
+- `generate-pending-questions` drafts it for every `ai_freeresponse`
+  question/part (explicitly excluded for Physics calc parts, which already
+  have the deterministic stepped scaffold).
+- Review Queue: view panel + JSON edit textarea, carried through edit-audit and
+  publish (both fresh-insert and in-place-conversion branches).
+- `PracticeRoom`: a "Need a hand?" toggle next to JAM Help (only rendered when
+  `scaffold` is set) reveals vocabulary chips + an italic sentence starter.
+  **Single-part questions only so far** — multi-part non-stepped scaffold
+  display is not yet wired into `MultiPartSteppedView` (the data is generated
+  and stored per-part, just not rendered there yet).
 
 ## Live test content (24/06/2026)
 Four `stepped_calculation` rows are published in **Electrical Power and Energy
