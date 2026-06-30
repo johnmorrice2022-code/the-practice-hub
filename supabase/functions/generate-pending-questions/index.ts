@@ -51,12 +51,17 @@ One calculation step per line.
 `;
 
 const SCAFFOLD_FIELD_RULES = `
-SCAFFOLD FIELD — REQUIRED on every question (top-level, and per-part for multi-part):
-Add a "scaffold" field to help a nervous student who can't yet write the answer unaided:
+SCAFFOLD FIELD (top-level, and per-part for multi-part):
+Add a "scaffold" field to help a nervous student who can't yet write the answer unaided AND isn't ready to articulate a JAM Help question:
 "scaffold":{"vocabulary":["term1","term2","term3"],"sentence_starter":"..."}
-- "vocabulary": 3-5 key terms the answer should use (the building blocks, not the answer itself)
-- "sentence_starter": ONE short sentence opener that gets the student writing, stopping before any content that would give the answer away (e.g. "The current increases because..." — never "...because resistance decreases")
-This is scaffolding, not the answer — never include the marking-point content itself in the scaffold.
+
+ONLY add a scaffold when the answer is a CONSTRUCTED SENTENCE (Explain/Describe/Compare/"state and explain" style). Set "scaffold":null when the answer is a single word, name, unit, or short fixed fact with no sentence to build (e.g. "Name the component...", "State the unit of...", any single-value recall) — there is nothing to usefully scaffold there.
+
+When a scaffold IS appropriate:
+- "vocabulary": 3-5 terms that genuinely help build the answer. NEVER just repeat words already in the question text — that adds nothing. Give related concepts/comparison words/terminology the student needs that ISN'T already given.
+- "sentence_starter": ONE short, genuine sentence opener specific to this question (not a generic template that could be pasted onto any question unchanged).
+- **NEVER state, paraphrase, or imply ANY mark scheme criterion — including ones that look like simple observations.** If the question depends on something read off a diagram (e.g. "compare the two waves shown"), do not assume or commit to which value/option is correct — only scaffold the general method, never a specific factual claim about what the diagram shows.
+- If you cannot write a genuine, non-leaking scaffold, use "scaffold":null instead of forcing something generic or risky.
 `;
 
 const FOUNDATION_OUTPUT_FORMAT = `
@@ -338,6 +343,56 @@ async function callClaude(
 }
 
 // ─────────────────────────────────────────────
+// SCAFFOLD LEAK SAFETY NET (mirrors backfill-scaffold)
+// Deterministic check — don't rely on the prompt alone to keep a scaffold's
+// sentence_starter from restating a mark scheme criterion verbatim.
+// ─────────────────────────────────────────────
+
+function normaliseText(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function leaksMarkScheme(sentenceStarter: string, markScheme: any): boolean {
+  const criteria = Array.isArray(markScheme)
+    ? markScheme
+        .map((m: any) => m?.criterion)
+        .filter((c: any) => typeof c === 'string' && c.toLowerCase() !== 'total')
+    : [];
+  const normStarter = normaliseText(sentenceStarter || '');
+  if (!normStarter) return false;
+
+  for (const c of criteria) {
+    const normC = normaliseText(c);
+    if (normC.length < 8) continue;
+    if (normStarter.includes(normC)) return true;
+
+    const words = normC.split(' ');
+    for (let i = 0; i + 4 <= words.length; i++) {
+      const window = words.slice(i, i + 4).join(' ');
+      if (window.length > 10 && normStarter.includes(window)) return true;
+    }
+  }
+  return false;
+}
+
+/** Strips a scaffold to null if it's empty/malformed or leaks a mark scheme criterion. */
+function sanitiseScaffold(scaffold: any, markScheme: any): any {
+  if (!scaffold || typeof scaffold !== 'object') return null;
+  const vocabulary = Array.isArray(scaffold.vocabulary)
+    ? scaffold.vocabulary.filter((v: any) => typeof v === 'string')
+    : [];
+  const sentenceStarter =
+    typeof scaffold.sentence_starter === 'string' ? scaffold.sentence_starter : '';
+  if (vocabulary.length === 0 && !sentenceStarter) return null;
+  if (leaksMarkScheme(sentenceStarter, markScheme)) return null;
+  return { vocabulary, sentence_starter: sentenceStarter };
+}
+
+// ─────────────────────────────────────────────
 // PARSE NDJSON RESPONSE
 // ─────────────────────────────────────────────
 
@@ -534,22 +589,33 @@ serve(async (req) => {
     }
 
     // ── Insert pending questions ──
-    const rows = allQuestions.map((q, i) => ({
-      batch_id: batch.id,
-      subtopic_id: subtopicId,
-      question_text: q.question_text,
-      marks: q.marks,
-      mark_scheme: q.mark_scheme ?? [],
-      worked_solution: q.worked_solution ?? '',
-      scaffold: q.scaffold ?? null,
-      parts: q.parts ?? [],
-      calculator_allowed: q.calculator_allowed ?? null,
-      diagram_component: q.diagram_component ?? null,
-      diagram_params: q.diagram_params ?? null,
-      tier: q.tier ?? null,
-      status: 'pending',
-      prompt_version: promptVersion,
-    }));
+    // Sanitise scaffold (top-level and per-part) before insert — strips it to
+    // null if empty or if it leaks a mark scheme criterion (deterministic
+    // check, doesn't rely on the prompt alone).
+    const rows = allQuestions.map((q, i) => {
+      const parts = Array.isArray(q.parts)
+        ? q.parts.map((p: any) => ({
+            ...p,
+            scaffold: sanitiseScaffold(p.scaffold, p.mark_scheme),
+          }))
+        : [];
+      return {
+        batch_id: batch.id,
+        subtopic_id: subtopicId,
+        question_text: q.question_text,
+        marks: q.marks,
+        mark_scheme: q.mark_scheme ?? [],
+        worked_solution: q.worked_solution ?? '',
+        scaffold: sanitiseScaffold(q.scaffold, q.mark_scheme),
+        parts,
+        calculator_allowed: q.calculator_allowed ?? null,
+        diagram_component: q.diagram_component ?? null,
+        diagram_params: q.diagram_params ?? null,
+        tier: q.tier ?? null,
+        status: 'pending',
+        prompt_version: promptVersion,
+      };
+    });
 
     const { error: insertError } = await supabase
       .from('pending_questions')
