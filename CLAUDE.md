@@ -279,7 +279,7 @@ When the user inserts or taps a chip, an **edit panel renders below the contente
 
 ### All AI functions returning 500 simultaneously
 If `generate-questions`, `mark-answer`, and `jam-help` all fail at the same time, two likely causes:
-1. **Retired model id (happened 16/06/2026).** All five functions hard-code the Claude model id. The previous id `claude-sonnet-4-20250514` was **retired** and the Anthropic API began returning `404 not_found_error: model: …`, surfacing in the UI as a generic "Generation failed". Fixed by bumping all five to **`claude-sonnet-4-6`** (Sonnet 4.6) and redeploying. **The model id lives in 7 places** — `generate-pending-questions`, `generate-questions`, `mark-answer`, `jam-help`, `generate-mark-scheme`, `generate-stepped-questions`, and `convert-legacy-to-stepped` (the last two use a `MODEL` const; the rest search `model: 'claude-`). Keep them in sync; check Anthropic's model-deprecation list when bumping.
+1. **Retired model id (happened 16/06/2026).** All five functions hard-code the Claude model id. The previous id `claude-sonnet-4-20250514` was **retired** and the Anthropic API began returning `404 not_found_error: model: …`, surfacing in the UI as a generic "Generation failed". Fixed by bumping all five to **`claude-sonnet-4-6`** (Sonnet 4.6) and redeploying. **The model id lives in 8 places** — `generate-pending-questions`, `generate-questions`, `mark-answer`, `jam-help`, `generate-mark-scheme`, `generate-stepped-questions`, `convert-legacy-to-stepped`, and `backfill-scaffold` (the last three use a `MODEL` const; the rest search `model: 'claude-`). Keep them in sync; check Anthropic's model-deprecation list when bumping.
 2. **Quota/billing** — check the **Anthropic Console**. All five share the same `ANTHROPIC_API_KEY`.
 
 A code regression in one function would not cause all to fail simultaneously — a shared model id or the shared key would.
@@ -624,6 +624,13 @@ See [SECURITY_AUDIT.md](SECURITY_AUDIT.md) — living checklist of all known sec
 ---
 
 ## Current Priorities (as of 30/06/2026, updated end-of-session 30/06/2026)
+
+### Recently completed (30/06/2026 — Physics question stock cleanup, pre-Maths)
+Before moving on to Phase 4 (Maths), did a full audit + cleanup of the Physics question stock (no live students — standing permission applied):
+- **Bulk-deleted all 362 `pending_questions` rows for Physics** — accumulated unreviewed/stale batches across many sessions (pre-tier-split, pre-scaffold, test runs). Zero loss: nothing in there had been reviewed/published. Pending queue is now 0 across every Physics subtopic.
+- **New `backfill-scaffold` edge function** (`supabase/functions/backfill-scaffold/`, deployed `--no-verify-jwt` — **confirm Verify JWT OFF**) drafts the `scaffold` field for EXISTING, already-published `ai_freeresponse` questions, **without** reopening their question_text/mark_scheme/worked_solution for re-review (additive-only field, updates the live `questions` row directly — no pending-queue review step, since the prompt forbids answer-revealing content by construction, same trust model as the rest of the non-verdict AI surfaces). Single-part questions only (mirrors the Scaffold display gap — multi-part isn't wired into `MultiPartSteppedView` yet). Run across all 9 Physics subtopics: **75/97 single-part free-response questions backfilled, 0 dropped**; the remaining ~22 are multi-part (out of scope for this pass).
+- **Live Physics stock now:** 135 questions — 38 stepped, 75 free-response with scaffold, 22 free-response without (all multi-part), 0 pending backlog. ~17 of the scaffolded free-response questions still "look like" calculations (heuristic: equation/numbers in worked_solution) and are good candidates for John to run through the existing **"Convert calc → stepped"** button per subtopic.
+- This is now a clean baseline to audit "what's shipped" before starting Phase 4 Maths deterministic marking.
 
 ### Recently completed (30/06/2026 — select_steps order grading + Scaffold for ai_freeresponse)
 - **Decision: AI marking stays permanently for Explain/State/Show/Prove questions** (writing IS the exam skill; STEPPED_QUESTIONS.md §8 + locked decision #7). Two supports added instead of converting to deterministic:
