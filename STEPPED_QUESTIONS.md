@@ -220,16 +220,39 @@ same trust model as mark_scheme/worked_solution.
   *before* any content that would give the marking-point answer away.
 - Lives in a `scaffold` jsonb column on `questions` + `pending_questions`
   (nullable; migration `20260628120000`), per-question and per-part.
-- `generate-pending-questions` drafts it for every `ai_freeresponse`
-  question/part (explicitly excluded for Physics calc parts, which already
-  have the deterministic stepped scaffold).
+- `generate-pending-questions` drafts it for `ai_freeresponse` questions/parts
+  (excluded for Physics calc parts, which already have the deterministic
+  stepped scaffold) — **`scaffold` is optional, not required**: pure
+  recall/naming questions ("Name component X", "State the unit of...") get
+  `scaffold: null` since there's no sentence to build.
 - Review Queue: view panel + JSON edit textarea, carried through edit-audit and
   publish (both fresh-insert and in-place-conversion branches).
 - `PracticeRoom`: a "Need a hand?" toggle next to JAM Help (only rendered when
-  `scaffold` is set) reveals vocabulary chips + an italic sentence starter.
+  `scaffold` is set) reveals vocabulary chips ("Key words you might need:")
+  and an italic sentence starter ("Try completing the following statement:").
   **Single-part questions only so far** — multi-part non-stepped scaffold
   display is not yet wired into `MultiPartSteppedView` (the data is generated
   and stored per-part, just not rendered there yet).
+
+**Quality hardening (30/06/2026, after reviewing the first backfill pass found bad output):**
+- **Pure recall gets no scaffold.** "Name component X" / "State the unit of..."
+  questions were getting generic filler ("component, symbol, circuit" — useless,
+  no sentence to construct). The prompt (both `generate-pending-questions` and
+  the one-off `backfill-scaffold`) now has an explicit skip rule for these.
+- **Vocabulary must not restate the question.** Was getting `thermistor,
+  resistance, temperature` for a thermistor-resistance question — the prompt now
+  forbids echoing words already in the question text.
+- **Mark-scheme leak found and fixed.** A diagram-dependent comparison question's
+  sentence_starter restated its first mark scheme criterion **verbatim**
+  ("Wave B has a shorter wavelength than Wave A" — itself a mark). Prompt
+  instructions alone weren't reliable enough, so a **deterministic safety net**
+  (`leaksMarkScheme()` — checks substring containment + 4-word sliding-window
+  overlap against every mark scheme criterion, not just the conclusion) now runs
+  in both edge functions and strips/rejects any leaking scaffold before it can
+  reach a student. A skip/null scaffold is always preferred over a leaking one.
+- Lesson: don't trust an LLM's self-restraint on "don't reveal X" for content it
+  just authored itself — verify deterministically, same principle as the rest of
+  this whole marking system.
 
 ## Live test content (24/06/2026)
 Four `stepped_calculation` rows are published in **Electrical Power and Energy
