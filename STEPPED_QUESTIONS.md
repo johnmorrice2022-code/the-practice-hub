@@ -6,7 +6,7 @@ coaches and never delivers a verdict.** No function that decides right/wrong cal
 an LLM. Read this before touching `src/lib/steppedQuestion.ts`, `SteppedPlayer`,
 or the Review Queue step editor.
 
-Status: **§1–§8 shipped. Phase 1 complete 25/06/2026; player UX revised + validated 25/06/2026 (see §5 — answer-box-first for all, givens inside stepped help). `select_steps` (§6) has its tap-in-sequence player + two-attempt order grading (28/06/2026) + §7 ordered reveal + Review Queue editor. Phase 2 generator (`generate-stepped-questions`) shipped + deployed 25/06/2026. Scaffold (§8) for ai_freeresponse questions shipped 28/06/2026 — AI marking is now the locked, permanent design for Explain/State/Show/Prove (locked decision #7), not a gap to close.**
+Status: **§1–§8 shipped (Physics complete), §9 is planning only (Maths, not started). Phase 1 complete 25/06/2026; player UX revised + validated 25/06/2026 (see §5 — answer-box-first for all, givens inside stepped help). `select_steps` (§6) has its tap-in-sequence player + two-attempt order grading (28/06/2026) + §7 ordered reveal + Review Queue editor. Phase 2 generator (`generate-stepped-questions`) shipped + deployed 25/06/2026. Scaffold (§8) for ai_freeresponse questions shipped 28/06/2026, hardened 30/06/2026 — AI marking is now the locked, permanent design for Explain/State/Show/Prove (decision #7) and for multi-method Maths topics like Circle Theorems (decision #8), not a gap to close. Physics question stock cleaned + validated 30/06/2026 — John is testing extensively before Maths (Phase 4, §9) begins; JAM Help scrutiny is the other pre-Maths priority.**
 
 ---
 
@@ -202,6 +202,11 @@ exam authenticity.
    checklist would test recognition instead of construction. The supportive
    addition is the **Scaffold** (§8) — a static "Need a hand?" reveal — not a
    conversion to deterministic marking.
+8. **Multi-method Maths topics (e.g. Circle Theorems) stay AI-marked by design —
+   same status as #7, decided 30/06/2026.** When a question has more than one
+   genuinely valid solution path (a different theorem chain reaching the same
+   answer), forcing one prescribed deterministic chain would mark a correct
+   alternative method wrong. Full detail: §9.
 
 ## 8. Scaffold for ai_freeresponse questions (NEW — 28/06/2026)
 A static, pre-written "Need a hand?" reveal for the student who can't yet write
@@ -253,6 +258,58 @@ same trust model as mark_scheme/worked_solution.
 - Lesson: don't trust an LLM's self-restraint on "don't reveal X" for content it
   just authored itself — verify deterministically, same principle as the rest of
   this whole marking system.
+
+## 9. Phase 4 — Maths marking strategy (PLANNING ONLY, 30/06/2026 — not started)
+**Not started.** John is spending the next session(s) converting remaining legacy
+Physics calc questions + generating/reviewing fresh batches to validate quality
+before any Maths work begins; JAM Help (still pure prompt-engineered AI coaching,
+no deterministic backstop) is also flagged as needing the same scrutiny just
+applied to Scaffold (§8) before Maths starts. This section records the strategy
+worked out for *when* that work begins, so it isn't re-derived from scratch.
+
+**Why the original plan (blanket `numeric_single`/`numeric_with_working`
+conversion) doesn't fit.** Physics converted cleanly because almost every calc
+question reduces to one shape: pick the equation → substitute → one number.
+Maths (26 active subtopics vs Physics' 9) doesn't have one dominant shape:
+
+| Answer shape | Example subtopics | What's needed |
+|---|---|---|
+| Single number | Percentages, Compound Interest, Direct/Inverse Proportion, Ratio Problems, Solving Linear Equations, parts of Probability | Reuses the existing Physics-style pattern — cheapest, pilot here first |
+| Multiple numbers, order-independent | Simultaneous Equations (x, y), Quadratics (two roots) | `select_steps`'s "pick the right values, order doesn't matter for content" checker maps onto this better than a fresh build |
+| Expression as the answer | ~half of Algebra: Factorising, Expanding, Rearranging Formulae, Algebraic Fractions, Sequences nth term, Completing the Square | **Genuinely new** — an expression-equivalence checker (is `3x(x+2)` the same as `3x²+6x`? is `x(x+5)` accepted but not `1x(x+5)`?). Nothing like this exists yet. The long pole — blocks the single biggest topic. |
+| Multi-method reasoning | Circle Theorems and similar | **Deliberately NOT forced into one deterministic chain** — locked decision #8. Several genuinely different valid theorem chains can reach the same answer; prescribing one path marks a correct alternative wrong. |
+| Genuine prose | "show that"/"prove that" anywhere | Already the locked exception (#6) — its own UX, not a reuse of the Physics scaffold pattern |
+| Explain/Describe | Scattered across topics | Zero new engineering — same AI-marked + Scaffold pattern as Physics §8, just apply it |
+
+**Plan, in order, once started:**
+1. **Universal Scaffold rollout for Maths first.** Same additive, marking-untouched
+   pattern already built and hardened for Physics (§8 — skip pure recall, no
+   question-restating vocabulary, deterministic `leaksMarkScheme()` safety net).
+   Safe to ship ahead of any marking-model decisions since it doesn't change how
+   anything is marked.
+2. **Audit Maths mark schemes for alternative-method coverage.** The
+   `"Method 1: X OR Method 2: Y"` pattern (CLAUDE.md — Seeded question mark
+   scheme format) already exists but needs checking it's actually used
+   everywhere a genuine alternative method exists, especially Circle Theorems.
+   A mark scheme that only encodes one path is the biggest cause of an AI
+   marker unfairly penalising a correct answer.
+3. **Build a marking-quality eval harness for multi-method topics.** Not a
+   deterministic unit test (it's judging prose/reasoning) — a repeatable
+   structured check: a set of question + multiple genuinely-different-but-correct
+   student answers per topic, run through `mark-answer`, scores reviewed by
+   John. Re-run whenever the marking prompt changes. Same spirit as the vitest
+   suite for the deterministic side, human-in-the-loop instead of pass/fail.
+4. **Hybrid model for topics like Circle Theorems.** When a question ends in
+   one number (the angle), check that value deterministically as a backstop
+   even while the reasoning/method marks stay AI-judged — narrows the AI's job
+   to just the part that needs judgment, without forcing one theorem chain.
+5. **Single-number topics convert via existing patterns** — `numeric_single`
+   for answer-only, the existing `stepped_calculation` shape for
+   working-required. Pilot here first to confirm no Maths-specific gotchas
+   before tackling anything harder.
+6. **Expression-equivalence checker is its own dedicated build** — pilot on
+   one clean case (e.g. Factorising Quadratics) before generalising to the
+   rest of Algebra. The genuinely novel piece of engineering in this phase.
 
 ## Live test content (24/06/2026)
 Four `stepped_calculation` rows are published in **Electrical Power and Energy
@@ -396,5 +453,8 @@ reads `worked_solution`, the player checks `answer_model`+`steps`. New subtopics
 get stepped support automatically.
 
 **Next:** `select_steps` *generation* (generator is calc-only; hand-authored RP
-content exists as of 28/06/2026 — see "Live RP questions" above); Phase 4 Edexcel
-Maths `numeric_single` / `numeric_with_working`.
+content exists as of 28/06/2026 — see "Live RP questions" above). Phase 4 Maths
+(§9) is planned but deliberately not started — John is testing Physics
+extensively first (converting remaining legacy calc questions, generating +
+reviewing fresh batches) and JAM Help needs the same scrutiny just applied to
+Scaffold before Maths work begins.
