@@ -33,15 +33,23 @@ function buildPrompt(
     })
     .join('\n\n');
 
-  return `You are authoring a lightweight "Need a hand?" scaffold for EXISTING, already-published AQA GCSE Physics questions — topic "${subtopic.topic}", subtopic "${subtopic.subtopic_name}". These questions are Explain/State/Describe/Compare style and stay AI-marked; the scaffold is a static support panel shown to a student who isn't ready to write the answer unaided, and who isn't ready to articulate a JAM Help question either.
+  return `You are authoring a lightweight "Need a hand?" scaffold for EXISTING, already-published AQA GCSE Physics questions — topic "${subtopic.topic}", subtopic "${subtopic.subtopic_name}". These questions stay AI-marked; the scaffold is a static support panel shown to a student who isn't ready to write the answer unaided, and who isn't ready to articulate a JAM Help question either.
 
-For each question below, output ONE line of JSON:
+STEP 1 — DECIDE IF THIS QUESTION CAN BE USEFULLY SCAFFOLDED AT ALL.
+A scaffold only helps when the answer is a CONSTRUCTED SENTENCE (Explain / Describe / Compare / "state two reasons" / "state and explain" style). It does NOT help when the answer is a single word, a name, or a short fixed fact with no sentence to build — for these, output {"index":<N>,"skip":true}. Examples that MUST be skipped:
+- "Name component X" / "Name the component that..." (the answer is just a component name — there is nothing to scaffold; the question may even reference a diagram you cannot see)
+- "State the unit of..." (the answer is a unit symbol/name)
+- Any other single-word, single-number, or single-symbol recall answer
+
+STEP 2 — FOR QUESTIONS THAT PASS STEP 1, output ONE line of JSON:
 {"index":<N>,"vocabulary":["term1","term2","term3"],"sentence_starter":"..."}
 
-RULES:
-- "vocabulary": 3-5 key terms the answer should use — the building blocks of the answer, NEVER the answer's content or conclusion.
-- "sentence_starter": ONE short sentence opener that gets the student writing, stopping BEFORE any content that would give a marking-point away. Example: "The current increases because..." is fine; "...because resistance decreases" is NOT (that IS the answer).
-- This is scaffolding, not the answer. If you cannot write a sentence_starter without giving away the answer, make it more generic (e.g. "I think this happens because...").
+RULES (strict — low-quality or leaking scaffolds get rejected and re-run):
+- "vocabulary": 3-5 terms that genuinely help build the answer. NEVER just repeat words that already appear in the question text — that adds nothing. Think: what related concept, comparison word, or piece of terminology does the student need that ISN'T already given to them? (e.g. for a question about how a thermistor's resistance changes with temperature, useless vocabulary is "thermistor, resistance, temperature" — those are already in the question. Useful vocabulary is something like "directly proportional, inversely proportional, charge carriers".)
+- "sentence_starter": ONE short, GENUINE sentence opener — it must read like the natural first words of a real answer, not a generic template. Banned patterns: "Looking at X, I think it is...", "I think this happens because...", or anything that could be pasted onto ANY question unchanged. The starter should be specific enough that swapping in a different question would make it nonsensical. Stop BEFORE any content that would give a marking-point away.
+- **NEVER state, paraphrase, or imply the content of ANY mark scheme criterion shown above — not just the final/concluding one. EVERY criterion is off-limits, including ones that look like simple observations** (e.g. if a criterion says "Wave B has a shorter wavelength than Wave A", do not write a sentence_starter that states or assumes this — it is itself a mark, not background context).
+- **If the question or its mark scheme depends on something the student must read off a diagram you cannot see** (e.g. "compare the two waves shown", "using the graph...", "from the diagram, state..."), do NOT guess, assume, or commit to which option/value/wave is correct. Only scaffold the GENERAL method or relationship the student needs (e.g. the wave equation $v = f\\lambda$, or "compare the two patterns by counting squares/measuring distances") — never a specific factual claim about what the diagram shows.
+- If you cannot satisfy every rule above with genuine, question-specific, non-leaking content, output {"index":<N>,"skip":true} instead of forcing something generic or risky. A skip is always better than a leak.
 - Output one JSON object per line (NDJSON), no wrapping array, no markdown, no preamble. Cover every question index ${batch[0].index} to ${batch[batch.length - 1].index}.
 
 QUESTIONS:
@@ -68,7 +76,7 @@ async function callClaude(systemPrompt: string): Promise<string> {
         {
           role: 'user',
           content:
-            'Draft the scaffolds now. One JSON object per line, every index covered, no answer-revealing content.',
+            'Draft the scaffolds now. One JSON object per line, every index covered. Skip pure recall/naming questions and any question where you cannot write genuine, question-specific vocabulary and a sentence starter — a skip is better than generic filler.',
         },
       ],
     }),
@@ -85,6 +93,40 @@ function chunk<T>(arr: T[], size: number): T[][] {
   const out: T[][] = [];
   for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
   return out;
+}
+
+function normalise(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// Deterministic safety net — don't rely on the model alone to avoid leaking a
+// mark scheme criterion into the sentence starter. Flags a direct containment
+// match, or a 4+ consecutive-word overlap (catches near-verbatim restatement).
+function leaksMarkScheme(sentenceStarter: string, markScheme: any): boolean {
+  const criteria = Array.isArray(markScheme)
+    ? markScheme
+        .map((m: any) => m?.criterion)
+        .filter((c: any) => typeof c === 'string' && c.toLowerCase() !== 'total')
+    : [];
+  const normStarter = normalise(sentenceStarter);
+  if (!normStarter) return false;
+
+  for (const c of criteria) {
+    const normC = normalise(c);
+    if (normC.length < 8) continue;
+    if (normStarter.includes(normC)) return true;
+
+    const words = normC.split(' ');
+    for (let i = 0; i + 4 <= words.length; i++) {
+      const window = words.slice(i, i + 4).join(' ');
+      if (window.length > 10 && normStarter.includes(window)) return true;
+    }
+  }
+  return false;
 }
 
 serve(async (req) => {
@@ -131,6 +173,7 @@ serve(async (req) => {
     const byIndex = new Map(indexed.map((q: any) => [q.index, q]));
 
     let updated = 0;
+    let skipped = 0;
     const dropped: string[] = [];
 
     for (const group of chunk(indexed, 10)) {
@@ -148,6 +191,11 @@ serve(async (req) => {
         const orig: any = byIndex.get(parsed.index);
         if (!orig) continue;
 
+        if (parsed.skip) {
+          skipped += 1;
+          continue;
+        }
+
         const vocabulary = Array.isArray(parsed.vocabulary)
           ? parsed.vocabulary.filter((v: any) => typeof v === 'string')
           : [];
@@ -156,6 +204,13 @@ serve(async (req) => {
 
         if (vocabulary.length === 0 && !sentenceStarter) {
           dropped.push(`"${(orig.question_text || '').slice(0, 40)}…": empty scaffold`);
+          continue;
+        }
+
+        if (leaksMarkScheme(sentenceStarter, orig.mark_scheme)) {
+          dropped.push(
+            `"${(orig.question_text || '').slice(0, 40)}…": sentence_starter leaks a mark scheme criterion — "${sentenceStarter}"`
+          );
           continue;
         }
 
@@ -177,6 +232,7 @@ serve(async (req) => {
       JSON.stringify({
         candidates: candidates.length,
         updated,
+        skipped,
         dropped: dropped.length,
         droppedReasons: dropped,
       }),
