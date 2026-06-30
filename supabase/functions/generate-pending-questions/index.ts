@@ -50,27 +50,36 @@ Write each step on a separate line using \\n between steps.
 One calculation step per line.
 `;
 
+const SCAFFOLD_FIELD_RULES = `
+SCAFFOLD FIELD — REQUIRED on every question (top-level, and per-part for multi-part):
+Add a "scaffold" field to help a nervous student who can't yet write the answer unaided:
+"scaffold":{"vocabulary":["term1","term2","term3"],"sentence_starter":"..."}
+- "vocabulary": 3-5 key terms the answer should use (the building blocks, not the answer itself)
+- "sentence_starter": ONE short sentence opener that gets the student writing, stopping before any content that would give the answer away (e.g. "The current increases because..." — never "...because resistance decreases")
+This is scaffolding, not the answer — never include the marking-point content itself in the scaffold.
+`;
+
 const FOUNDATION_OUTPUT_FORMAT = `
 OUTPUT FORMAT — CRITICAL:
 Output exactly {COUNT} JSON objects, one per line, no wrapping array, no markdown, no preamble.
 
 Each JSON object must follow this exact structure:
-{"question_text":"...","marks":2,"parts":[],"mark_scheme":[{"mark_type":"M","criterion":"...","marks":1},{"mark_type":"A","criterion":"...","marks":1},{"mark_type":"TOTAL","criterion":"TOTAL","marks":2}],"worked_solution":"..."}
+{"question_text":"...","marks":2,"parts":[],"mark_scheme":[{"mark_type":"M","criterion":"...","marks":1},{"mark_type":"A","criterion":"...","marks":1},{"mark_type":"TOTAL","criterion":"TOTAL","marks":2}],"worked_solution":"...","scaffold":{"vocabulary":["..."],"sentence_starter":"..."}}
 
 For multi-part questions:
-{"question_text":"shared stem only","marks":5,"parts":[{"part_label":"a","part_text":"...","marks":2,"mark_scheme":[...],"worked_solution":"..."},{"part_label":"b","part_text":"...","marks":3,"mark_scheme":[...],"worked_solution":"..."}],"mark_scheme":[],"worked_solution":""}
-`;
+{"question_text":"shared stem only","marks":5,"parts":[{"part_label":"a","part_text":"...","marks":2,"mark_scheme":[...],"worked_solution":"...","scaffold":{"vocabulary":["..."],"sentence_starter":"..."}},{"part_label":"b","part_text":"...","marks":3,"mark_scheme":[...],"worked_solution":"...","scaffold":{"vocabulary":["..."],"sentence_starter":"..."}}],"mark_scheme":[],"worked_solution":""}
+${SCAFFOLD_FIELD_RULES}`;
 
 const HIGHER_OUTPUT_FORMAT = `
 OUTPUT FORMAT — CRITICAL:
 Output exactly {COUNT} JSON objects, one per line, no wrapping array, no markdown, no preamble.
 
 Each JSON object must follow this exact structure:
-{"question_text":"...","marks":2,"parts":[],"mark_scheme":[{"mark_type":"M","criterion":"...","marks":1},{"mark_type":"A","criterion":"...","marks":1},{"mark_type":"TOTAL","criterion":"TOTAL","marks":2}],"worked_solution":"..."}
+{"question_text":"...","marks":2,"parts":[],"mark_scheme":[{"mark_type":"M","criterion":"...","marks":1},{"mark_type":"A","criterion":"...","marks":1},{"mark_type":"TOTAL","criterion":"TOTAL","marks":2}],"worked_solution":"...","scaffold":{"vocabulary":["..."],"sentence_starter":"..."}}
 
 For multi-part questions:
-{"question_text":"shared stem only","marks":5,"parts":[{"part_label":"a","part_text":"...","marks":2,"mark_scheme":[...],"worked_solution":"..."},{"part_label":"b","part_text":"...","marks":3,"mark_scheme":[...],"worked_solution":"..."}],"mark_scheme":[],"worked_solution":""}
-
+{"question_text":"shared stem only","marks":5,"parts":[{"part_label":"a","part_text":"...","marks":2,"mark_scheme":[...],"worked_solution":"...","scaffold":{"vocabulary":["..."],"sentence_starter":"..."}},{"part_label":"b","part_text":"...","marks":3,"mark_scheme":[...],"worked_solution":"...","scaffold":{"vocabulary":["..."],"sentence_starter":"..."}}],"mark_scheme":[],"worked_solution":""}
+${SCAFFOLD_FIELD_RULES}
 OPTIONAL DIAGRAM FIELDS:
 For a quadratic inequality question whose worked solution uses the sketch-the-curve method, add two extra top-level fields so the platform can render the sketch alongside the worked solution:
 "diagram_component":"quadratic-inequality-graph","diagram_params":{"roots":[r1,r2],"a":1,"inequality":"<"}
@@ -85,10 +94,12 @@ OUTPUT FORMAT — CRITICAL:
 Output exactly {COUNT} JSON objects, one per line, no wrapping array, no markdown, no preamble.
 
 Each JSON object must follow this exact structure:
-{"question_text":"...","marks":2,"parts":[],"mark_scheme":[{"mark_type":"step","criterion":"...","marks":1},{"mark_type":"step","criterion":"...","marks":1},{"mark_type":"step","criterion":"TOTAL","marks":2}],"worked_solution":"..."}
+{"question_text":"...","marks":2,"parts":[],"mark_scheme":[{"mark_type":"step","criterion":"...","marks":1},{"mark_type":"step","criterion":"...","marks":1},{"mark_type":"step","criterion":"TOTAL","marks":2}],"worked_solution":"...","scaffold":{"vocabulary":["..."],"sentence_starter":"..."}}
 
 For multi-part questions:
-{"question_text":"shared stem only","marks":5,"parts":[{"part_label":"a","part_text":"...","marks":2,"mark_scheme":[...],"worked_solution":"..."},{"part_label":"b","part_text":"...","marks":3,"mark_scheme":[...],"worked_solution":"..."}],"mark_scheme":[],"worked_solution":""}
+{"question_text":"shared stem only","marks":5,"parts":[{"part_label":"a","part_text":"...","marks":2,"mark_scheme":[...],"worked_solution":"...","scaffold":{"vocabulary":["..."],"sentence_starter":"..."}},{"part_label":"b","part_text":"...","marks":3,"mark_scheme":[...],"worked_solution":"...","scaffold":{"vocabulary":["..."],"sentence_starter":"..."}}],"mark_scheme":[],"worked_solution":""}
+${SCAFFOLD_FIELD_RULES}
+NOTE: only add "scaffold" to a part/question that is a written Explain/State/Describe response — calculations use the deterministic stepped scaffold instead and should NOT carry this field.
 `;
 
 // ─────────────────────────────────────────────
@@ -530,6 +541,7 @@ serve(async (req) => {
       marks: q.marks,
       mark_scheme: q.mark_scheme ?? [],
       worked_solution: q.worked_solution ?? '',
+      scaffold: q.scaffold ?? null,
       parts: q.parts ?? [],
       calculator_allowed: q.calculator_allowed ?? null,
       diagram_component: q.diagram_component ?? null,

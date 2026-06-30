@@ -86,12 +86,18 @@ interface SubtopicWithCounts extends Subtopic {
   liveAi: number;
 }
 
+interface ScaffoldData {
+  vocabulary: string[];
+  sentence_starter: string;
+}
+
 interface PendingQuestion {
   id: string;
   question_text: string;
   marks: number;
   mark_scheme: any[];
   worked_solution: string;
+  scaffold: ScaffoldData | null;
   parts: any[];
   calculator_allowed: boolean | null;
   status: string;
@@ -1425,6 +1431,7 @@ export default function AdminReviewQueue() {
           question_text: currentQuestion?.question_text ?? '',
           worked_solution: currentQuestion?.worked_solution ?? '',
           mark_scheme: currentQuestion?.mark_scheme ?? [],
+          scaffold: currentQuestion?.scaffold ?? null,
           answer_model: currentQuestion?.answer_model ?? 'ai_freeresponse',
           steps: currentQuestion?.steps ?? null,
         });
@@ -1471,6 +1478,7 @@ export default function AdminReviewQueue() {
           parts: q.parts ?? [],
           mark_scheme: q.mark_scheme ?? [],
           worked_solution: q.worked_solution ?? '',
+          scaffold: q.scaffold ?? null,
           tier: q.tier ?? null,
         })
         .eq('id', q.source_question_id);
@@ -1487,6 +1495,7 @@ export default function AdminReviewQueue() {
         marks: q.marks,
         mark_scheme: q.mark_scheme ?? [],
         worked_solution: q.worked_solution ?? '',
+        scaffold: q.scaffold ?? null,
         parts: q.parts ?? [],
         calculator_allowed: q.calculator_allowed,
         diagram_component: q.diagram_component ?? null,
@@ -1924,6 +1933,36 @@ export default function AdminReviewQueue() {
                       }}
                     />
                   </div>
+                  <div>
+                    <label className="text-xs text-gray-500 mb-1 block">
+                      Scaffold (JSON) — "Need a hand?" panel for nervous students.
+                      {' '}{`{"vocabulary":["term1","term2"],"sentence_starter":"..."}`}
+                    </label>
+                    <textarea
+                      className="w-full border border-gray-200 rounded-lg p-3 text-sm font-mono resize-y"
+                      rows={3}
+                      value={
+                        typeof editFields.scaffold === 'string'
+                          ? editFields.scaffold
+                          : JSON.stringify(editFields.scaffold ?? null, null, 2)
+                      }
+                      onChange={(e) => {
+                        try {
+                          setEditFields({
+                            ...editFields,
+                            scaffold: e.target.value.trim()
+                              ? JSON.parse(e.target.value)
+                              : null,
+                          });
+                        } catch {
+                          setEditFields({
+                            ...editFields,
+                            scaffold: e.target.value as any,
+                          });
+                        }
+                      }}
+                    />
+                  </div>
                 </>
               )}
             </div>
@@ -2163,6 +2202,57 @@ export default function AdminReviewQueue() {
             );
           })()}
 
+          {!editMode &&
+            currentQuestion.answer_model !== 'stepped_calculation' &&
+            (() => {
+            const hasTopLevel = !!currentQuestion.scaffold;
+            const partsWithScaffold = (currentQuestion.parts ?? []).filter(
+              (p: any) => p.scaffold
+            );
+            if (!hasTopLevel && partsWithScaffold.length === 0) return null;
+
+            const ScaffoldBlock = ({ s }: { s: ScaffoldData }) => (
+              <div className="space-y-2">
+                {s.vocabulary?.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {s.vocabulary.map((v, i) => (
+                      <span
+                        key={i}
+                        className="text-xs font-mono px-2 py-0.5 rounded-md bg-gray-100 text-gray-600"
+                      >
+                        {v}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {s.sentence_starter && (
+                  <p className="text-sm text-gray-700 italic">
+                    "{s.sentence_starter}"
+                  </p>
+                )}
+              </div>
+            );
+
+            return (
+              <div className="bg-white/70 rounded-xl border border-black/5 p-5 space-y-3">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 mb-1">
+                  Scaffold (Need a hand? panel)
+                </p>
+                {hasTopLevel && (
+                  <ScaffoldBlock s={currentQuestion.scaffold as ScaffoldData} />
+                )}
+                {partsWithScaffold.map((part: any) => (
+                  <div key={part.part_label}>
+                    <p className="text-[11px] font-semibold text-gray-500 mb-1">
+                      Part ({part.part_label})
+                    </p>
+                    <ScaffoldBlock s={part.scaffold} />
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+
           {showRejectInput && (
             <div className="bg-red-50 rounded-xl border border-red-100 p-4 space-y-3">
               <p className="text-xs text-red-600 font-medium">
@@ -2269,6 +2359,7 @@ export default function AdminReviewQueue() {
                       question_text: currentQuestion.question_text,
                       worked_solution: currentQuestion.worked_solution,
                       mark_scheme: currentQuestion.mark_scheme,
+                      scaffold: currentQuestion.scaffold ?? null,
                       answer_model:
                         currentQuestion.answer_model ?? 'ai_freeresponse',
                       steps: currentQuestion.steps ?? null,

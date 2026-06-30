@@ -26,16 +26,23 @@ import {
   Send,
   MessageCircle,
   Check,
+  ChevronDown,
+  Lightbulb,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 
+interface ScaffoldData {
+  vocabulary: string[];
+  sentence_starter: string;
+}
 interface QuestionPart {
   part_label: string;
   part_text: string;
   marks: number;
   mark_scheme?: any[];
   worked_solution?: string;
+  scaffold?: ScaffoldData | null;
   answer_model?: string;
   steps?: SteppedQuestion | null;
 }
@@ -47,6 +54,7 @@ interface Question {
   parts: QuestionPart[];
   mark_scheme: unknown;
   worked_solution: string;
+  scaffold?: ScaffoldData | null;
   diagram_type?: string | null;
   diagram_params?: Record<string, unknown> | null;
   diagram_url?: string | null;
@@ -64,6 +72,34 @@ const CARD_SHADOW = '0 2px 6px rgba(0,0,0,0.06), 0 6px 20px rgba(0,0,0,0.08)';
 const FREE_QUESTION_LIMIT = 10;
 const FREE_JAM_HELP_TURNS = 2;
 const SUBSCRIBER_JAM_HELP_TURNS = 5;
+
+// Static "Need a hand?" reveal for ai_freeresponse questions (Explain/State/
+// Show/Prove) — vocabulary + a sentence starter only, no marking-point content.
+// No AI call: this is pre-written content reviewed before publish, for the
+// student who isn't ready to articulate a JAM Help question yet.
+function ScaffoldPanel({ scaffold }: { scaffold: ScaffoldData }) {
+  return (
+    <div className="mt-3 rounded-lg bg-amber-50 border border-amber-100 p-4 space-y-2">
+      {scaffold.vocabulary?.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {scaffold.vocabulary.map((v, i) => (
+            <span
+              key={i}
+              className="text-xs font-mono px-2 py-0.5 rounded-md bg-white border border-amber-200 text-amber-800"
+            >
+              {v}
+            </span>
+          ))}
+        </div>
+      )}
+      {scaffold.sentence_starter && (
+        <p className="text-sm text-amber-800 italic">
+          "{scaffold.sentence_starter}"
+        </p>
+      )}
+    </div>
+  );
+}
 
 function SessionProgress({
   questions,
@@ -369,6 +405,11 @@ export function PracticeRoom({
   const [markingGuidance, setMarkingGuidance] = useState<string | null>(null);
   const sessionStartTime = useRef<number | null>(null);
 
+  // Which question/part scaffold panels are open — keyed by questionId, or
+  // `${questionId}:${partLabel}` for multi-part. Resets implicitly per session
+  // since the component remounts on session change.
+  const [scaffoldOpen, setScaffoldOpen] = useState<Record<string, boolean>>({});
+
   const [jamHelpOpen, setJamHelpOpen] = useState(false);
   const [jamHelpQuestion, setJamHelpQuestion] = useState<Question | null>(null);
   const [jamHelpAnswer, setJamHelpAnswer] = useState<string>('');
@@ -433,7 +474,7 @@ export function PracticeRoom({
         supabase
           .from('questions')
           .select(
-            'id, question_text, marks, mark_scheme, worked_solution, parts, calculator_allowed, diagram_component, diagram_params, answer_model, steps, tier'
+            'id, question_text, marks, mark_scheme, worked_solution, scaffold, parts, calculator_allowed, diagram_component, diagram_params, answer_model, steps, tier'
           )
           .eq('subtopic_id', config.subtopicId),
         supabase
@@ -1452,18 +1493,44 @@ export function PracticeRoom({
                   currentQuestion &&
                   !feedbacks[currentQuestion.id] && (
                     <div className="mt-4 flex items-center justify-between">
-                      <button
-                        onClick={() =>
-                          handleJamHelp(
-                            currentQuestion,
-                            buildAnswerForMarking(currentQuestion),
-                            null
-                          )
-                        }
-                        className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-[#E23D28] transition-colors"
-                      >
-                        <MessageCircle size={12} /> JAM Help
-                      </button>
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() =>
+                            handleJamHelp(
+                              currentQuestion,
+                              buildAnswerForMarking(currentQuestion),
+                              null
+                            )
+                          }
+                          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-[#E23D28] transition-colors"
+                        >
+                          <MessageCircle size={12} /> JAM Help
+                        </button>
+
+                        {currentQuestion.scaffold && (
+                          <button
+                            onClick={() =>
+                              setScaffoldOpen((prev) => ({
+                                ...prev,
+                                [currentQuestion.id]: !prev[currentQuestion.id],
+                              }))
+                            }
+                            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-[#E23D28] transition-colors"
+                          >
+                            <Lightbulb size={12} />
+                            Need a hand?
+                            <ChevronDown
+                              size={12}
+                              className="transition-transform"
+                              style={{
+                                transform: scaffoldOpen[currentQuestion.id]
+                                  ? 'rotate(180deg)'
+                                  : 'none',
+                              }}
+                            />
+                          </button>
+                        )}
+                      </div>
 
                       {hasAnswer(currentQuestion) && (
                         <button
@@ -1485,6 +1552,14 @@ export function PracticeRoom({
                         </button>
                       )}
                     </div>
+                  )}
+
+                {phase === 'answering' &&
+                  currentQuestion &&
+                  !feedbacks[currentQuestion.id] &&
+                  currentQuestion.scaffold &&
+                  scaffoldOpen[currentQuestion.id] && (
+                    <ScaffoldPanel scaffold={currentQuestion.scaffold} />
                   )}
 
                 {phase === 'answering' &&
